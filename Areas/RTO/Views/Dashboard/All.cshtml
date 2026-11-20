@@ -1,0 +1,28 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "All dashboards";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Executive intelligence / reporting periods</div>
+        <h1>All dashboards</h1>
+        <p>Choose the reporting lens that matches the decision in front of you.</p>
+    </div>
+    <a class="button ghost" asp-action="Index">← Back to dashboard</a>
+</div>
+
+<div class="trace-grid">
+    @foreach (var period in new[] { "Executive", "Daily", "Weekly", "Monthly", "Fiscal Year", "Lifetime" })
+    {
+        <a class="card trace-card" asp-action="Index" asp-route-period="@period">
+            <div class="eyebrow">Dashboard / @period</div>
+            <h3 style="margin-top:16px; font-size:1.35rem;">
+                @period view <span style="float:right; color:var(--blue-600);">↗</span>
+            </h3>
+            <p class="muted" style="font-size:.8rem;">
+                Open the KPI and traceability view for this reporting period.
+            </p>
+        </a>
+    }
+</div>

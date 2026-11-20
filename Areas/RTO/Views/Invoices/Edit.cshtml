@@ -1,0 +1,447 @@
+@model InvoiceFormViewModel
+
+@{
+
+    ViewData["Title"] = $"Edit invoice {Model.InvoiceNo}";
+
+    ViewData["BodyClass"] = "form-background-container";
+
+    var currentBranch = Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG";
+
+}
+
+
+
+<div class="glass-wrapper">
+
+<div class="page-heading">
+
+    <div>
+
+        <div class="eyebrow">Procurement / edit invoice</div>
+
+        <h1>Edit invoice @Model.InvoiceNo</h1>
+
+        <p>Update invoice procurement details, adjust unit economics, and refresh linked inventory financials.</p>
+
+    </div>
+
+    <a class="btn-back" asp-action="Index">
+
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+
+        Back to invoices
+
+    </a>
+
+</div>
+
+
+
+<div class="card form-card" style="margin: 0 auto;">
+
+    @{
+
+        var linkedCount = (int)(ViewBag.LinkedDevicesCount ?? 0);
+
+    }
+
+    @if (linkedCount > 0)
+
+    {
+
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding: 14px 18px; background: rgba(59, 130, 246, 0.08); border-left: 4px solid var(--blue-600); border-radius: 8px;">
+
+            <svg width="20" height="20" fill="none" stroke="var(--blue-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="flex-shrink: 0;">
+
+                <circle cx="12" cy="12" r="10"></circle>
+
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+
+            </svg>
+
+            <div style="font-size: 0.88rem; color: var(--text-main); line-height: 1.45;">
+
+                <strong>@linkedCount device(s)</strong> currently linked to this invoice in inventory. Updating rate, quantity, or extra charges will automatically recompute the loaded unit cost and refresh transaction profits.
+
+            </div>
+
+        </div>
+
+    }
+
+
+
+    <form id="edit-invoice-form" asp-action="Edit" method="post">
+
+        <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+        <input type="hidden" asp-for="Id" />
+
+
+
+        <div class="form-grid">
+
+            <div class="field">
+
+                <label asp-for="Date" class="form-label">Invoice date</label>
+
+                <input asp-for="Date" class="input" type="date" required />
+
+                <span asp-validation-for="Date" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="DeviceType" class="form-label">Device type</label>
+
+                @if (currentBranch == "RTO") {
+
+                    <input asp-for="DeviceType" class="input" value="Bharat101" readonly style="background: #f1f5f9; color: var(--muted); pointer-events: none;" />
+
+                } else {
+
+                    <select asp-for="DeviceType" class="select">
+
+                        <option value="None">None</option>
+
+                        <option value="Teltonica">Teltonica</option>
+
+                        <option value="WeTrack">WeTrack</option>
+
+                        <option value="Bharat101">Bharat101</option>
+
+                        <option value="GPS">GPS</option>
+
+                    </select>
+
+                }
+
+                <span asp-validation-for="DeviceType" class="validation-summary-errors"></span>
+
+            </div>
+
+
+
+            <div class="field">
+
+                <label asp-for="NetworkOperator" class="form-label">Network operator</label>
+
+                <select asp-for="NetworkOperator" class="select">
+                    <option value="Taisys (MYGTS)">Taisys (MYGTS)</option>
+                    <option value="Sensorise">Sensorise</option>
+                </select>
+
+                <span asp-validation-for="NetworkOperator" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="InvoiceNo" class="form-label">Invoice number</label>
+
+                <input asp-for="InvoiceNo" class="input" placeholder="e.g. INV-12345" required />
+
+                <span asp-validation-for="InvoiceNo" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="Quantity" class="form-label">Quantity</label>
+
+                <input asp-for="Quantity" class="input" type="number" min="1" step="1" data-invoice-quantity placeholder="e.g. 50" required />
+
+                <span asp-validation-for="Quantity" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="Rate" class="form-label">Rate per device (₹)</label>
+
+                <input asp-for="Rate" class="input" type="number" min="0" step="0.01" data-invoice-rate placeholder="e.g. 1500.00" />
+
+                <span asp-validation-for="Rate" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="CourierCharges" class="form-label">Extra charges (₹)</label>
+
+                <input asp-for="CourierCharges" class="input" type="number" min="0" step="0.01" data-invoice-courier placeholder="e.g. 200.00" />
+
+                <span asp-validation-for="CourierCharges" class="validation-summary-errors"></span>
+
+            </div>
+
+
+
+            <div class="field">
+
+                <label asp-for="PanicButtonQuantity" class="form-label">Panic button quantity</label>
+
+                <input asp-for="PanicButtonQuantity" class="input" type="number" min="0" step="1" data-panic-quantity readonly style="background: #f1f5f9; color: var(--muted); cursor: not-allowed;" />
+
+                <span asp-validation-for="PanicButtonQuantity" class="validation-summary-errors"></span>
+
+                <small style="color: var(--muted); font-size: 0.78rem; display: block; margin-top: 4px;">Matches device quantity</small>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="PanicButtonCost" class="form-label">Panic button cost (₹)</label>
+
+                <input asp-for="PanicButtonCost" class="input" type="number" min="0" step="0.01" data-panic-cost placeholder="e.g. 250.00" />
+
+                <span asp-validation-for="PanicButtonCost" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label class="form-label">Panic button total</label>
+
+                <input class="input" type="text" data-panic-total-input readonly style="background: #f1f5f9; color: var(--muted); pointer-events: none;" value="₹0.00" />
+
+            </div>
+
+
+
+            <div class="field full">
+
+                <label asp-for="Notes" class="form-label">Notes</label>
+
+                <textarea asp-for="Notes" class="textarea" placeholder="e.g. Procurement notes, invoice revision details..."></textarea>
+
+                <span asp-validation-for="Notes" class="validation-summary-errors"></span>
+
+            </div>
+
+        </div>
+
+        
+
+        <div class="trace-grid" style="margin-top: 24px;">
+
+            <div class="card" style="padding: 16px;">
+
+                <span class="eyebrow">Base amount</span>
+
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-amount>₹0.00</strong>
+
+            </div>
+
+            
+
+            <div class="card" style="padding: 16px;">
+
+                <span class="eyebrow">Round Off</span>
+
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-roundoff>₹0.00</strong>
+
+            </div>
+
+
+
+            <div class="card" style="padding: 16px;">
+
+                <span class="eyebrow">Loaded total (18% Tax)</span>
+
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-total>₹0.00</strong>
+
+            </div>
+
+            
+
+            <div class="card" style="padding: 16px;">
+
+                <span class="eyebrow">Cost / device</span>
+
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-per-device>₹0.00</strong>
+
+            </div>
+
+        </div>
+
+        
+
+        <div class="permission-note" style="margin-top: 18px;">
+
+            Loaded total applies an 18% tax calculation on base costs and includes courier/extra charges. Cost per device is calculated as (Loaded total ÷ Quantity).
+
+        </div>
+
+        
+
+        <div class="form-actions">
+
+            <a class="button ghost" asp-action="Index">Cancel</a>
+
+            <button class="button btn-primary" type="submit">Save changes</button>
+
+        </div>
+
+    </form>
+
+</div>
+
+</div>
+
+
+
+@section Scripts {
+
+    <script>
+
+        function calculateTotals() {
+
+            const form = document.getElementById('edit-invoice-form');
+
+            if (!form) return;
+
+            
+
+            const qtyInput = form.querySelector('[data-invoice-quantity]');
+
+            const rateInput = form.querySelector('[data-invoice-rate]');
+
+            const extraInput = form.querySelector('[data-invoice-courier]');
+
+            const pQtyInput = form.querySelector('[data-panic-quantity]');
+
+            const pCostInput = form.querySelector('[data-panic-cost]');
+
+            
+
+            const amountDisplay = form.querySelector('[data-invoice-amount]');
+
+            const totalDisplay = form.querySelector('[data-invoice-total]');
+
+            const perDeviceDisplay = form.querySelector('[data-invoice-per-device]');
+
+            const panicTotalInput = form.querySelector('[data-panic-total-input]');
+
+            const roundOffDisplay = form.querySelector('[data-invoice-roundoff]');
+
+            
+
+            const qty = parseFloat(qtyInput?.value) || 0;
+
+            const rate = parseFloat(rateInput?.value) || 0;
+
+            const extra = parseFloat(extraInput?.value) || 0;
+
+            const pQty = parseFloat(pQtyInput?.value) || 0;
+
+            const pCost = parseFloat(pCostInput?.value) || 0;
+
+            
+
+            const pTotal = pQty * pCost;
+
+            const amount = (qty * rate) + pTotal + extra;
+
+            const exactTotal = amount * 1.18;
+
+            const total = Math.round(exactTotal);
+
+            const roundOff = total - exactTotal;
+
+            const perDevice = qty > 0 ? (total / qty) : 0;
+
+            
+
+            const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+
+            
+
+            if (amountDisplay) amountDisplay.textContent = formatCurrency(amount);
+
+            if (roundOffDisplay) roundOffDisplay.textContent = formatCurrency(roundOff);
+
+            if (totalDisplay) totalDisplay.textContent = formatCurrency(total);
+
+            if (perDeviceDisplay) perDeviceDisplay.textContent = formatCurrency(perDevice);
+
+            if (panicTotalInput) panicTotalInput.value = formatCurrency(pTotal);
+
+        }
+
+
+
+        function syncPanicQuantity() {
+
+            const form = document.getElementById('edit-invoice-form');
+
+            if (!form) return;
+
+            const qtyInput = form.querySelector('[data-invoice-quantity]');
+
+            const pQtyInput = form.querySelector('[data-panic-quantity]');
+
+            if (qtyInput && pQtyInput) {
+
+                pQtyInput.value = qtyInput.value;
+
+            }
+
+        }
+
+
+
+        const form = document.getElementById('edit-invoice-form');
+
+        if (form) {
+
+            form.addEventListener('input', (e) => {
+
+                if (e.target.matches('[data-invoice-quantity]')) {
+
+                    syncPanicQuantity();
+
+                }
+
+                if (e.target.matches('[data-invoice-quantity], [data-invoice-rate], [data-invoice-courier], [data-panic-cost]')) {
+
+                    calculateTotals();
+
+                }
+
+            });
+
+        }
+
+
+
+        window.addEventListener('DOMContentLoaded', () => {
+
+            syncPanicQuantity();
+
+            calculateTotals();
+
+        });
+
+    </script>
+
+}
+

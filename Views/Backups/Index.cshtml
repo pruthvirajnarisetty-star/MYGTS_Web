@@ -1,0 +1,143 @@
+@model Dictionary<string, List<FileInfo>>
+@{
+    ViewData["Title"] = "Database Backups";
+    var colorPalette = new[] { "#e0e7ff", "#eef9f0", "#fff1f0", "#fff8e6", "#f3e8ff" };
+    var colorIndex = 0;
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">System Management</div>
+        <h1>Database Backups</h1>
+        <p>Manage and download automated database backup files organized by rotation tier.</p>
+    </div>
+</div>
+
+<div class="card toolbar" style="margin-top: 24px; padding: 12px 20px;">
+    <div class="filter-grid" style="display: flex; gap: 16px; align-items: flex-end;">
+        <div class="field grow" style="margin: 0; flex-grow: 1;">
+            <label for="searchInput" class="form-label" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">SEARCH BACKUPS</label>
+            <div style="position: relative; width: 100%;">
+                <input id="searchInput" class="input shadow-md w-full" style="padding: 0 16px; border-radius: 9999px; height: 42px; width: 100%; border: 1px solid var(--line); outline: none; transition: all 0.3s; font-size: 14px;" placeholder="Search by date or name..." type="text" onkeyup="filterBackups()" />
+            </div>
+        </div>
+        <div class="field" style="margin: 0;">
+            <button type="button" class="button secondary" onclick="clearBackupFilters()" style="height: 42px; border-radius: 8px; padding: 0 16px; display: inline-flex; align-items: center; gap: 6px;" title="Reset all filters">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                <span>Clear filters</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="inventory-container" style="display: flex; flex-direction: column; gap: 32px; margin-top: 24px;">
+    @foreach (var kvp in Model)
+    {
+        var category = kvp.Key;
+        var files = kvp.Value;
+        var batchColor = colorPalette[colorIndex % colorPalette.Length];
+        colorIndex++;
+
+        <section class="card backup-batch" style="background-color: @batchColor; overflow: hidden; border: 1px solid var(--line);">
+            <div class="section-heading" style="padding: 16px 20px; margin: 0; background: rgba(255, 255, 255, 0.4); border-bottom: 1px solid rgba(0,0,0,0.05); cursor: pointer;" onclick="toggleBatch(this)">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <svg class="batch-chevron" style="transition: transform 0.2s;" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <div>
+                        <h2 style="font-size: 1.1rem; margin-bottom: 4px; font-weight: 700;">
+                            Tier: @category
+                        </h2>
+                        <p style="font-size: 0.85rem; color: var(--muted);">@files.Count backup files retained</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-wrap" style="display: none;">
+                @if (files.Count > 0)
+                {
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50%;">Filename</th>
+                                <th style="width: 25%;">Creation Date</th>
+                                <th style="width: 15%;">Size</th>
+                                <th style="width: 10%;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var file in files)
+                            {
+                                <tr class="colored-row backup-row" style="background: rgba(255,255,255,0.5);">
+                                    <td class="filename-cell" style="font-weight: 500;">@file.Name</td>
+                                    <td>@file.CreationTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                    <td style="color: var(--muted);">@(Math.Round(file.Length / 1024.0 / 1024.0, 2)) MB</td>
+                                    <td>
+                                        <a href="/Backups/Download?category=@category&filename=@file.Name" class="button small btn-primary" target="_blank">Download</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div style="padding: 24px; text-align: center; color: var(--muted); font-size: 0.9rem;">
+                        No backups in this tier yet.
+                    </div>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+<script>
+    function toggleBatch(el) {
+        var tableWrap = el.nextElementSibling;
+        var chevron = el.querySelector('.batch-chevron');
+        if (tableWrap.style.display === 'none' || tableWrap.style.display === '') {
+            tableWrap.style.display = 'block';
+            chevron.style.transform = 'rotate(180deg)';
+        } else {
+            tableWrap.style.display = 'none';
+            chevron.style.transform = 'rotate(0deg)';
+        }
+    }
+
+    // Expand first batch by default
+    document.addEventListener("DOMContentLoaded", function() {
+        var firstBatch = document.querySelector('.backup-batch .section-heading');
+        if (firstBatch) {
+            toggleBatch(firstBatch);
+        }
+    });
+
+    function clearBackupFilters() {
+        var input = document.getElementById('searchInput');
+        if (input) input.value = '';
+        filterBackups();
+    }
+
+    function filterBackups() {
+        var input = document.getElementById('searchInput').value.toLowerCase();
+        var rows = document.querySelectorAll('.backup-row');
+        
+        rows.forEach(function(row) {
+            var filename = row.querySelector('.filename-cell').innerText.toLowerCase();
+            if (filename.indexOf(input) > -1) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Highlight matching text in visible rows
+        document.querySelectorAll('.data-table tbody').forEach(function(tbody) {
+            clearSearchHighlights(tbody);
+        });
+        var term = document.getElementById('searchInput').value.trim();
+        if (term.length > 0) {
+            document.querySelectorAll('.backup-row:not([style*="display: none"])').forEach(function(row) {
+                highlightQueryTerms(row, [term]);
+            });
+        }
+    }
+</script>

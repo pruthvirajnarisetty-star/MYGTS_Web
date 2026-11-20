@@ -1,0 +1,459 @@
+@model UserEditFormViewModel
+@using MygtsMvc.Services
+@{
+    ViewData["Title"] = "Edit user";
+    ViewData["BodyClass"] = "form-background-container";
+    var isCurrentUserAdmin = User.IsAdmin();
+    var myId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    var myEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? User.Identity?.Name;
+    var isSelf = (!string.IsNullOrEmpty(myId) && Model.Id == myId) ||
+                 string.Equals(Model.Email, myEmail, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(Model.DisplayName, User.Identity?.Name, StringComparison.OrdinalIgnoreCase);
+}
+
+<div class="glass-wrapper">
+    <div class="page-heading">
+        <div>
+            @if (isSelf && !isCurrentUserAdmin)
+            {
+                <div class="eyebrow">Personal Account Settings</div>
+                <h1 style="color: var(--blue-600);">My Profile &amp; Credentials</h1>
+                <p>Update your personal account credentials, display name, and password.</p>
+            }
+            else
+            {
+                <div class="eyebrow">Executive &amp; Admin controls</div>
+                <h1 style="color: var(--blue-600);">Edit user</h1>
+                <p>Update user details, credentials, role, and page view privileges.</p>
+            }
+        </div>
+        <a class="btn-back" asp-action="Index">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+            Back
+        </a>
+    </div>
+
+    @if (Model.IsProtectedAdmin)
+    {
+        <div class="card" style="max-width: 800px; margin: 0 auto 16px; padding: 18px 24px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; color: #92400e; display: flex; align-items: center; gap: 12px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <div>
+                <strong>Protected Admin Account</strong>
+                <p style="margin: 2px 0 0; font-size: 0.85rem;">Only a master Admin can modify Admin profiles. Executives have read-only visibility.</p>
+            </div>
+        </div>
+    }
+
+    <form class="card form-card" asp-action="Edit" method="post" style="max-width: 800px; margin: 0 auto; padding: 32px;">
+        <input asp-for="Id" type="hidden" />
+        
+        <div asp-validation-summary="ModelOnly" class="validation-summary-errors" style="margin-bottom: 20px;"></div>
+
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="DisplayName" class="form-label">Display name</label>
+                <input asp-for="DisplayName" class="input" placeholder="e.g. John Doe" required readonly="@(Model.IsProtectedAdmin ? "readonly" : null)" />
+                <span asp-validation-for="DisplayName" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="Email" class="form-label">Email address</label>
+                <input asp-for="Email" class="input user-email" type="email" placeholder="e.g. you@company.com" required readonly="@(Model.IsProtectedAdmin ? "readonly" : null)" />
+                <span asp-validation-for="Email" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="Role" class="form-label">Role</label>
+                @if (isSelf)
+                {
+                    <select class="select" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" tabindex="-1">
+                        <option value="@Model.Role">@Model.Role (Protected - Current Account Role)</option>
+                    </select>
+                    <input type="hidden" name="Role" value="@Model.Role" />
+                }
+                else if (Model.IsProtectedAdmin)
+                {
+                    <select class="select" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" tabindex="-1">
+                        <option value="Admin">Admin (Protected Master Authority)</option>
+                    </select>
+                    <input type="hidden" name="Role" value="Admin" />
+                }
+                else
+                {
+                    <select asp-for="Role" class="select" id="RoleSelect" onchange="toggleEditRolePermissions(this.value)">
+                        @if (Model.AllowedRoles.Contains("Admin"))
+                        {
+                            <option value="Admin">Admin (Absolute Master Authority)</option>
+                        }
+                        @if (Model.AllowedRoles.Contains("Executive"))
+                        {
+                            <option value="Executive">Executive (Full Management Administrator)</option>
+                        }
+                        @if (Model.AllowedRoles.Contains("Team"))
+                        {
+                            <option value="Team">Team (Custom edit &amp; view permissions)</option>
+                        }
+                        @if (Model.AllowedRoles.Contains("User"))
+                        {
+                            <option value="User">User (Read-only viewer with page checkboxes)</option>
+                        }
+                    </select>
+                }
+                <span asp-validation-for="Role" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="Password" class="form-label">Password / Credentials</label>
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input asp-for="Password" id="EditPassword" class="input user-password" type="password" value="@Model.PlainPassword" placeholder="Enter new password to change (min 8 chars)" autocomplete="new-password" minlength="8" style="padding-right: 72px;" readonly="@(Model.IsProtectedAdmin ? "readonly" : null)" />
+                    <div style="position: absolute; right: 8px; display: flex; gap: 4px; align-items: center;">
+                        <button type="button" class="btn-pwd-action" onclick="toggleInputPassword('EditPassword', this)" title="Show/Hide password">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </button>
+                        <button type="button" class="btn-pwd-action" onclick="copyPassword('EditPassword')" title="Copy password">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <span asp-validation-for="Password" class="validation-summary-errors"></span>
+            </div>
+
+            <!-- Authorized Branches Checkboxes -->
+            @if (isSelf && !isCurrentUserAdmin)
+            {
+                <div class="field full" style="margin-top: 10px; background: var(--soft); padding: 16px 20px; border-radius: 10px; border: 1px solid var(--line);">
+                    <label class="form-label" style="font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; color: var(--ink);">
+                        <span style="font-size: 1.1rem;">🏢</span> Assigned Authorized Branches
+                    </label>
+                    <div class="muted" style="font-size: 0.78rem; margin-bottom: 10px;">
+                        Branches and functional privileges are assigned and managed by your supervisor.
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        @foreach (var b in Model.Branches)
+                        {
+                            <span class="badge neutral" style="font-size: 0.8rem; font-weight: 700; padding: 4px 10px;">@b Branch</span>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="field full" id="editBranchAccessBox" style="margin-top: 10px; background: var(--soft); padding: 16px 20px; border-radius: 10px; border: 1px solid var(--line);">
+                    <label class="form-label" style="font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; color: var(--ink);">
+                        <span style="font-size: 1.1rem;">🏢</span> Authorized Branches *
+                    </label>
+                    <div class="muted" style="font-size: 0.78rem; margin-bottom: 12px;">
+                        Select which branches this user is authorized to access and work on.
+                    </div>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <label style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--paper); border: 1.5px solid var(--line); border-radius: 8px; cursor: pointer;">
+                            <input type="checkbox" name="Branches" value="DMG" @(Model.Branches.Contains("DMG") ? "checked" : "") class="chk-edit-branch" style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--primary);" />
+                            <strong style="font-size: 0.88rem; color: var(--ink);">DMG Branch</strong>
+                        </label>
+                        <label style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--paper); border: 1.5px solid var(--line); border-radius: 8px; cursor: pointer;">
+                            <input type="checkbox" name="Branches" value="RTO" @(Model.Branches.Contains("RTO") ? "checked" : "") class="chk-edit-branch" style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--primary);" />
+                            <strong style="font-size: 0.88rem; color: var(--ink);">RTO Branch</strong>
+                        </label>
+                        <label style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--paper); border: 1.5px solid var(--line); border-radius: 8px; cursor: pointer;">
+                            <input type="checkbox" name="Branches" value="Expenditure" @(Model.Branches.Contains("Expenditure") ? "checked" : "") class="chk-edit-branch" style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--primary);" />
+                            <strong style="font-size: 0.88rem; color: var(--ink);">Expenditure Branch</strong>
+                        </label>
+                    </div>
+                </div>
+            }
+
+            <div id="editRoleInfo" class="field full muted" style="font-size: 0.85rem; margin: 6px 0; display: none; padding: 12px 16px; background: rgba(var(--primary-rgb), 0.06); border: 1px solid rgba(var(--primary-rgb), 0.18); border-radius: 8px; line-height: 1.5;"></div>
+
+            <!-- WhatsApp Preference Setting -->
+            <div class="field full" style="margin-top: 10px; background: var(--soft); padding: 16px 20px; border-radius: 10px; border: 1px solid var(--line);">
+                <label class="form-label" style="font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; color: var(--ink);">
+                    <span style="font-size: 1.1rem;">💬</span> WhatsApp Messaging Preference
+                </label>
+                <div class="muted" style="font-size: 0.78rem; margin-bottom: 14px;">
+                    Choose where WhatsApp messages open when clicking message buttons across MYGTS.
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px;">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; background: var(--paper); border: 1.5px solid var(--line); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                        <input type="radio" asp-for="WhatsAppPreference" value="Ask" style="margin-top: 3px; accent-color: #25D366;" />
+                        <div>
+                            <strong style="display: block; font-size: 0.88rem; color: var(--ink);">Always Ask</strong>
+                            <span class="muted" style="font-size: 0.74rem; line-height: 1.3; display: block; margin-top: 2px;">Prompt to choose between Web and App on each message</span>
+                        </div>
+                    </label>
+                    <label style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; background: var(--paper); border: 1.5px solid var(--line); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                        <input type="radio" asp-for="WhatsAppPreference" value="Web" style="margin-top: 3px; accent-color: #25D366;" />
+                        <div>
+                            <strong style="display: block; font-size: 0.88rem; color: var(--ink);">🌐 WhatsApp Web</strong>
+                            <span class="muted" style="font-size: 0.74rem; line-height: 1.3; display: block; margin-top: 2px;">Always open in browser via web.whatsapp.com</span>
+                        </div>
+                    </label>
+                    <label style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; background: var(--paper); border: 1.5px solid var(--line); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                        <input type="radio" asp-for="WhatsAppPreference" value="App" style="margin-top: 3px; accent-color: #25D366;" />
+                        <div>
+                            <strong style="display: block; font-size: 0.88rem; color: var(--ink);">💻 WhatsApp Desktop App</strong>
+                            <span class="muted" style="font-size: 0.74rem; line-height: 1.3; display: block; margin-top: 2px;">Always open native WhatsApp application (whatsapp://)</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            @if (!isSelf || isCurrentUserAdmin)
+            {
+                <!-- User Role: Read-only Checkboxes -->
+                <div id="editUserCheckboxesBox" class="field full" style="margin-top: 10px; background: var(--soft); padding: 16px; border-radius: 10px; border: 1px solid var(--line); @(Model.Role == "User" ? "" : "display:none;")">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.82rem; color: var(--ink); text-transform: uppercase; letter-spacing: 0.04em;">Allowed Pages (Read-Only)</div>
+                            <div class="muted" style="font-size: 0.72rem; margin-top: 1px;">Check pages this user can view. Unchecked pages are hidden in both DMG &amp; RTO branches.</div>
+                        </div>
+                        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                            <button type="button" class="btn-perm-preset" onclick="applyEditUserCheckboxes('all')" title="Select all pages">Select All</button>
+                            <button type="button" class="btn-perm-preset" onclick="applyEditUserCheckboxes('fleet')" title="Select fleet &amp; reminders only">Fleet Only</button>
+                            <button type="button" class="btn-perm-preset" onclick="applyEditUserCheckboxes('none')" title="Deselect all">Deselect All</button>
+                        </div>
+                    </div>
+
+                    <div class="perm-checkbox-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        @foreach (var mod in AppModules.All)
+                        {
+                            var isChecked = Model.Permissions.TryGetValue(mod, out var p) && p != "None";
+                            <label class="perm-checkbox-card" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
+                                <input type="checkbox" name="Permissions[@mod]" value="Read" @(isChecked ? "checked" : "") class="chk-edit-user-mod" id="chk_edit_@mod" style="width: 17px; height: 17px; cursor: pointer; accent-color: var(--primary);" />
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-weight: 600; font-size: 0.85rem; color: var(--ink);">@mod</div>
+                                    <div class="muted" style="font-size: 0.72rem;">Read-only view</div>
+                                </div>
+                                <span class="badge neutral" style="font-size: 0.68rem; padding: 2px 6px;">View</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+
+                <!-- Team Role: Custom Permissions Table -->
+                <div id="editTeamPermissionsBox" class="field full" style="margin-top: 10px; background: var(--soft); padding: 16px; border-radius: 10px; border: 1px solid var(--line); @(Model.Role == "Team" ? "" : "display:none;")">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                        <div style="font-weight: 700; font-size: 0.82rem; color: var(--ink); text-transform: uppercase; letter-spacing: 0.04em;">Module View &amp; Edit Rights</div>
+                        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                            <button type="button" class="btn-perm-preset" onclick="applyEditPreset('read')" title="Grant read-only view on all pages">View All</button>
+                            <button type="button" class="btn-perm-preset" onclick="applyEditPreset('fleet')" title="View fleet &amp; reminders only">Fleet Only</button>
+                            <button type="button" class="btn-perm-preset" onclick="applyEditPreset('edit')" title="Grant edit on all pages">Edit All</button>
+                            <button type="button" class="btn-perm-preset" onclick="applyEditPreset('none')" title="Revoke access to all">No Access</button>
+                        </div>
+                    </div>
+
+                    <table style="width: 100%; font-size: 0.85rem; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--line); text-align: left; color: var(--muted);">
+                                <th style="padding: 6px 8px; font-weight: 600;">Module</th>
+                                <th style="padding: 6px 8px; text-align: center; font-weight: 600;">Edit</th>
+                                <th style="padding: 6px 8px; text-align: center; font-weight: 600;">Read Only</th>
+                                <th style="padding: 6px 8px; text-align: center; font-weight: 600;">No Access</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var mod in AppModules.All)
+                            {
+                                var currentPerm = Model.Permissions.TryGetValue(mod, out var p) ? p : "Read";
+                                <tr style="border-bottom: 1px solid rgba(0,0,0,0.03);">
+                                    <td style="padding: 8px;">
+                                        <strong>@mod</strong>
+                                        @if (mod == "Inventory")
+                                        {
+                                            <div class="muted" style="font-size: 0.72rem; font-weight: normal; margin-top: 1px;">Users with Devices Edit can view &amp; update device actions</div>
+                                        }
+                                    </td>
+                                    <td style="padding: 8px; text-align: center;">
+                                        <input type="radio" name="Permissions[@mod]" value="Edit" @(currentPerm == "Edit" ? "checked" : "") id="perm_edit_@(mod)_edit" style="cursor: pointer; width: 16px; height: 16px;" />
+                                    </td>
+                                    <td style="padding: 8px; text-align: center;">
+                                        <input type="radio" name="Permissions[@mod]" value="Read" @(currentPerm == "Read" ? "checked" : "") id="perm_edit_@(mod)_read" style="cursor: pointer; width: 16px; height: 16px;" />
+                                    </td>
+                                    <td style="padding: 8px; text-align: center;">
+                                        <input type="radio" name="Permissions[@mod]" value="None" @(currentPerm == "None" ? "checked" : "") id="perm_edit_@(mod)_none" style="cursor: pointer; width: 16px; height: 16px;" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <div class="field full" style="margin-top: 10px;">
+                <div class="checkbox-line" style="display: flex; align-items: center; gap: 8px;">
+                    @if (isSelf)
+                    {
+                        <input asp-for="IsActive" type="checkbox" id="IsActive" disabled="disabled" style="cursor: not-allowed; width: 18px; height: 18px;" />
+                        <input type="hidden" name="IsActive" value="true" />
+                    }
+                    else if (Model.IsProtectedAdmin)
+                    {
+                        <input asp-for="IsActive" type="checkbox" id="IsActive" disabled="disabled" style="cursor: not-allowed; width: 18px; height: 18px;" />
+                        <input type="hidden" name="IsActive" value="@Model.IsActive.ToString().ToLowerInvariant()" />
+                    }
+                    else
+                    {
+                        <input asp-for="IsActive" type="checkbox" id="IsActive" style="cursor: pointer; width: 18px; height: 18px; accent-color: var(--primary);" />
+                    }
+                    <label for="IsActive" style="font-size: 0.88rem; font-weight: 500; cursor: pointer;">User is active (permitted console sign-in privileges)</label>
+                </div>
+                <span asp-validation-for="IsActive" class="validation-summary-errors"></span>
+            </div>
+        </div>
+
+        @if (!Model.IsProtectedAdmin)
+        {
+            <div class="form-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <a class="button secondary" asp-action="Index">Cancel</a>
+                <button class="button btn-primary" type="submit">Save changes</button>
+            </div>
+        }
+    </form>
+</div>
+
+<style>
+    .btn-pwd-action {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--muted);
+        padding: 4px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        transition: color 0.15s, background 0.15s;
+    }
+    .btn-pwd-action:hover {
+        color: var(--blue-600);
+        background: var(--surface-hover);
+    }
+    .perm-checkbox-card:hover {
+        border-color: var(--blue-500) !important;
+        background: var(--surface-hover) !important;
+    }
+    .btn-perm-preset {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text-main);
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.12s ease;
+    }
+    .btn-perm-preset:hover {
+        background: var(--surface-hover);
+        border-color: var(--blue-500);
+        color: var(--blue-600);
+    }
+</style>
+
+<script>
+    const allModulesList = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(AppModules.All));
+
+    function toggleInputPassword(inputId, btn) {
+        const inp = document.getElementById(inputId);
+        if (!inp) return;
+        if (inp.type === 'password') {
+            inp.type = 'text';
+            btn.style.color = 'var(--blue-600)';
+        } else {
+            inp.type = 'password';
+            btn.style.color = 'var(--muted)';
+        }
+    }
+
+    function copyPassword(inputId) {
+        const inp = document.getElementById(inputId);
+        if (!inp || !inp.value) return;
+        navigator.clipboard.writeText(inp.value).then(() => {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Password copied to clipboard',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            } else {
+                alert('Password copied to clipboard');
+            }
+        });
+    }
+
+    function applyEditUserCheckboxes(type) {
+        allModulesList.forEach(mod => {
+            const chk = document.getElementById(`chk_edit_${mod}`);
+            if (!chk) return;
+            if (type === 'all') chk.checked = true;
+            else if (type === 'none') chk.checked = false;
+            else if (type === 'fleet') {
+                chk.checked = (mod === 'Devices' || mod === 'Inventory' || mod === 'Reminders' || mod === 'Dashboard');
+            }
+        });
+    }
+
+    function applyEditPreset(type) {
+        allModulesList.forEach(mod => {
+            let targetVal = 'Read';
+            if (type === 'edit') targetVal = 'Edit';
+            else if (type === 'none') targetVal = 'None';
+            else if (type === 'fleet') {
+                targetVal = (mod === 'Devices' || mod === 'Inventory' || mod === 'Reminders' || mod === 'Dashboard') ? 'Read' : 'None';
+            }
+            const radio = document.getElementById(`perm_edit_${mod}_${targetVal.toLowerCase()}`);
+            if (radio) radio.checked = true;
+        });
+    }
+
+    function toggleEditRolePermissions(role) {
+        const userBox = document.getElementById('editUserCheckboxesBox');
+        const teamBox = document.getElementById('editTeamPermissionsBox');
+        const info = document.getElementById('editRoleInfo');
+
+        document.querySelectorAll('.chk-edit-user-mod').forEach(el => el.disabled = true);
+        document.querySelectorAll('#editTeamPermissionsBox input[type="radio"]').forEach(el => el.disabled = true);
+
+        if (role === 'Admin') {
+            document.querySelectorAll('.chk-edit-branch').forEach(el => { el.checked = true; el.disabled = true; });
+            if (userBox) userBox.style.display = 'none';
+            if (teamBox) teamBox.style.display = 'none';
+            if (info) {
+                info.innerHTML = '<strong>👑 Admin Role (Absolute Master Authority):</strong> Has unrestricted access across all branches (DMG, RTO, Expenditure), configuration, and controls. Protected from Executive modification.';
+                info.style.display = 'block';
+            }
+        } else if (role === 'Executive') {
+            document.querySelectorAll('.chk-edit-branch').forEach(el => { el.disabled = false; });
+            if (userBox) userBox.style.display = 'none';
+            if (teamBox) teamBox.style.display = 'none';
+            if (info) {
+                info.innerHTML = '<strong>⭐ Executive Role:</strong> Full operational management across selected branches. Check the branch checkboxes to permit working in DMG, RTO, and/or Expenditure.';
+                info.style.display = 'block';
+            }
+        } else if (role === 'Team') {
+            document.querySelectorAll('.chk-edit-branch').forEach(el => { el.disabled = false; });
+            if (userBox) userBox.style.display = 'none';
+            if (teamBox) {
+                teamBox.style.display = 'block';
+                document.querySelectorAll('#editTeamPermissionsBox input[type="radio"]').forEach(el => el.disabled = false);
+            }
+            if (info) info.style.display = 'none';
+        } else {
+            document.querySelectorAll('.chk-edit-branch').forEach(el => { el.disabled = false; });
+            if (userBox) {
+                userBox.style.display = 'block';
+                document.querySelectorAll('.chk-edit-user-mod').forEach(el => el.disabled = false);
+            }
+            if (teamBox) teamBox.style.display = 'none';
+            if (info) info.style.display = 'none';
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const roleSel = document.getElementById('RoleSelect');
+        if (roleSel) {
+            toggleEditRolePermissions(roleSel.value);
+        }
+    });
+</script>

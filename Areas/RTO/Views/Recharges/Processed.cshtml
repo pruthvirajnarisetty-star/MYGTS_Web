@@ -1,0 +1,2420 @@
+@model IReadOnlyList<RechargeRecord>
+
+@{
+
+    ViewData["Title"] = "Previously Processed Recharges";
+
+    var currentBranch = Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG";
+
+    var devStatusMap = ViewBag.DeviceStatusMap as Dictionary<string, string>;
+
+    var rechargeTxnMap = ViewBag.RechargeTxnMap as Dictionary<string, string>;
+
+    var totalCount = Model.Count;
+
+    var paidCount = Model.Count(r => string.Equals(r.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase));
+
+    var notPaidCount = Model.Count(r => !string.Equals(r.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase));
+
+    var taisysCount = Model.Count(r => string.Equals(r.NetworkOperator, "Taisys", StringComparison.OrdinalIgnoreCase));
+
+    var sensoriseCount = Model.Count(r => string.Equals(r.NetworkOperator, "Sensorise", StringComparison.OrdinalIgnoreCase));
+
+}
+
+
+
+<style>
+
+/* ── Stat bar ── */
+
+.rc-stats {
+
+    display: flex;
+
+    gap: 10px;
+
+    flex-wrap: wrap;
+
+    margin-bottom: 20px;
+
+}
+
+.rc-stat {
+
+    flex: 1 1 90px;
+
+    background: var(--paper);
+
+    border: 1px solid var(--line);
+
+    border-radius: 10px;
+
+    padding: 12px 16px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 2px;
+
+    position: relative;
+
+    overflow: hidden;
+
+}
+
+.rc-stat::before {
+
+    content: '';
+
+    position: absolute;
+
+    top: 0; left: 0; right: 0;
+
+    height: 3px;
+
+}
+
+.rc-stat--total::before     { background: #16a34a; }
+
+.rc-stat--paid::before      { background: #2563eb; }
+
+.rc-stat--due::before       { background: #dc2626; }
+
+.rc-stat--taisys::before    { background: #0891b2; }
+
+.rc-stat--sensorise::before { background: #7c3aed; }
+
+.rc-stat-val  { font-size: 1.5rem; font-weight: 700; color: var(--ink); line-height: 1; }
+
+.rc-stat-lbl  { font-size: .7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+
+
+/* ── Filter bar ── */
+
+.rc-filter-bar {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    flex-wrap: wrap;
+
+    margin-bottom: 20px;
+
+}
+
+.rc-search-wrap {
+
+    position: relative;
+
+    flex: 1 1 240px;
+
+}
+
+.rc-search-input {
+
+    width: 100%;
+
+    padding-left: 36px;
+
+    height: 38px;
+
+    border-radius: var(--radius);
+
+}
+
+.rc-search-icon {
+
+    position: absolute;
+
+    left: 11px;
+
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    color: var(--muted);
+
+    pointer-events: none;
+
+}
+
+.rc-count-badge {
+
+    font-size: .8rem;
+
+    font-weight: 600;
+
+    color: var(--muted);
+
+    white-space: nowrap;
+
+}
+
+
+
+/* ── Card list ── */
+
+.rc-batch-list {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 12px;
+
+    margin-bottom: 32px;
+
+}
+
+.rc-card {
+
+    background: var(--paper);
+
+    border: 1px solid var(--line);
+
+    border-radius: 10px;
+
+    box-shadow: 0 1px 4px rgba(0,0,0,.04);
+
+    overflow: hidden;
+
+    transition: box-shadow .15s, border-color .15s;
+
+    border-left: 4px solid #16a34a;
+
+}
+
+.rc-card:hover {
+
+    box-shadow: 0 4px 14px rgba(0,0,0,.07);
+
+}
+
+
+
+.rc-card-header {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 13px 18px;
+
+    cursor: pointer;
+
+    user-select: none;
+
+    background: var(--paper);
+
+    gap: 12px;
+
+    flex-wrap: wrap;
+
+    transition: background .12s;
+
+}
+
+.rc-card-header:hover {
+
+    background: var(--soft);
+
+}
+
+.rc-card-left {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    min-width: 0;
+
+    flex: 1 1 auto;
+
+}
+
+.rc-chevron {
+
+    width: 18px;
+
+    height: 18px;
+
+    flex-shrink: 0;
+
+    color: var(--muted);
+
+    transition: transform .2s ease;
+
+    transform: rotate(-90deg);
+
+}
+
+.rc-card.is-open .rc-chevron {
+
+    transform: rotate(0deg);
+
+}
+
+.rc-card-title-group {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 3px;
+
+    min-width: 0;
+
+}
+
+.rc-card-title-row {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    flex-wrap: wrap;
+
+}
+
+.rc-card-vehicle {
+
+    font-size: .97rem;
+
+    font-weight: 700;
+
+    color: var(--ink);
+
+    letter-spacing: .02em;
+
+}
+
+.rc-card-subtitle {
+
+    font-size: .78rem;
+
+    color: var(--muted);
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    flex-wrap: wrap;
+
+}
+
+
+
+.rc-badge {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 4px;
+
+    font-size: .72rem;
+
+    font-weight: 700;
+
+    padding: 2px 7px;
+
+    border-radius: 6px;
+
+    border: 1px solid transparent;
+
+    text-transform: uppercase;
+
+    letter-spacing: .04em;
+
+    line-height: 1.3;
+
+}
+
+.badge-processed { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+
+.badge-paid      { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+
+.badge-notpaid   { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+
+.badge-device    { background: var(--soft); color: var(--ink); border-color: var(--line); font-size: .7rem; }
+
+.badge-operator  { background: #ecfeff; color: #0e7490; border-color: #a5f3fc; }
+
+
+
+.rc-card-actions {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    flex-shrink: 0;
+
+}
+
+.rc-pay-btn {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 4px;
+
+    font-size: .76rem;
+
+    font-weight: 600;
+
+    padding: 5px 10px;
+
+    border-radius: var(--radius);
+
+    text-decoration: none;
+
+    transition: all .15s;
+
+    height: 30px;
+
+}
+
+.rc-pay-btn--due  { background: #ef4444; color: #fff; }
+
+.rc-pay-btn--due:hover { background: #dc2626; color: #fff; }
+
+.rc-pay-btn--paid { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+
+.rc-pay-btn--paid:hover { background: #dcfce7; color: #15803d; }
+
+.rc-edit-btn, .rc-delete-btn {
+
+    background: none;
+
+    border: 1px solid var(--line);
+
+    border-radius: var(--radius);
+
+    padding: 4px 9px;
+
+    font-size: .76rem;
+
+    font-weight: 600;
+
+    cursor: pointer;
+
+    color: var(--muted);
+
+    transition: all .14s;
+
+    height: 30px;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 4px;
+
+}
+
+.rc-edit-btn:hover   { background: var(--soft); color: var(--ink); border-color: var(--primary-600); }
+
+.rc-delete-btn:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+
+
+
+.rc-card-body {
+
+    padding: 16px 20px 20px 48px;
+
+    border-top: 1px solid var(--line);
+
+    background: var(--paper);
+
+}
+
+.rc-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+
+    gap: 12px 20px;
+
+}
+
+.rc-field {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 2px;
+
+}
+
+.rc-field-label {
+
+    font-size: .68rem;
+
+    font-weight: 700;
+
+    text-transform: uppercase;
+
+    letter-spacing: .05em;
+
+    color: var(--muted);
+
+}
+
+.rc-field-value {
+
+    font-size: .84rem;
+
+    font-weight: 600;
+
+    color: var(--ink);
+
+}
+
+.rc-field-value.mono  { font-family: monospace; }
+
+.rc-field-value.muted { color: var(--muted); font-weight: 400; }
+
+.rc-card-notes {
+
+    margin-top: 14px;
+
+    padding-top: 12px;
+
+    border-top: 1px dashed var(--line);
+
+    font-size: .82rem;
+
+    color: var(--muted);
+
+}
+
+
+
+/* ── Modal (edit) ── */
+
+.rc-modal-bg {
+
+    position: fixed;
+
+    inset: 0;
+
+    background: rgba(0,0,0,.5);
+
+    z-index: 1050;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 16px;
+
+    opacity: 0;
+
+    pointer-events: none;
+
+    transition: opacity .18s;
+
+}
+
+.rc-modal-bg.open { opacity: 1; pointer-events: auto; }
+
+.rc-modal {
+
+    background: var(--paper);
+
+    border: 1px solid var(--line);
+
+    border-radius: 12px;
+
+    width: 100%;
+
+    max-width: 780px;
+
+    max-height: 90vh;
+
+    overflow-y: auto;
+
+    box-shadow: 0 20px 50px rgba(0,0,0,.2);
+
+    transform: scale(.95);
+
+    transition: transform .18s;
+
+}
+
+.rc-modal-bg.open .rc-modal { transform: scale(1); }
+
+.rc-modal-header {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 18px 24px;
+
+    border-bottom: 1px solid var(--line);
+
+    background: var(--soft);
+
+}
+
+.rc-modal-title { font-size: 1.05rem; font-weight: 700; margin: 0; }
+
+.rc-modal-close {
+
+    background: none; border: none; font-size: 1.3rem; color: var(--muted); cursor: pointer; line-height: 1;
+
+}
+
+.rc-modal-body { padding: 20px 24px; }
+
+.rc-modal-footer {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: flex-end;
+
+    gap: 10px;
+
+    padding: 16px 24px;
+
+    border-top: 1px solid var(--line);
+
+    background: var(--soft);
+
+}
+
+.rc-form-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+
+    gap: 14px 18px;
+
+}
+
+.rc-form-field {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 5px;
+
+}
+
+.rc-form-field.span-2 { grid-column: span 2; }
+
+.rc-form-label {
+
+    font-size: .75rem;
+
+    font-weight: 700;
+
+    text-transform: uppercase;
+
+    letter-spacing: .05em;
+
+    color: var(--muted);
+
+}
+
+.rc-toggle-group {
+
+    display: flex;
+
+    border: 1px solid var(--line);
+
+    border-radius: var(--radius);
+
+    overflow: hidden;
+
+    height: 38px;
+
+}
+
+.rc-toggle-btn {
+
+    flex: 1;
+
+    background: none;
+
+    border: none;
+
+    font-size: .8rem;
+
+    font-weight: 600;
+
+    color: var(--muted);
+
+    cursor: pointer;
+
+    transition: background .14s, color .14s;
+
+    padding: 0 8px;
+
+}
+
+.rc-toggle-btn + .rc-toggle-btn { border-left: 1px solid var(--line); }
+
+.rc-toggle-btn.active { background: var(--primary-600); color: #fff; }
+
+#editPayToggle .rc-toggle-btn.active[data-val="Paid"]     { background: #16a34a; }
+
+#editPayToggle .rc-toggle-btn.active[data-val="Not Paid"] { background: #dc2626; }
+
+
+
+/* Dark mode overrides */
+
+body:has(#theme:checked) .rc-card { border-left-color: #22c55e; }
+
+body:has(#theme:checked) .badge-processed { background: #052e16; color: #86efac; border-color: #14532d; }
+
+body:has(#theme:checked) .badge-paid      { background: #172554; color: #93c5fd; border-color: #1e40af; }
+
+body:has(#theme:checked) .badge-notpaid   { background: #450a0a; color: #fca5a5; border-color: #7f1d1d; }
+
+body:has(#theme:checked) .badge-device    { background: #1e293b; color: #cbd5e1; border-color: #334155; }
+
+body:has(#theme:checked) .badge-operator  { background: #083344; color: #67e8f9; border-color: #155e75; }
+
+body:has(#theme:checked) .rc-card-body    { background: #0f172a; }
+
+</style>
+
+
+
+<div class="page-heading">
+
+    <div>
+
+        <div class="eyebrow">Financials / @currentBranch / Archive</div>
+
+        <h1>Previously Processed Recharges</h1>
+
+        <p>Archive of all historical processed SIM recharges.</p>
+
+    </div>
+
+    <div class="page-heading-actions" style="display: flex; gap: 8px; align-items: center;">
+
+        <a class="btn-back" asp-action="Index">
+
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+
+            Back to recharges
+
+        </a>
+
+        <button type="button" onclick="exportFilteredProcessed()" class="button ghost">
+
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+
+            Export CSV
+
+        </button>
+
+    </div>
+
+</div>
+
+
+
+@* ── Stat bar ── *@
+
+<div class="rc-stats">
+
+    <div class="rc-stat rc-stat--total">
+
+        <span class="rc-stat-val" id="statValTotal">@totalCount</span>
+
+        <span class="rc-stat-lbl">Total Processed</span>
+
+    </div>
+
+    <div class="rc-stat rc-stat--paid">
+
+        <span class="rc-stat-val" id="statValPaid">@paidCount</span>
+
+        <span class="rc-stat-lbl">Paid</span>
+
+    </div>
+
+    <div class="rc-stat rc-stat--due">
+
+        <span class="rc-stat-val" id="statValDue">@notPaidCount</span>
+
+        <span class="rc-stat-lbl">Not Paid</span>
+
+    </div>
+
+    <div class="rc-stat rc-stat--taisys">
+
+        <span class="rc-stat-val" id="statValTaisys">@taisysCount</span>
+
+        <span class="rc-stat-lbl">Taisys</span>
+
+    </div>
+
+    <div class="rc-stat rc-stat--sensorise">
+
+        <span class="rc-stat-val" id="statValSensorise">@sensoriseCount</span>
+
+        <span class="rc-stat-lbl">Sensorise</span>
+
+    </div>
+
+</div>
+
+
+
+@* ── Filter bar ── *@
+
+<div class="rc-filter-bar">
+
+    <div class="rc-search-wrap">
+
+        <svg class="rc-search-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+
+        <input type="text" id="rcSearch" class="input rc-search-input" placeholder="Search vehicle, IMEI, ICCID, SIM…" oninput="filterCards()">
+
+    </div>
+
+    <button type="button" class="button secondary small" onclick="toggleAllCards(false)" style="height:38px; font-size:.8rem;">Collapse All</button>
+
+    <button type="button" class="button secondary small" onclick="toggleAllCards(true)" style="height:38px; font-size:.8rem;">Expand All</button>
+
+    <select id="filterStatus" class="select" style="min-width:140px;" onchange="filterCards()">
+
+        <option value="">All Statuses</option>
+
+        <option value="processed">Processed</option>
+
+    </select>
+
+    <select id="filterPayment" class="select" style="min-width:140px;" onchange="filterCards()">
+
+        <option value="">All Payments</option>
+
+        <option value="paid">Paid</option>
+
+        <option value="not paid">Not Paid</option>
+
+    </select>
+
+    <select id="filterOperator" class="select" style="min-width:140px;" onchange="filterCards()">
+
+        <option value="">All Operators</option>
+
+        @{
+
+            var networkOpsProc = ViewBag.NetworkOperators as List<string> ?? new List<string> { "Taisys", "Sensorise" };
+
+        }
+
+        @foreach (var op in networkOpsProc)
+
+        {
+
+            <option value="@op.ToLowerInvariant()">@op</option>
+
+        }
+
+    </select>
+
+    <button type="button" class="button secondary small" onclick="clearProcessedFilters()" style="height:38px; font-size:.8rem; display:inline-flex; align-items:center; gap:5px;" title="Reset all filters">
+
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+
+        <span>Clear filters</span>
+
+    </button>
+
+    <span class="rc-count-badge" id="rcCount"></span>
+
+</div>
+
+
+
+@* ── Processed Cards List ── *@
+
+<div class="rc-batch-list" id="rcCards">
+
+    @if (Model.Count == 0)
+
+    {
+
+        <div id="rcEmptyState" class="card" style="padding:48px; text-align:center; color:var(--muted);">
+
+            <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto 12px; display:block; opacity:.4;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><polyline points="9 13 12 16 15 13"></polyline></svg>
+
+            No processed recharge records found.
+
+        </div>
+
+    }
+
+    else
+
+    {
+
+        @foreach (var r in Model)
+
+        {
+
+            var isPaid = r.PaymentStatus?.Equals("Paid", StringComparison.OrdinalIgnoreCase) == true;
+
+            var pBadge = isPaid ? "badge-paid" : "badge-notpaid";
+
+
+
+            string devStatus = "";
+
+            if (!string.IsNullOrWhiteSpace(r.VehicleNo) && devStatusMap != null && devStatusMap.TryGetValue(r.VehicleNo.Trim(), out var ds))
+
+            {
+
+                devStatus = ds;
+
+            }
+
+
+
+            <div class="rc-card rc-card--processed"
+
+                 data-vehicle="@r.VehicleNo"
+
+                 data-imei="@r.Imei"
+
+                 data-iccid="@r.Iccid"
+
+                 data-sim-airtel="@r.SimAirtel"
+
+                 data-sim-bsnl="@r.SimBsnl"
+
+                 data-payment="@r.PaymentStatus?.ToLowerInvariant()"
+
+                 data-operator="@r.NetworkOperator?.ToLowerInvariant()"
+
+                 data-status="@r.RechargeStatus?.ToLowerInvariant()">
+
+
+
+                @* Header bar *@
+
+                <div class="rc-card-header" onclick="toggleCard(this)">
+
+                    <div class="rc-card-left">
+
+                        <svg class="rc-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+
+                        <div class="rc-card-title-group">
+
+                            <div class="rc-card-title-row">
+
+                                <span class="rc-card-vehicle">@(string.IsNullOrWhiteSpace(r.VehicleNo) ? "No Vehicle" : r.VehicleNo)</span>
+
+                                <span class="rc-badge badge-processed">Processed</span>
+
+                                <span class="rc-badge @pBadge">@r.PaymentStatus</span>
+
+                                @if (!string.IsNullOrWhiteSpace(devStatus))
+
+                                {
+
+                                    <span class="rc-badge badge-device" title="Fleet device status">@devStatus</span>
+
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(r.NetworkOperator))
+
+                                {
+
+                                    <span class="rc-badge badge-operator">@r.NetworkOperator</span>
+
+                                }
+
+                            </div>
+
+                            <div class="rc-card-subtitle">
+
+                                <span>Recharge: <strong>@(string.IsNullOrWhiteSpace(r.RechargeDate) ? "—" : r.RechargeDate)</strong></span>
+
+                                <span>&middot;</span>
+
+                                <span>Prev Exp: <strong>@(string.IsNullOrWhiteSpace(r.PreviousExpiryDate) ? "—" : r.PreviousExpiryDate)</strong></span>
+
+                                <span>&middot;</span>
+
+                                <span>Act Date: <strong>@(string.IsNullOrWhiteSpace(r.ActivationDate) ? "—" : r.ActivationDate)</strong></span>
+
+                                <span>&middot;</span>
+
+                                <span>New Exp: <strong>@(string.IsNullOrWhiteSpace(r.ExpiryDate) ? "—" : r.ExpiryDate)</strong></span>
+
+                                @if (!string.IsNullOrWhiteSpace(r.Vendor))
+
+                                {
+
+                                    <span>&middot;</span>
+
+                                    <span>Vendor: @r.Vendor</span>
+
+                                }
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    @* Action buttons *@
+
+                    <div class="rc-card-actions" onclick="event.stopPropagation()">
+
+                        @{
+
+                            string? txnId = null;
+
+                            if (isPaid && rechargeTxnMap != null)
+
+                            {
+
+                                rechargeTxnMap.TryGetValue(r.Id, out txnId);
+
+                            }
+
+                        }
+
+                        @if (isPaid)
+
+                        {
+
+                            var editTxnUrl = !string.IsNullOrEmpty(txnId)
+
+                                ? $"/{currentBranch}/Transactions/Edit/{txnId}?rechargeId={r.Id}"
+
+                                : $"/{currentBranch}/Recharges/OpenTransaction?id={r.Id}&vehicleNo={Uri.EscapeDataString(r.VehicleNo ?? "")}";
+
+
+
+                            <a href="@editTxnUrl"
+
+                               class="rc-pay-btn rc-pay-btn--paid"
+
+                               title="View / Edit payment transaction for @r.VehicleNo">
+
+                                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+
+                                Paid
+
+                            </a>
+
+                        }
+
+                        else
+
+                        {
+
+                            <a href="/@currentBranch/Transactions/Create?vehicleNo=@(Uri.EscapeDataString(r.VehicleNo ?? ""))&paymentFor=None&rechargeId=@r.Id"
+
+                               class="rc-pay-btn rc-pay-btn--due"
+
+                               title="Add payment transaction for @r.VehicleNo">
+
+                                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+
+                                Pay Now
+
+                            </a>
+
+                        }
+
+
+
+                        <button type="button" class="rc-edit-btn" onclick="openEdit(this)" title="Edit recharge">
+
+                            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+
+                            Edit
+
+                        </button>
+
+
+
+                        <button type="button" class="rc-delete-btn" onclick="deleteCard('@r.Id', this)" title="Delete recharge">
+
+                            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+
+                @* Hidden data attributes *@
+
+                <div class="rc-card-data" style="display:none;"
+
+                     data-id="@r.Id"
+
+                     data-vehicle="@r.VehicleNo"
+
+                     data-imei="@r.Imei"
+
+                     data-iccid="@r.Iccid"
+
+                     data-sim-airtel="@r.SimAirtel"
+
+                     data-sim-bsnl="@r.SimBsnl"
+
+                     data-vendor="@r.Vendor"
+
+                     data-operator="@r.NetworkOperator"
+
+                     data-payment="@r.PaymentStatus"
+
+                     data-status="@r.RechargeStatus"
+
+                     data-recharge-date="@r.RechargeDate"
+
+                     data-expiry="@r.ExpiryDate"
+
+                     data-prev-expiry="@r.PreviousExpiryDate"
+
+                     data-act-date="@r.ActivationDate"
+
+                     data-notes="@r.Notes">
+
+                </div>
+
+
+
+                @* Collapsible body *@
+
+                <div class="rc-card-body" style="display:none;">
+
+                    <div class="rc-grid">
+
+                        <div class="rc-field">
+
+                            <span class="rc-field-label">Vehicle No</span>
+
+                            <span class="rc-field-value">@(string.IsNullOrWhiteSpace(r.VehicleNo) ? "—" : r.VehicleNo)</span>
+
+                        </div>
+
+                        <div class="rc-field">
+
+                            <span class="rc-field-label">IMEI</span>
+
+                            <span class="rc-field-value mono @(string.IsNullOrWhiteSpace(r.Imei) ? "muted" : "")">@(string.IsNullOrWhiteSpace(r.Imei) ? "—" : r.Imei)</span>
+
+                        </div>
+
+                        <div class="rc-field">
+
+                            <span class="rc-field-label">ICCID</span>
+
+                            <span class="rc-field-value mono @(string.IsNullOrWhiteSpace(r.Iccid) ? "muted" : "")">@(string.IsNullOrWhiteSpace(r.Iccid) ? "—" : r.Iccid)</span>
+
+                        </div>
+
+                        <div class="rc-field">
+
+                            <span class="rc-field-label">SIM – Airtel</span>
+
+                            <span class="rc-field-value mono @(string.IsNullOrWhiteSpace(r.SimAirtel) ? "muted" : "")">@(string.IsNullOrWhiteSpace(r.SimAirtel) ? "—" : r.SimAirtel)</span>
+
+                        </div>
+
+                        <div class="rc-field">
+
+                            <span class="rc-field-label">SIM – BSNL</span>
+
+                            <span class="rc-field-value mono @(string.IsNullOrWhiteSpace(r.SimBsnl) ? "muted" : "")">@(string.IsNullOrWhiteSpace(r.SimBsnl) ? "—" : r.SimBsnl)</span>
+
+                        </div>
+
+                        <div class="rc-field">
+
+                            <span class="rc-field-label">Vendor</span>
+
+                            <span class="rc-field-value @(string.IsNullOrWhiteSpace(r.Vendor) ? "muted" : "")">@(string.IsNullOrWhiteSpace(r.Vendor) ? "—" : r.Vendor)</span>
+
+                        </div>
+
+                        <div class="rc-field">
+
+                            <span class="rc-field-label">Network Operator</span>
+
+                            <span class="rc-field-value @(string.IsNullOrWhiteSpace(r.NetworkOperator) ? "muted" : "")">@(string.IsNullOrWhiteSpace(r.NetworkOperator) ? "—" : r.NetworkOperator)</span>
+
+                        </div>
+
+                        <div class="rc-field">
+
+                            <span class="rc-field-label">Recharge Date</span>
+
+                            <span class="rc-field-value">@(string.IsNullOrWhiteSpace(r.RechargeDate) ? "—" : r.RechargeDate)</span>
+
+                        </div>
+
+                        <div class="rc-field">
+
+                            <span class="rc-field-label">Prev. Expiry Date</span>
+
+                            <span class="rc-field-value @(string.IsNullOrWhiteSpace(r.PreviousExpiryDate) ? "muted" : "")">@(string.IsNullOrWhiteSpace(r.PreviousExpiryDate) ? "—" : r.PreviousExpiryDate)</span>
+
+                        </div>
+
+                        <div class="rc-field">
+
+                            <span class="rc-field-label">Activation Date</span>
+
+                            <span class="rc-field-value @(string.IsNullOrWhiteSpace(r.ActivationDate) ? "muted" : "")">@(string.IsNullOrWhiteSpace(r.ActivationDate) ? "—" : r.ActivationDate)</span>
+
+                        </div>
+
+                        <div class="rc-field">
+
+                            <span class="rc-field-label">New Expiry Date</span>
+
+                            <span class="rc-field-value @(string.IsNullOrWhiteSpace(r.ExpiryDate) ? "muted" : "")">@(string.IsNullOrWhiteSpace(r.ExpiryDate) ? "—" : r.ExpiryDate)</span>
+
+                        </div>
+
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(r.Notes))
+
+                    {
+
+                        <div class="rc-card-notes">📝 @r.Notes</div>
+
+                    }
+
+                </div>
+
+            </div>
+
+        }
+
+    }
+
+</div>
+
+<div id="rcNoResults" style="display:none; padding:36px; text-align:center; color:var(--muted);">
+
+    No processed records match the current filters.
+
+</div>
+
+
+
+@* ── Edit Modal ── *@
+
+<div class="rc-modal-bg" id="editModalBg" onclick="closeEdit(event)">
+
+    <div class="rc-modal" role="dialog" aria-modal="true">
+
+        <div class="rc-modal-header">
+
+            <h2 class="rc-modal-title">Edit Processed Recharge Record</h2>
+
+            <button type="button" class="rc-modal-close" onclick="closeEditModal()">&times;</button>
+
+        </div>
+
+        <div class="rc-modal-body">
+
+            <input type="hidden" id="eId">
+
+            <div class="rc-form-grid">
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="eVehicle">Vehicle No</label>
+
+                    <input type="text" id="eVehicle" class="input">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="eDeviceStatus">Device Status</label>
+
+                    <input type="text" id="eDeviceStatus" class="input" placeholder="Device status" readonly style="background: var(--surface); font-weight: 600;">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="eImei">IMEI</label>
+
+                    <input type="text" id="eImei" class="input">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="eIccid">ICCID</label>
+
+                    <input type="text" id="eIccid" class="input">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="eSimAirtel">SIM – Airtel</label>
+
+                    <input type="text" id="eSimAirtel" class="input">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="eSimBsnl">SIM – BSNL</label>
+
+                    <input type="text" id="eSimBsnl" class="input">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="eVendor">Vendor</label>
+
+                    <input type="text" id="eVendor" class="input">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="eOperator">Network Operator</label>
+
+                    <select id="eOperator" class="select" data-custom-dropdown="NetworkOperator" data-custom-title="Network Operator">
+                        <option value="">— Select —</option>
+                        <option value="Taisys">Taisys</option>
+                        <option value="Sensorise">Sensorise</option>
+                    </select>
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="eRechargeDate">Recharge Date</label>
+
+                    <input type="date" id="eRechargeDate" class="input">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="ePrevExpiry">Prev. Expiry Date</label>
+
+                    <input type="date" id="ePrevExpiry" class="input" oninput="onPrevExpiryChange(false)" onchange="onPrevExpiryChange(false)">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="eActivationDate">Activation Date</label>
+
+                    <input type="date" id="eActivationDate" class="input" oninput="onEditActDateChange()" onchange="onEditActDateChange()">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label" for="eExpiry">New Expiry Date</label>
+
+                    <input type="date" id="eExpiry" class="input">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label">Recharge Status</label>
+
+                    <div class="rc-toggle-group" id="editStatusToggle">
+
+                        <button type="button" class="rc-toggle-btn"        data-val="Pending"   onclick="setToggle('editStatusToggle','Pending');onEditStatusToggle('Pending')">Pending</button>
+
+                        <button type="button" class="rc-toggle-btn active" data-val="Processed" onclick="setToggle('editStatusToggle','Processed');onEditStatusToggle('Processed')">Processed</button>
+
+                    </div>
+
+                    <input type="hidden" id="eStatus" value="Processed">
+
+                </div>
+
+
+
+                <div class="rc-form-field">
+
+                    <label class="rc-form-label">Payment Status</label>
+
+                    <div class="rc-toggle-group" id="editPayToggle">
+
+                        <button type="button" class="rc-toggle-btn" data-val="Not Paid" onclick="setToggle('editPayToggle','Not Paid')">Not Paid</button>
+
+                        <button type="button" class="rc-toggle-btn" data-val="Paid"     onclick="setToggle('editPayToggle','Paid')">Paid</button>
+
+                    </div>
+
+                    <input type="hidden" id="ePayment">
+
+                </div>
+
+
+
+                <div class="rc-form-field span-2">
+
+                    <label class="rc-form-label" for="eNotes">Notes</label>
+
+                    <input type="text" id="eNotes" class="input" placeholder="Notes (optional)">
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="rc-modal-footer">
+
+            <button type="button" class="button ghost" onclick="closeEditModal()">Cancel</button>
+
+            <button type="button" class="button btn-primary" id="btnSaveEdit" onclick="submitEdit()">
+
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-right:5px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+
+                Save Changes
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+const todayStr = new Date().toISOString().split('T')[0];
+
+
+
+function toggleCard(headerEl) {
+
+    const card = headerEl.closest('.rc-card');
+
+    const body = headerEl.nextElementSibling?.classList.contains('rc-card-body') 
+
+        ? headerEl.nextElementSibling 
+
+        : headerEl.parentElement.querySelector('.rc-card-body');
+
+    const chevron = headerEl.querySelector('.rc-chevron');
+
+    if (body) {
+
+        const isCollapsed = body.style.display === 'none';
+
+        body.style.display = isCollapsed ? '' : 'none';
+
+        card.classList.toggle('is-open', isCollapsed);
+
+        if (chevron) chevron.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
+
+    }
+
+}
+
+
+
+function toggleAllCards(expand) {
+
+    document.querySelectorAll('#rcCards .rc-card').forEach(card => {
+
+        const body = card.querySelector('.rc-card-body');
+
+        const chevron = card.querySelector('.rc-chevron');
+
+        if (body) {
+
+            body.style.display = expand ? '' : 'none';
+
+            card.classList.toggle('is-open', expand);
+
+            if (chevron) chevron.style.transform = expand ? 'rotate(0deg)' : 'rotate(-90deg)';
+
+        }
+
+    });
+
+}
+
+
+
+function setToggle(groupId, value) {
+
+    const hiddenMap = { editStatusToggle: 'eStatus', editPayToggle: 'ePayment' };
+
+    document.getElementById(groupId).querySelectorAll('.rc-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.val === value));
+
+    document.getElementById(hiddenMap[groupId]).value = value;
+
+}
+
+
+
+function calculateExpiryFromDate(dateStr, isNewRto) {
+
+    if (!dateStr) return '';
+
+    const parts = dateStr.split('-');
+
+    if (parts.length !== 3) return '';
+
+    const y = parseInt(parts[0], 10);
+
+    const m = parseInt(parts[1], 10) - 1;
+
+    const d = parseInt(parts[2], 10);
+
+    const monthsToAdd = isNewRto ? 23 : 11;
+
+    const daysToAdd = 15;
+
+    const dt = new Date(y, m + monthsToAdd, d + daysToAdd);
+
+    const resY = dt.getFullYear();
+
+    const resM = String(dt.getMonth() + 1).padStart(2, '0');
+
+    const resD = String(dt.getDate()).padStart(2, '0');
+
+    return `${resY}-${resM}-${resD}`;
+
+}
+
+
+
+function addYearsToDate(dateStr, years) {
+
+    if (!dateStr) return '';
+
+    dateStr = String(dateStr).trim();
+
+    let y, m, d;
+
+    let match = dateStr.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+
+    if (match) {
+
+        y = parseInt(match[1], 10);
+
+        m = match[2].padStart(2, '0');
+
+        d = match[3].padStart(2, '0');
+
+    } else {
+
+        match = dateStr.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/);
+
+        if (match) {
+
+            y = parseInt(match[3], 10);
+
+            m = match[2].padStart(2, '0');
+
+            d = match[1].padStart(2, '0');
+
+        } else {
+
+            return '';
+
+        }
+
+    }
+
+    y += (years || 1);
+
+    if (isNaN(y) || y < 1900 || y > 2100) return '';
+
+    if (m === '02' && d === '29') {
+
+        const isLeap = (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
+
+        return `${y}-02-${isLeap ? '29' : '28'}`;
+
+    }
+
+    return `${y}-${m}-${d}`;
+
+}
+
+
+
+// Dynamically updates New Expiry Date when Prev. Expiry Date changes
+
+function onPrevExpiryChange(isAdd) {
+
+    const prefix = isAdd ? 'a' : 'e';
+
+    const statusVal = document.getElementById(prefix + 'Status')?.value || '';
+
+    const expInput = document.getElementById(prefix + 'Expiry');
+
+    if (!expInput) return;
+
+
+
+    const prevExp = (document.getElementById(prefix + 'PrevExpiry')?.value || '').trim();
+
+    if (prevExp) {
+
+        const next = addYearsToDate(prevExp, 1);
+
+        if (next) {
+
+            if (statusVal === 'Processed' || expInput.value) {
+
+                expInput.value = next;
+
+            }
+
+        }
+
+    } else if (statusVal === 'Processed') {
+
+        const actInput = document.getElementById(prefix + 'ActivationDate');
+
+        const rechargeDate = (document.getElementById(prefix + 'RechargeDate')?.value || todayStr).trim();
+
+        if (actInput && actInput.value) {
+
+            expInput.value = calculateExpiryFromDate(actInput.value, false);
+
+        } else {
+
+            expInput.value = calculateExpiryFromDate(rechargeDate || todayStr, false);
+
+        }
+
+    }
+
+}
+
+
+
+// Applies Taisys-specific lifecycle recharge rules or generic recharge expiry rules
+
+function applyTaisysRechargeDates(isAdd) {
+
+    const prefix = isAdd ? 'a' : 'e';
+
+    const statusVal = document.getElementById(prefix + 'Status')?.value || '';
+
+    if (statusVal !== 'Processed') return;
+
+
+
+    if (isAdd) {
+
+        if (typeof onAddStatusToggle === 'function') onAddStatusToggle('Processed');
+
+    } else {
+
+        onEditStatusToggle('Processed');
+
+    }
+
+}
+
+
+
+function onEditStatusToggle(status) {
+
+    const actInput = document.getElementById('eActivationDate');
+
+    const expInput = document.getElementById('eExpiry');
+
+    if (status === 'Processed') {
+
+        const opVal = (document.getElementById('eOperator')?.value || '').trim();
+
+        const isTaisys = opVal.toLowerCase().includes('taisys');
+
+        const devStatus = (document.getElementById('eDeviceStatus')?.value || '').trim().toLowerCase();
+
+        const prevExpiry = (document.getElementById('ePrevExpiry')?.value || '').trim();
+
+        const rechargeDate = (document.getElementById('eRechargeDate')?.value || todayStr).trim();
+
+
+
+        if (isTaisys && (devStatus.includes('terminat') || devStatus.includes('dead'))) {
+
+            actInput.value = actInput.value || rechargeDate;
+
+            expInput.value = calculateExpiryFromDate(actInput.value || rechargeDate, false);
+
+        } else {
+
+            actInput.value = actInput.value || rechargeDate || todayStr;
+
+            if (prevExpiry) {
+
+                expInput.value = addYearsToDate(prevExpiry, 1);
+
+            } else {
+
+                expInput.value = expInput.value || calculateExpiryFromDate(actInput.value, false);
+
+            }
+
+        }
+
+    } else {
+
+        actInput.value = '';
+
+        expInput.value = '';
+
+    }
+
+}
+
+
+
+function onEditActDateChange() {
+
+    const actInput = document.getElementById('eActivationDate');
+
+    const expInput = document.getElementById('eExpiry');
+
+    const prevExp = (document.getElementById('ePrevExpiry')?.value || '').trim();
+
+    if (!expInput) return;
+
+    if (prevExp) {
+
+        expInput.value = addYearsToDate(prevExp, 1);
+
+    } else if (actInput && actInput.value) {
+
+        const isNewRto = '@currentBranch' === 'RTO';
+
+        expInput.value = calculateExpiryFromDate(actInput.value, isNewRto);
+
+    } else {
+
+        expInput.value = '';
+
+    }
+
+}
+
+    const actInput = document.getElementById('eActivationDate');
+
+    const expInput = document.getElementById('eExpiry');
+
+    if (actInput.value) {
+
+        const isNewRto = '@currentBranch' === 'RTO';
+
+        expInput.value = calculateExpiryFromDate(actInput.value, isNewRto);
+
+    } else {
+
+        expInput.value = '';
+
+    }
+
+}
+
+
+
+// ── Edit modal ──
+
+function openEdit(btn) {
+
+    const card = btn.closest('.rc-card');
+
+    const d = card.querySelector('.rc-card-data')?.dataset || btn.dataset;
+
+    document.getElementById('eId').value             = d.id           || '';
+
+    document.getElementById('eVehicle').value        = d.vehicle      || '';
+
+    document.getElementById('eDeviceStatus').value   = card.querySelector('.badge-device')?.textContent.trim() || '';
+
+    document.getElementById('eImei').value           = d.imei         || '';
+
+    document.getElementById('eIccid').value          = d.iccid        || '';
+
+    document.getElementById('eSimAirtel').value      = d.simAirtel    || '';
+
+    document.getElementById('eSimBsnl').value        = d.simBsnl      || '';
+
+    document.getElementById('eVendor').value         = d.vendor       || '';
+
+    const eOp = (d.operator || '').trim();
+
+    const eSelect = document.getElementById('eOperator');
+
+    if (eSelect) {
+
+        let matched = false;
+
+        for (let i = 0; i < eSelect.options.length; i++) {
+
+            if (eSelect.options[i].value.trim().toLowerCase() === eOp.toLowerCase()) {
+
+                eSelect.selectedIndex = i;
+
+                matched = true;
+
+                break;
+
+            }
+
+        }
+
+        if (!matched && eOp) {
+
+            const opt = document.createElement('option');
+
+            opt.value = eOp;
+
+            opt.textContent = eOp;
+
+            const addNew = eSelect.querySelector('option[value="__ADD_NEW__"]');
+
+            if (addNew) eSelect.insertBefore(opt, addNew);
+
+            else eSelect.appendChild(opt);
+
+            eSelect.value = eOp;
+
+        } else if (!eOp) {
+
+            eSelect.value = '';
+
+        }
+
+    }
+
+    document.getElementById('eRechargeDate').value   = d.rechargeDate || '';
+
+    document.getElementById('ePrevExpiry').value     = d.prevExpiry   || '';
+
+    document.getElementById('eActivationDate').value = d.actDate      || '';
+
+    document.getElementById('eExpiry').value         = d.expiry       || '';
+
+    document.getElementById('eNotes').value          = d.notes        || '';
+
+    setToggle('editStatusToggle', d.status  || 'Processed');
+
+    setToggle('editPayToggle',    d.payment || 'Not Paid');
+
+    if ((d.status || '').toLowerCase() === 'processed' || document.getElementById('eStatus').value === 'Processed') {
+
+        if (!document.getElementById('eActivationDate').value || !document.getElementById('eExpiry').value) {
+
+            onEditStatusToggle('Processed');
+
+        }
+
+    }
+
+    document.getElementById('editModalBg').classList.add('open');
+
+    document.body.style.overflow = 'hidden';
+
+    setTimeout(() => document.getElementById('eVehicle').focus(), 50);
+
+}
+
+function closeEdit(e) { if (e.target === document.getElementById('editModalBg')) closeEditModal(); }
+
+function closeEditModal() {
+
+    document.getElementById('editModalBg').classList.remove('open');
+
+    document.body.style.overflow = '';
+
+}
+
+
+
+// ── Duplicate checking helpers ──
+
+function normalizeDateStr(d) {
+
+    if (!d) return '';
+
+    d = (d + '').trim();
+
+    const isoMatch = d.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+
+    if (isoMatch) {
+
+        return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+
+    }
+
+    const dmyMatch = d.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+
+    if (dmyMatch) {
+
+        return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
+
+    }
+
+    const dt = new Date(d);
+
+    if (!isNaN(dt.getTime())) {
+
+        const y = dt.getFullYear();
+
+        const m = String(dt.getMonth() + 1).padStart(2, '0');
+
+        const day = String(dt.getDate()).padStart(2, '0');
+
+        return `${y}-${m}-${day}`;
+
+    }
+
+    return d.toLowerCase();
+
+}
+
+
+
+function isSameDevice(vehA, imeiA, iccidA, vehB, imeiB, iccidB) {
+
+    const vA = (vehA || '').trim().toLowerCase();
+
+    const vB = (vehB || '').trim().toLowerCase();
+
+    const iA = (imeiA || '').trim().toLowerCase();
+
+    const iB = (imeiB || '').trim().toLowerCase();
+
+    const cA = (iccidA || '').trim().toLowerCase();
+
+    const cB = (iccidB || '').trim().toLowerCase();
+
+
+
+    if (vA && vB && vA === vB) return true;
+
+    if (iA && iB && iA === iB) return true;
+
+    if (cA && cB && cA === cB) return true;
+
+    if (iA && cB && iA === cB) return true;
+
+    if (cA && iB && cA === iB) return true;
+
+    return false;
+
+}
+
+
+
+function isSameRechargePeriod(newA, prevA, newB, prevB) {
+
+    const cNewA = normalizeDateStr(newA);
+
+    const cNewB = normalizeDateStr(newB);
+
+    const cPrevA = normalizeDateStr(prevA);
+
+    const cPrevB = normalizeDateStr(prevB);
+
+
+
+    const hasNewA = !!cNewA;
+
+    const hasNewB = !!cNewB;
+
+
+
+    if (hasNewA && hasNewB) {
+
+        return cNewA === cNewB;
+
+    }
+
+
+
+    if (!hasNewA && !hasNewB) {
+
+        if (cPrevA && cPrevB) {
+
+            return cPrevA === cPrevB;
+
+        }
+
+        return true;
+
+    }
+
+
+
+    const specifiedNew = hasNewA ? cNewA : cNewB;
+
+    const otherPrev = hasNewA ? cPrevB : cPrevA;
+
+
+
+    if (specifiedNew && otherPrev) {
+
+        return specifiedNew === otherPrev;
+
+    }
+
+
+
+    return false;
+
+}
+
+
+
+function checkDuplicateRecharge(vehicle, imei, iccid, expiry, prevExpiry, excludeId) {
+
+    const cleanVeh = (vehicle || '').trim();
+
+    const cleanImei = (imei || '').trim();
+
+    const cleanIccid = (iccid || '').trim();
+
+
+
+    if (!cleanVeh && !cleanImei && !cleanIccid) return null;
+
+
+
+    const cards = document.querySelectorAll('.rc-card-data');
+
+    for (const card of cards) {
+
+        const d = card.dataset;
+
+        if (!d) continue;
+
+        if (excludeId && d.id === excludeId) continue;
+
+
+
+        const sameDev = isSameDevice(cleanVeh, cleanImei, cleanIccid, d.vehicle, d.imei, d.iccid);
+
+        if (!sameDev) continue;
+
+
+
+        if (isSameRechargePeriod(expiry, prevExpiry, d.expiry, d.prevExpiry)) {
+
+            return {
+
+                id: d.id,
+
+                vehicle: d.vehicle,
+
+                imei: d.imei,
+
+                iccid: d.iccid,
+
+                expiryDate: d.expiry,
+
+                prevExpiryDate: d.prevExpiry
+
+            };
+
+        }
+
+    }
+
+    return null;
+
+}
+
+
+
+async function submitEdit() {
+
+    const editId = document.getElementById('eId').value;
+
+    const vehicle = document.getElementById('eVehicle').value.trim();
+
+    const imei = document.getElementById('eImei').value.trim();
+
+    const iccid = document.getElementById('eIccid').value.trim();
+
+    const expiry = document.getElementById('eExpiry').value.trim();
+
+    const prevExpiry = document.getElementById('ePrevExpiry').value.trim();
+
+
+
+    const dup = checkDuplicateRecharge(vehicle, imei, iccid, expiry, prevExpiry, editId);
+
+    if (dup) {
+
+        Swal.fire({
+
+            icon: 'warning',
+
+            title: 'Already Present',
+
+            text: 'Recharge record is already present.',
+
+            confirmButtonColor: '#2563eb'
+
+        });
+
+        return;
+
+    }
+
+
+
+    const btn = document.getElementById('btnSaveEdit');
+
+    btn.disabled = true;
+
+    const oldHtml = btn.innerHTML;
+
+    btn.innerHTML = 'Saving...';
+
+    const payload = [{
+
+        Id:                 editId,
+
+        VehicleNo:          vehicle,
+
+        Imei:               imei,
+
+        Iccid:              iccid,
+
+        SimAirtel:          document.getElementById('eSimAirtel').value.trim(),
+
+        SimBsnl:            document.getElementById('eSimBsnl').value.trim(),
+
+        Vendor:             document.getElementById('eVendor').value.trim(),
+
+        NetworkOperator:    document.getElementById('eOperator').value,
+
+        PaymentStatus:      document.getElementById('ePayment').value,
+
+        RechargeStatus:     document.getElementById('eStatus').value,
+
+        RechargeDate:       document.getElementById('eRechargeDate').value,
+
+        ExpiryDate:         expiry,
+
+        PreviousExpiryDate: document.getElementById('ePrevExpiry').value,
+
+        ActivationDate:     document.getElementById('eActivationDate').value,
+
+        Notes:              document.getElementById('eNotes').value.trim(),
+
+    }];
+
+    try {
+
+        const res = await fetch('@Url.Action("BulkSave", "Recharges")', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+        if (res.ok) {
+
+            closeEditModal();
+
+            await Swal.fire({ icon: 'success', title: 'Updated!', timer: 800, showConfirmButton: false });
+
+            window.location.reload();
+
+        } else {
+
+            const errData = await res.json().catch(() => ({}));
+
+            if (errData.duplicate || (errData.message && errData.message.toLowerCase().includes('already present'))) {
+
+                Swal.fire({
+
+                    icon: 'warning',
+
+                    title: 'Already Present',
+
+                    text: 'Recharge record is already present.',
+
+                    confirmButtonColor: '#2563eb'
+
+                });
+
+            } else {
+
+                Swal.fire('Validation Error', errData.message || (res.status === 405 ? 'Request routing error. Please refresh the page.' : 'Failed to save changes.'), 'error');
+
+            }
+
+            btn.disabled = false;
+
+            btn.innerHTML = oldHtml;
+
+        }
+
+    } catch {
+
+        Swal.fire('Error', 'Network error.', 'error');
+
+        btn.disabled = false;
+
+        btn.innerHTML = oldHtml;
+
+    }
+
+}
+
+
+
+async function deleteCard(id, btn) {
+
+    const confirmed = await Swal.fire({ title: 'Delete this recharge?', text: 'This cannot be undone.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#b42318', confirmButtonText: 'Delete', cancelButtonText: 'Cancel' });
+
+    if (!confirmed.isConfirmed) return;
+
+    try {
+
+        const res = await fetch('@Url.Action("Delete", "Recharges")', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'id=' + encodeURIComponent(id) });
+
+        if (res.ok) { btn.closest('.rc-card').remove(); updateCount(); }
+
+        else Swal.fire('Error', 'Failed to delete.', 'error');
+
+    } catch { Swal.fire('Error', 'Network error.', 'error'); }
+
+}
+
+
+
+function clearProcessedFilters() {
+
+    const s = document.getElementById('rcSearch');
+
+    if (s) s.value = '';
+
+    ['filterStatus', 'filterPayment', 'filterOperator'].forEach(id => {
+
+        const el = document.getElementById(id);
+
+        if (el) {
+
+            el.value = '';
+
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+
+        }
+
+    });
+
+    filterCards();
+
+}
+
+
+
+function filterCards() {
+
+    const q        = (document.getElementById('rcSearch')?.value || '').toLowerCase();
+
+    const status   = (document.getElementById('filterStatus')?.value || '').toLowerCase();
+
+    const payment  = (document.getElementById('filterPayment')?.value || '').toLowerCase();
+
+    const operator = (document.getElementById('filterOperator')?.value || '').toLowerCase();
+
+    let visible = 0, paid = 0, due = 0, taisys = 0, sensorise = 0;
+
+    document.querySelectorAll('#rcCards .rc-card').forEach(card => {
+
+        const text = card.textContent.toLowerCase();
+
+        const cStatus   = (card.dataset.status || '').toLowerCase();
+
+        const cPayment  = (card.dataset.payment || '').toLowerCase();
+
+        const cOperator = (card.dataset.operator || '').toLowerCase();
+
+        const show = (!q || text.includes(q))
+
+                  && (!status   || cStatus   === status)
+
+                  && (!payment  || cPayment  === payment)
+
+                  && (!operator || cOperator === operator || cOperator.includes(operator));
+
+        card.style.display = show ? '' : 'none';
+
+        if (show) {
+
+            visible++;
+
+            if (cPayment === 'paid') paid++;
+
+            if (cPayment === 'not paid') due++;
+
+            if (cOperator === 'taisys') taisys++;
+
+            if (cOperator === 'sensorise') sensorise++;
+
+        }
+
+    });
+
+    const total = document.querySelectorAll('#rcCards .rc-card').length;
+
+    document.getElementById('rcNoResults').style.display = (visible === 0 && total > 0) ? 'block' : 'none';
+
+    updateCount(visible, total);
+
+
+
+    const elTotal     = document.getElementById('statValTotal');
+
+    const elPaid      = document.getElementById('statValPaid');
+
+    const elDue       = document.getElementById('statValDue');
+
+    const elTaisys    = document.getElementById('statValTaisys');
+
+    const elSensorise = document.getElementById('statValSensorise');
+
+    if (elTotal)     elTotal.textContent     = visible;
+
+    if (elPaid)      elPaid.textContent      = paid;
+
+    if (elDue)       elDue.textContent       = due;
+
+    if (elTaisys)    elTaisys.textContent    = taisys;
+
+    if (elSensorise) elSensorise.textContent = sensorise;
+
+}
+
+
+
+function updateCount(v, t) {
+
+    if (v === undefined) {
+
+        const cards = document.querySelectorAll('#rcCards .rc-card');
+
+        v = [...cards].filter(c => c.style.display !== 'none').length;
+
+        t = cards.length;
+
+    }
+
+    document.getElementById('rcCount').textContent = v === t ? `${t} processed record${t !== 1 ? 's' : ''}` : `${v} of ${t}`;
+
+}
+
+
+
+function exportFilteredProcessed() {
+
+    const q       = (document.getElementById('rcSearch')?.value || '').trim();
+
+    const payment = (document.getElementById('filterPayment')?.value || '').trim();
+
+    window.location.href = `@Url.Action("Export", "Recharges")?q=${encodeURIComponent(q)}&status=Processed&payment=${encodeURIComponent(payment)}`;
+
+}
+
+
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEditModal(); });
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    updateCount();
+
+    const ePrev = document.getElementById('ePrevExpiry');
+
+    if (ePrev) {
+
+        ePrev.addEventListener('input', () => onPrevExpiryChange(false));
+
+        ePrev.addEventListener('change', () => onPrevExpiryChange(false));
+
+    }
+
+});
+
+</script>
+

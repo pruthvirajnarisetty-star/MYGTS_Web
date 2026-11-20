@@ -1,0 +1,1828 @@
+@using System.Security.Claims
+@{
+    var reqBranch = Context.Request.Query["branch"].ToString();
+    if (string.IsNullOrWhiteSpace(reqBranch))
+    {
+        reqBranch = Context.Request.Cookies["mygts_branch"] ?? "";
+    }
+    if (string.IsNullOrWhiteSpace(reqBranch) && Context.Request.Headers.Referer.ToString().Contains("/Expenditure", StringComparison.OrdinalIgnoreCase))
+    {
+        reqBranch = "Expenditure";
+    }
+    var isExpenditure = string.Equals(reqBranch, "Expenditure", StringComparison.OrdinalIgnoreCase);
+    var isRto = string.Equals(reqBranch, "RTO", StringComparison.OrdinalIgnoreCase);
+
+    if (isExpenditure)
+    {
+        Layout = "~/Areas/Expenditure/Views/Shared/_Layout.cshtml";
+    }
+    else if (isRto)
+    {
+        Layout = "~/Areas/RTO/Views/Shared/_Layout.cshtml";
+    }
+    else
+    {
+        Layout = "~/Views/Shared/_Layout.cshtml";
+    }
+    ViewData["Title"] = "User Manual · MYGTS Platform";
+    var role = User.FindFirstValue(ClaimTypes.Role) ?? "Team";
+    var isExecOrAdmin = User.IsExecutive() || User.IsAdmin();
+    var userName = User.Identity?.Name ?? "User";
+    
+    var currentBranch = isRto ? "RTO" : (isExpenditure ? "Expenditure" : "DMG");
+    
+    // Module visibility based on user permissions
+    bool showDashboard    = isExecOrAdmin || User.CanViewModule("Dashboard");
+    bool showDevices      = isExecOrAdmin || User.CanViewModule("Devices");
+    bool showDataShare    = (isExecOrAdmin || User.CanViewModule("DataShare")) && currentBranch != "RTO";
+    bool showTransactions = isExecOrAdmin || User.CanViewModule("Transactions");
+    bool showRecharges    = isExecOrAdmin || User.CanViewModule("Recharges");
+    bool showTaisys       = (isExecOrAdmin || User.CanViewModule("CompanyRecharges")) && currentBranch != "RTO";
+    bool showInventory    = isExecOrAdmin || User.CanViewModule("Inventory");
+    bool showInvoices     = isExecOrAdmin || User.CanViewModule("Invoices");
+    bool showReminders    = isExecOrAdmin || User.CanViewModule("Reminders");
+    bool showVendors      = isExecOrAdmin || User.CanViewModule("Vendors") || User.Identity?.IsAuthenticated == true;
+    bool showExpenditure  = isExecOrAdmin || User.CanViewModule("Expenditure");
+    bool showHardware     = isExecOrAdmin || User.CanViewModule("Devices") || User.CanViewModule("Inventory");
+    bool showAdmin        = isExecOrAdmin;
+
+    // Edit permission flags
+    bool canEditDev  = isExecOrAdmin || User.CanEditModule("Devices");
+    bool canEditTx   = isExecOrAdmin || User.CanEditModule("Transactions");
+    bool canEditRec  = isExecOrAdmin || User.CanEditModule("Recharges");
+    bool canEditTai  = isExecOrAdmin || User.CanEditModule("CompanyRecharges");
+    bool canEditInv  = isExecOrAdmin || User.CanEditModule("Inventory");
+    bool canEditInvs = isExecOrAdmin || User.CanEditModule("Invoices");
+    bool canEditRem  = isExecOrAdmin || User.CanEditModule("Reminders");
+    bool canEditVen  = isExecOrAdmin || User.CanEditModule("Vendors");
+    bool canEditExp  = isExecOrAdmin || User.CanEditModule("Expenditure");
+
+    int secNum = 0;
+    int Sec() => ++secNum;
+
+    // Count permitted modules for user overview
+    int permittedModulesCount = 0;
+    if (showDashboard) permittedModulesCount++;
+    if (showDevices) permittedModulesCount++;
+    if (showDataShare) permittedModulesCount++;
+    if (showTransactions) permittedModulesCount++;
+    if (showRecharges) permittedModulesCount++;
+    if (showTaisys) permittedModulesCount++;
+    if (showInventory) permittedModulesCount++;
+    if (showInvoices) permittedModulesCount++;
+    if (showReminders) permittedModulesCount++;
+    if (showVendors) permittedModulesCount++;
+    if (showExpenditure) permittedModulesCount++;
+    if (showAdmin) permittedModulesCount += 4;
+}
+
+<style>
+    .content-area {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 24px 20px !important;
+        min-width: 0 !important;
+    }
+    .manual-wrap {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    .manual-hero {
+        background: linear-gradient(135deg, #001d6c 0%, #0d3880 50%, #1e40af 100%);
+        color: #ffffff;
+        padding: 28px 32px;
+        border-radius: 16px;
+        box-shadow: 0 12px 32px -6px rgba(0, 29, 108, 0.4);
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+    .manual-hero-left {
+        flex: 1 1 450px;
+        min-width: 0;
+    }
+    .manual-hero-title {
+        font-size: 1.85rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        margin: 0 0 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .manual-hero-badge {
+        font-size: 0.76rem;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+    .badge-exec { background: #f59e0b; color: #1e1e1e; }
+    .badge-role { background: #38bdf8; color: #082f49; }
+    .manual-hero-sub {
+        font-size: 0.96rem;
+        opacity: 0.92;
+        margin: 0 0 14px 0;
+        line-height: 1.5;
+    }
+    .manual-user-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(10px);
+        padding: 6px 14px;
+        border-radius: 30px;
+        font-size: 0.82rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .manual-hero-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .btn-manual-action {
+        background: #ffffff;
+        color: #001d6c;
+        border: none;
+        padding: 9px 18px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.86rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transition: transform 0.15s, background 0.15s;
+    }
+    .btn-manual-action:hover {
+        background: #f1f5f9;
+        transform: translateY(-2px);
+    }
+
+    /* Layout Grid: Sticky Outline Nav + Main Content */
+    .manual-grid {
+        display: grid;
+        grid-template-columns: 240px minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .manual-sidebar {
+        position: sticky;
+        top: 76px;
+        background: var(--paper, #ffffff);
+        border: 1px solid var(--line, #e2e8f0);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+        max-height: calc(100vh - 100px);
+        overflow-y: auto;
+        box-sizing: border-box;
+    }
+    .manual-sidebar-title {
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #0f62fe;
+        letter-spacing: 0.9px;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .manual-search-box {
+        margin-bottom: 14px;
+    }
+    .manual-search-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 11px;
+        border-radius: 6px;
+        border: 1px solid var(--line, #cbd5e1);
+        font-size: 0.80rem;
+        background: var(--surface-bg, #f8fafc);
+        color: var(--ink, #1e293b);
+    }
+    .manual-nav-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .manual-nav-item {
+        margin-bottom: 3px;
+    }
+    .manual-nav-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 0.81rem;
+        color: var(--ink, #334155);
+        text-decoration: none;
+        transition: all 0.15s;
+        line-height: 1.35;
+    }
+    .manual-nav-link:hover, .manual-nav-link.active {
+        background: #e0e7ff;
+        color: #0f62fe;
+        font-weight: 700;
+    }
+    .manual-nav-pill {
+        font-size: 0.68rem;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .pill-full { background: #dcfce7; color: #15803d; }
+    .pill-view { background: #e0f2fe; color: #0369a1; }
+    .pill-admin { background: #ede9fe; color: #6d28d9; }
+
+    /* Content Body & Sections */
+    .manual-body {
+        background: var(--paper, #ffffff);
+        border: 1px solid var(--line, #e2e8f0);
+        border-radius: 16px;
+        padding: 32px 36px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        box-sizing: border-box;
+        min-width: 0;
+    }
+    .manual-section {
+        margin-bottom: 48px;
+        scroll-margin-top: 86px;
+        box-sizing: border-box;
+    }
+    .manual-section:last-child {
+        margin-bottom: 0;
+    }
+    .sec-header {
+        border-bottom: 2px solid var(--line, #f1f5f9);
+        padding-bottom: 12px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .sec-header-left {
+        flex: 1 1 300px;
+    }
+    .sec-number-tag {
+        font-size: 0.74rem;
+        font-weight: 800;
+        color: #0f62fe;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        display: block;
+        margin-bottom: 4px;
+    }
+    .sec-title {
+        font-size: 1.42rem;
+        font-weight: 800;
+        color: #001d6c;
+        margin: 0;
+        line-height: 1.3;
+    }
+    .sec-perm-tag {
+        font-size: 0.74rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        letter-spacing: 0.3px;
+    }
+    .sec-sub-h3 {
+        font-size: 1.08rem;
+        font-weight: 700;
+        color: #0f62fe;
+        margin: 22px 0 10px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .sec-sub-h4 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 16px 0 8px 0;
+    }
+    .sec-text {
+        font-size: 0.92rem;
+        line-height: 1.68;
+        color: #334155;
+        margin: 0 0 12px 0;
+    }
+    .sec-ul {
+        margin: 6px 0 16px 0;
+        padding-left: 22px;
+    }
+    .sec-ul li {
+        font-size: 0.90rem;
+        line-height: 1.65;
+        color: #334155;
+        margin-bottom: 6px;
+    }
+    .sec-ul li strong {
+        color: #0f172a;
+    }
+
+    /* Cards, Alert Boxes & Highlights */
+    .feature-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin: 16px 0;
+    }
+    .feature-card {
+        background: var(--surface-bg, #f8fafc);
+        border: 1px solid var(--line, #e2e8f0);
+        border-radius: 10px;
+        padding: 16px 20px;
+        box-sizing: border-box;
+    }
+    .feature-card-title {
+        font-size: 0.96rem;
+        font-weight: 700;
+        color: #001d6c;
+        margin: 0 0 6px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .feature-card-text {
+        font-size: 0.86rem;
+        line-height: 1.55;
+        color: #475569;
+        margin: 0;
+    }
+
+    .notice-box {
+        background: #f8fafc;
+        border-left: 4px solid #0f62fe;
+        padding: 14px 18px;
+        border-radius: 0 8px 8px 0;
+        margin: 14px 0;
+        box-sizing: border-box;
+    }
+    .notice-box.emerald { border-color: #10b981; background: #f0fdf4; }
+    .notice-box.amber   { border-color: #f59e0b; background: #fffbeb; }
+    .notice-box.rose    { border-color: #ef4444; background: #fef2f2; }
+    .notice-box.purple  { border-color: #8b5cf6; background: #fbf7ff; }
+
+    .notice-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        margin: 0 0 4px 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .notice-box.emerald .notice-title { color: #166534; }
+    .notice-box.amber   .notice-title { color: #92400e; }
+    .notice-box.rose    .notice-title { color: #991b1b; }
+    .notice-box.purple  .notice-title { color: #6b21a8; }
+    .notice-p {
+        font-size: 0.85rem;
+        line-height: 1.55;
+        margin: 0;
+        color: #334155;
+    }
+
+    /* Workflow Step Circles */
+    .step-list {
+        list-style: none;
+        padding: 0;
+        margin: 16px 0;
+        counter-reset: step-counter;
+    }
+    .step-item {
+        position: relative;
+        padding-left: 42px;
+        margin-bottom: 16px;
+        font-size: 0.90rem;
+        line-height: 1.6;
+        color: #334155;
+    }
+    .step-item::before {
+        counter-increment: step-counter;
+        content: counter(step-counter);
+        position: absolute;
+        left: 0;
+        top: 2px;
+        width: 28px;
+        height: 28px;
+        background: #001d6c;
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 0.78rem;
+    }
+
+    /* Tables */
+    .manual-tbl-wrap {
+        width: 100%;
+        overflow-x: auto;
+        border-radius: 10px;
+        border: 1px solid var(--line, #e2e8f0);
+        margin: 16px 0;
+        box-sizing: border-box;
+    }
+    .manual-tbl {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.86rem;
+    }
+    .manual-tbl thead {
+        background: #001d6c;
+        color: #ffffff;
+    }
+    .manual-tbl th {
+        padding: 10px 14px;
+        font-weight: 700;
+        text-align: left;
+        white-space: nowrap;
+        font-size: 0.81rem;
+    }
+    .manual-tbl td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #e2e8f0;
+        color: #334155;
+        vertical-align: top;
+        line-height: 1.5;
+    }
+    .manual-tbl tbody tr:nth-child(even) {
+        background: var(--surface-bg, #f8fafc);
+    }
+    .manual-tbl code {
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 0.82rem;
+        color: #0f172a;
+    }
+
+    /* Code snippets & copy */
+    .cmd-box {
+        position: relative;
+        background: #0f172a;
+        color: #38bdf8;
+        border-radius: 8px;
+        padding: 12px 16px;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.84rem;
+        margin: 8px 0 14px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        word-break: break-all;
+    }
+    .cmd-code {
+        color: #f8fafc;
+        font-weight: 600;
+    }
+    .cmd-copy-btn {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+        border: none;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        cursor: pointer;
+        font-weight: 700;
+        transition: background 0.15s;
+        white-space: nowrap;
+    }
+    .cmd-copy-btn:hover {
+        background: #0f62fe;
+    }
+
+    /* Responsive adjustments */
+    @@media (max-width: 900px) {
+        .manual-grid {
+            grid-template-columns: 1fr;
+        }
+        .manual-sidebar {
+            position: static;
+            max-height: none;
+            margin-bottom: 20px;
+        }
+    }
+
+    /* Print styles */
+    @@media print {
+        .manual-sidebar, .manual-hero-actions, .topbar, .app-sidebar, header {
+            display: none !important;
+        }
+        .manual-grid {
+            display: block !important;
+        }
+        .manual-body {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+        .manual-section {
+            page-break-inside: avoid;
+        }
+    }
+
+    /* Dark Mode Overrides */
+    body:has(#theme:checked) .manual-sidebar,
+    body:has(#theme:checked) .manual-body,
+    body:has(#theme:checked) .feature-card {
+        background: #0d1527 !important;
+        border-color: #1e293b !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+    }
+    body:has(#theme:checked) .manual-sidebar-title {
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .manual-search-input {
+        background: #090e17 !important;
+        border-color: #1e293b !important;
+        color: #f1f5f9 !important;
+    }
+    body:has(#theme:checked) .manual-nav-link {
+        color: #94a3b8 !important;
+    }
+    body:has(#theme:checked) .manual-nav-link:hover,
+    body:has(#theme:checked) .manual-nav-link.active {
+        background: #1e293b !important;
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .sec-header {
+        border-bottom-color: #1e293b !important;
+    }
+    body:has(#theme:checked) .sec-number-tag {
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .sec-title,
+    body:has(#theme:checked) .feature-card-title {
+        color: #f1f5f9 !important;
+    }
+    body:has(#theme:checked) .sec-sub-h3 {
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .sec-sub-h4 {
+        color: #f1f5f9 !important;
+    }
+    body:has(#theme:checked) .sec-text,
+    body:has(#theme:checked) .sec-ul li,
+    body:has(#theme:checked) .feature-card-text,
+    body:has(#theme:checked) .step-item,
+    body:has(#theme:checked) .manual-tbl td,
+    body:has(#theme:checked) .notice-p {
+        color: #cbd5e1 !important;
+    }
+    body:has(#theme:checked) .sec-ul li strong {
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .step-item::before {
+        background: #0284c7 !important;
+        color: #ffffff !important;
+    }
+    body:has(#theme:checked) .manual-tbl-wrap {
+        border-color: #1e293b !important;
+    }
+    body:has(#theme:checked) .manual-tbl thead {
+        background: #0a1324 !important;
+    }
+    body:has(#theme:checked) .manual-tbl th {
+        background: #0a1324 !important;
+        color: #93c5fd !important;
+        border-bottom: 2px solid #1e293b !important;
+    }
+    body:has(#theme:checked) .manual-tbl tbody tr {
+        background: #0d1527 !important;
+    }
+    body:has(#theme:checked) .manual-tbl td,
+    body:has(#theme:checked) .manual-tbl tbody tr td {
+        background-color: #0d1527 !important;
+        border-bottom-color: #1e293b !important;
+        color: #cbd5e1 !important;
+    }
+    body:has(#theme:checked) .manual-tbl tbody tr:nth-child(even),
+    body:has(#theme:checked) .manual-tbl tbody tr:nth-child(even) td {
+        background-color: #141f36 !important;
+    }
+    body:has(#theme:checked) .manual-tbl tbody tr:hover,
+    body:has(#theme:checked) .manual-tbl tbody tr:hover td {
+        background-color: #1a2744 !important;
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .manual-tbl code {
+        background: #080d1a !important;
+        color: #38bdf8 !important;
+        border: 1px solid #1e293b !important;
+    }
+    body:has(#theme:checked) .notice-box {
+        background: #111e38 !important;
+        border-left-color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .notice-box.emerald {
+        background: rgba(16, 185, 129, 0.12) !important;
+        border-left-color: #10b981 !important;
+    }
+    body:has(#theme:checked) .notice-box.emerald .notice-title {
+        color: #6ee7b7 !important;
+    }
+    body:has(#theme:checked) .notice-box.amber {
+        background: rgba(245, 158, 11, 0.12) !important;
+        border-left-color: #f59e0b !important;
+    }
+    body:has(#theme:checked) .notice-box.amber .notice-title {
+        color: #fde68a !important;
+    }
+    body:has(#theme:checked) .notice-box.rose {
+        background: rgba(239, 68, 68, 0.12) !important;
+        border-left-color: #ef4444 !important;
+    }
+    body:has(#theme:checked) .notice-box.rose .notice-title {
+        color: #fca5a5 !important;
+    }
+    body:has(#theme:checked) .notice-box.purple {
+        background: rgba(139, 92, 246, 0.12) !important;
+        border-left-color: #8b5cf6 !important;
+    }
+    body:has(#theme:checked) .notice-box.purple .notice-title {
+        color: #c4b5fd !important;
+    }
+    body:has(#theme:checked) .pill-full {
+        background: rgba(16, 185, 129, 0.2) !important;
+        color: #4ade80 !important;
+    }
+    body:has(#theme:checked) .pill-view {
+        background: rgba(56, 189, 248, 0.2) !important;
+        color: #7dd3fc !important;
+    }
+    body:has(#theme:checked) .pill-admin {
+        background: rgba(139, 92, 246, 0.2) !important;
+        color: #c084fc !important;
+    }
+</style>
+
+<div class="manual-wrap">
+    <!-- Hero Banner with Personalized Scope -->
+    <div class="manual-hero">
+        <div class="manual-hero-left">
+            <h1 class="manual-hero-title">
+                MYGTS User Manual
+                @if (isExecOrAdmin)
+                {
+                    <span class="manual-hero-badge badge-exec">Complete Executive Edition</span>
+                }
+                else
+                {
+                    <span class="manual-hero-badge badge-role">@role Edition &middot; @permittedModulesCount Permitted Modules</span>
+                }
+            </h1>
+            <p class="manual-hero-sub">
+                Comprehensive step-by-step operating guide for the MYGTS Fleet & GPS Management System.
+                @if (isExecOrAdmin)
+                {
+                    <span>Full operational, financial, hardware, administrative, and configuration manual unlocked.</span>
+                }
+                else
+                {
+                    <span>Customized for your account permissions &mdash; non-permitted modules and actions are cleanly filtered.</span>
+                }
+            </p>
+            <div class="manual-user-status">
+                <span>Logged in as: <strong>@userName</strong></span>
+                <span>&bull;</span>
+                <span>Role: <strong>@role</strong></span>
+                <span>&bull;</span>
+                <span>Level: <strong>@(isExecOrAdmin ? "Global Oversight" : "Permission-Gated")</strong></span>
+            </div>
+        </div>
+        <div class="manual-hero-actions">
+            <button type="button" class="btn-manual-action" onclick="window.print();" title="Print or save as PDF">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Print Manual
+            </button>
+            @if (User.IsInRole("Admin"))
+            {
+                <a class="btn-manual-action" asp-controller="Documents" asp-action="Src" title="View technical SRC specification (Admin Only)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    View SRC Contract (Admin)
+                </a>
+            }
+        </div>
+    </div>
+
+    <!-- Main Grid: Sticky Sidebar + Modular Sections -->
+    <div class="manual-grid">
+        <!-- Sticky Outline Nav (Dynamically filtered) -->
+        <aside class="manual-sidebar">
+            <div class="manual-sidebar-title">
+                <span>Table of Contents</span>
+                <span style="font-size: 0.70rem; opacity: 0.8;">@userName</span>
+            </div>
+            <div class="manual-search-box">
+                <input type="text" id="manualSearch" class="manual-search-input" placeholder="Filter manual topics..." onkeyup="filterManual()" />
+            </div>
+            <ul class="manual-nav-list" id="manualNavList">
+                <li class="manual-nav-item">
+                    <a href="#sec-overview" class="manual-nav-link active">
+                        <span>Getting Started & Fundamentals</span>
+                        <span class="manual-nav-pill pill-full">Core</span>
+                    </a>
+                </li>
+                @if (showDashboard)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-dashboard" class="manual-nav-link">
+                            <span>Dashboard & Analytics</span>
+                            <span class="manual-nav-pill pill-view">Monitor</span>
+                        </a>
+                    </li>
+                }
+                @if (showDevices)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-devices" class="manual-nav-link">
+                            <span>Devices & Fleet Registry</span>
+                            <span class="manual-nav-pill @(canEditDev ? "pill-full" : "pill-view")">@(canEditDev ? "Edit" : "View")</span>
+                        </a>
+                    </li>
+                }
+                @if (showDataShare)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-datashare" class="manual-nav-link">
+                            <span>Data Share Integration</span>
+                            <span class="manual-nav-pill @(canEditDev ? "pill-full" : "pill-view")">DMG</span>
+                        </a>
+                    </li>
+                }
+                @if (showTransactions)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-transactions" class="manual-nav-link">
+                            <span>Financial Transactions</span>
+                            <span class="manual-nav-pill @(canEditTx ? "pill-full" : "pill-view")">@(canEditTx ? "Edit" : "View")</span>
+                        </a>
+                    </li>
+                }
+                @if (showRecharges)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-recharges" class="manual-nav-link">
+                            <span>SIM & Device Recharges</span>
+                            <span class="manual-nav-pill @(canEditRec ? "pill-full" : "pill-view")">@(canEditRec ? "Edit" : "View")</span>
+                        </a>
+                    </li>
+                }
+                @if (showTaisys)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-taisys" class="manual-nav-link">
+                            <span>Taisys Advance Batches</span>
+                            <span class="manual-nav-pill @(canEditTai ? "pill-full" : "pill-view")">@(canEditTai ? "Edit" : "View")</span>
+                        </a>
+                    </li>
+                }
+                @if (showInventory)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-inventory" class="manual-nav-link">
+                            <span>Inventory & Hardware Stock</span>
+                            <span class="manual-nav-pill @(canEditInv ? "pill-full" : "pill-view")">@(canEditInv ? "Edit" : "View")</span>
+                        </a>
+                    </li>
+                }
+                @if (showInvoices)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-invoices" class="manual-nav-link">
+                            <span>Customer Billing & Invoices</span>
+                            <span class="manual-nav-pill @(canEditInvs ? "pill-full" : "pill-view")">@(canEditInvs ? "Edit" : "View")</span>
+                        </a>
+                    </li>
+                }
+                @if (showReminders)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-reminders" class="manual-nav-link">
+                            <span>Reminders & Follow-Ups</span>
+                            <span class="manual-nav-pill @(canEditRem ? "pill-full" : "pill-view")">@(canEditRem ? "Edit" : "View")</span>
+                        </a>
+                    </li>
+                }
+                @if (showVendors)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-vendors" class="manual-nav-link">
+                            <span>Vendors Directory</span>
+                            <span class="manual-nav-pill @(canEditVen ? "pill-full" : "pill-view")">@(canEditVen ? "Edit" : "View")</span>
+                        </a>
+                    </li>
+                }
+                @if (showExpenditure)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-expenditure" class="manual-nav-link">
+                            <span>Expenditure & Multi-Year Books</span>
+                            <span class="manual-nav-pill @(canEditExp ? "pill-full" : "pill-view")">@(canEditExp ? "Edit" : "Audit")</span>
+                        </a>
+                    </li>
+                }
+                @if (showHardware)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-hardware" class="manual-nav-link">
+                            <span>Locate 140B Pinout & SMS</span>
+                            <span class="manual-nav-pill pill-full">Hardware</span>
+                        </a>
+                    </li>
+                }
+                @if (showAdmin)
+                {
+                    <li class="manual-nav-item">
+                        <a href="#sec-admin" class="manual-nav-link">
+                            <span>System Admin & Controls</span>
+                            <span class="manual-nav-pill pill-admin">Admin</span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        </aside>
+
+        <!-- Main Documentation Body -->
+        <main class="manual-body">
+
+            <!-- SECTION 1: GETTING STARTED & FUNDAMENTALS (Visible to All) -->
+            <section id="sec-overview" class="manual-section">
+                <div class="sec-header">
+                    <div class="sec-header-left">
+                        <span class="sec-number-tag">Section @Sec()</span>
+                        <h2 class="sec-title">Getting Started & Platform Fundamentals</h2>
+                    </div>
+                    <span class="sec-perm-tag pill-full">Universal Core</span>
+                </div>
+                
+                <p class="sec-text">
+                    Welcome to the <strong>MYGTS Fleet & GPS Management Platform</strong>. This platform provides complete real-time tracking, SIM subscription lifecycle management, financial accounting, inventory hardware controls, and client billing.
+                </p>
+
+                <div class="feature-card-grid">
+                    <div class="feature-card">
+                        <div class="feature-card-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#001d6c" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                            Tri-Branch Enterprise Architecture
+                        </div>
+                        <p class="feature-card-text">
+                            Switch instantly between <strong>DMG Branch</strong> (National transport tracking & data sharing), <strong>RTO Branch</strong> (Regional AIS-140 compliance & certification), and <strong>Expenditure Branch</strong> (Multi-year financial accounting & cash flow analysis). Switcher is located in the sidebar.
+                        </p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-card-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#001d6c" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                            Real-Time Alert Center
+                        </div>
+                        <p class="feature-card-text">
+                            The topbar bell provides categorized alerts for Overdue devices, 7-day Expiring SIMs, Lifecycle shifts, Pending follow-ups, and Unpaid recharges. Includes direct WhatsApp notification tools.
+                        </p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-card-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#001d6c" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            15-Min Cross-Tab Idle Timeout
+                        </div>
+                        <p class="feature-card-text">
+                            Intelligent session protection tracks real user activity (mouse moves, clicks, keystrokes) synchronized across all open tabs. The lock only activates when your workstation is genuinely idle for 15 minutes.
+                        </p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-card-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#001d6c" stroke-width="2"><polyline points="6 9 12 15 18 9"/><path d="M12 3v12"/></svg>
+                            Dynamic Custom Dropdowns
+                        </div>
+                        <p class="feature-card-text">
+                            Add new options on the fly (device types, telecom carriers, payment categories) directly from dropdowns using <strong>+ Add Custom Option...</strong>. No code edits or redeployments required.
+                        </p>
+                    </div>
+                </div>
+
+                <h3 class="sec-sub-h3">15-Minute Synchronized Idle Timeout & Security Policy</h3>
+                <p class="sec-text">
+                    MYGTS balances workstation security with operator productivity using an active cross-tab idle detection engine:
+                </p>
+                <ul class="sec-ul">
+                    <li><strong>Continuous Activity Tracking:</strong> The application listens for mouse movement, clicks, keystrokes, and touch gestures. As long as you are actively reading, typing, or navigating, your session remains active.</li>
+                    <li><strong>Cross-Tab Synchronization:</strong> The activity timestamp is broadcasted between browser tabs via <code>localStorage.mygts_active_tick</code>. Working in one tab automatically resets the idle clock across all your open MYGTS windows.</li>
+                    <li><strong>Zero Disruptions on Branch Switch:</strong> Switching branches or navigating between modules is treated as active user interaction and will never cause premature session termination.</li>
+                    <li><strong>Automatic Lockout on Inactivity:</strong> If no user interaction is detected on any open tab for 15 continuous minutes, the application automatically clears authentication cookies and redirects to the login screen with an informative notice.</li>
+                </ul>
+
+                <h3 class="sec-sub-h3">Dynamic Custom Dropdown Options ("+ Add Custom Option...")</h3>
+                <p class="sec-text">
+                    Form dropdowns across the application (Devices, Transactions, Recharges, Inventory, and Invoices) include built-in dynamic option creation. Users can add new values directly as business requirements change without needing a developer or code modifications in an IDE:
+                </p>
+                <ul class="sec-ul">
+                    <li><strong>Supported Fields:</strong> Device Name / Type, Network Operator, Payment Mode, Payment For, Extras, Lifecycle Status, Proof of Address, CDAC / VLDT Certificates, and Action Types.</li>
+                    <li><strong>How to Add an Option:</strong> Click on any supported dropdown field, scroll to the bottom of the list, and select <strong>+ Add Custom Option...</strong>. A management modal will open automatically.</li>
+                    <li><strong>Instant Database Persistence:</strong> Enter the new option name and click <strong>+ Add Option</strong> (or press <kbd>Enter</kbd>). The option is saved to the SQLite database for your active branch (<code>DMG</code> or <code>RTO</code>), selected in your current field, and automatically populated across all matching dropdowns on the page.</li>
+                    <li><strong>Viewing & Deleting Options:</strong> The modal lists all custom options created for that category along with a delete button (trash icon) to easily remove typos or decommissioned options.</li>
+                    <li><strong>Branch Isolation:</strong> Custom options are filtered per branch so DMG and RTO maintain distinct, clean lists.</li>
+                    <li><strong>Edit Protection:</strong> On record edit views, fields must be unlocked before options can be modified.</li>
+                </ul>
+
+                <h3 class="sec-sub-h3">Role & Permissions Architecture</h3>
+                <p class="sec-text">
+                    MYGTS employs a strict <strong>Permission-Based Access Control</strong> system. What you can see in this manual mirrors exactly what your account is permitted to do inside the platform:
+                </p>
+                <ul class="sec-ul">
+                    <li><strong>Admin & Executive:</strong> Complete platform sovereignty. Can view, create, edit, and delete any record, configure lifecycle timing, administer user permissions, and perform database backups.</li>
+                    <li><strong>Operations & Staff:</strong> Access is tailored per module (View, Edit, or None). For example, an Operations specialist might have <em>Full Edit</em> on Devices and Recharges, but only <em>View Only</em> or <em>Hidden</em> for Financial Transactions and Invoices.</li>
+                    <li><strong>Viewer / Client:</strong> Strictly read-only access to permitted modules. All modification forms, action buttons, and deletion controls are automatically hidden.</li>
+                </ul>
+
+                <div class="notice-box emerald">
+                    <div class="notice-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        Security & Session Safety
+                    </div>
+                    <p class="notice-p">
+                        Always sign out using the Profile dropdown in the top-right corner when leaving your workstation. Password resets and multi-factor credentials can be managed under Account Settings.
+                    </p>
+                </div>
+            </section>
+
+            <!-- SECTION: DASHBOARD (Conditioned on showDashboard) -->
+            @if (showDashboard)
+            {
+                <section id="sec-dashboard" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">Dashboard & Operations Overview</h2>
+                        </div>
+                        <span class="sec-perm-tag pill-view">Analytics & Monitoring</span>
+                    </div>
+
+                    <p class="sec-text">
+                        The Dashboard is your mission-control cockpit. It aggregates live metrics across devices, SIM lifecycles, recharges, and billing into high-visibility cards.
+                    </p>
+
+                    <h3 class="sec-sub-h3">Metric KPI Cards Explained</h3>
+                    <div class="manual-tbl-wrap">
+                        <table class="manual-tbl">
+                            <thead>
+                                <tr>
+                                    <th>KPI Card</th>
+                                    <th>Description & Logic</th>
+                                    <th>Action Trigger</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Total Fleet Devices</strong></td>
+                                    <td>Total count of tracked hardware units in the active branch.</td>
+                                    <td>Clicking navigates to the complete Devices register.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Active Devices</strong></td>
+                                    <td>Devices whose SIM subscription is current (expiry date in future).</td>
+                                    <td>Filters Devices view to <code>Lifecycle = Active</code>.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Expiring in 7 Days</strong></td>
+                                    <td>Subscriptions expiring within the next 7 days requiring urgent renewal.</td>
+                                    <td>Filters Devices list to enable immediate recharge outreach.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Overdue (&le; 30 Days)</strong></td>
+                                    <td>Expired within 30 days. Operating under suspension grace period.</td>
+                                    <td>Triggers urgent WhatsApp recharge reminders.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Suspension Window</strong></td>
+                                    <td>Grace period active. Devices still tracked but SIM data at risk.</td>
+                                    <td>Requires field or finance intervention before carrier disconnection.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Terminated & Dead</strong></td>
+                                    <td>Grace period expired (&gt;30d or &gt;50d). Line deactivated or hardware pulled.</td>
+                                    <td>Needs replacement or reactivation workflow.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3 class="sec-sub-h3">Quick Actions from the Dashboard</h3>
+                    <p class="sec-text">
+                        Use the dashboard shortcuts to jump immediately into filtered device views. If you have Edit permissions, you can also use the topbar <strong>+ New</strong> quick-add button to register a device, transaction, or invoice from any page.
+                    </p>
+                </section>
+            }
+
+            <!-- SECTION: DEVICES (Conditioned on showDevices) -->
+            @if (showDevices)
+            {
+                <section id="sec-devices" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">Devices & Fleet Management</h2>
+                        </div>
+                        <span class="sec-perm-tag @(canEditDev ? "pill-full" : "pill-view")">
+                            @(canEditDev ? "Full View & Edit Access" : "Read-Only Fleet View")
+                        </span>
+                    </div>
+
+                    <p class="sec-text">
+                        The Devices module is the core registry of all vehicles, GPS hardware units (Locate 140B, Teltonika), SIM cards, and vendor relationships.
+                    </p>
+
+                    @if (!canEditDev)
+                    {
+                        <div class="notice-box amber">
+                            <div class="notice-title">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                View-Only Access Notice
+                            </div>
+                            <p class="notice-p">
+                                Your role has <strong>Read-Only</strong> permissions for the Devices module. You can search, filter, view device timelines, and copy vehicle details. Adding new devices, editing records, marking informed, and deleting devices are restricted to Edit-authorized accounts.
+                            </p>
+                        </div>
+                    }
+
+                    <h3 class="sec-sub-h3">Device Lifecycle States & Progression</h3>
+                    <p class="sec-text">
+                        Devices progress automatically through five lifecycle states calculated daily against their latest recharge expiry date:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><strong>Active (Green):</strong> Subscription is active. Device sends live telemetry uninterrupted.</li>
+                        <li><strong>Suspension (Amber &bull; Days 1 to 30 past expiry):</strong> Grace period. Daily alerts generated in topbar drawer. Direct WhatsApp recharge link becomes available.</li>
+                        <li><strong>Terminated (Orange &bull; Days 31 to 50 past expiry):</strong> Suspension window ended. Carrier may suspend GPRS data stream.</li>
+                        <li><strong>Dead (Red &bull; Days 50+ past expiry):</strong> SIM deactivated or hardware retired. Device remains in audit history.</li>
+                        <li><strong>Replaced (Slate):</strong> Hardware unit was uninstalled and replaced by another tracker. Retained for historical audit.</li>
+                    </ul>
+
+                    <h3 class="sec-sub-h3">Search, Filtering & Fleet Lookup</h3>
+                    <p class="sec-text">
+                        The Devices table includes a multi-criteria search bar and real-time dropdown filters:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><strong>Search Bar:</strong> Type any part of a Vehicle Number (e.g. <code>MH12AB1234</code>), 15-digit IMEI, or SIM Cell Number. Search executes instantly.</li>
+                        <li><strong>Lifecycle Filter:</strong> Filter by Active, Suspension, Terminated, Dead, or Replaced.</li>
+                        <li><strong>Vendor Filter:</strong> Isolate devices serviced by a specific vendor or telecom provider.</li>
+                        <li><strong>Branch Isolation:</strong> Automatically constrained by your current active branch (DMG or RTO).</li>
+                    </ul>
+
+                    @if (canEditDev)
+                    {
+                        <h3 class="sec-sub-h3">Step-by-Step: Registering a New Device</h3>
+                        <ol class="step-list">
+                            <li class="step-item">
+                                <strong>Open Registration Form:</strong> Click the <strong>+ Add Device</strong> button on the Devices page or choose <em>+ New &rarr; Device</em> from the topbar menu.
+                            </li>
+                            <li class="step-item">
+                                <strong>Enter Vehicle Identification:</strong> Provide the Vehicle Registration Number (uppercase, e.g., <code>KA01MJ4421</code>).
+                            </li>
+                            <li class="step-item">
+                                <strong>Enter 15-Digit IMEI:</strong> Input the GPS Tracker IMEI number. The system performs duplicate verification against all registered devices.
+                            </li>
+                            <li class="step-item">
+                                <strong>Assign SIM Card & Vendor:</strong> Input the SIM Cell Number and select the Hardware Vendor / Network Operator. If a model or telecom carrier is not listed, scroll to the bottom of the dropdown and select <em>+ Add Custom Option...</em> to add it immediately.
+                            </li>
+                            <li class="step-item">
+                                <strong>Set Expiry Date:</strong> Select the subscription validity end date. Lifecycle status will initialize to <em>Active</em>.
+                            </li>
+                            <li class="step-item">
+                                <strong>Save Device:</strong> Click <strong>Save Device</strong>. The record is instantly indexed and ready for tracking.
+                            </li>
+                        </ol>
+
+                        <h3 class="sec-sub-h3">Action Controls on Device Rows</h3>
+                        <ul class="sec-ul">
+                            <li><strong>Edit:</strong> Modify vehicle number, SIM card, vendor, or notes.</li>
+                            <li><strong>Mark Informed:</strong> Mutes the daily topbar overdue alert for this device until tomorrow, confirming the client was notified.</li>
+                            <li><strong>WhatsApp Icon:</strong> Opens a pre-composed WhatsApp message with vehicle number and expiry date ready to send to the client or vendor.</li>
+                            <li><strong>Device History:</strong> Shows a chronological audit log of all recharges, status changes, and edits for this vehicle.</li>
+                        </ul>
+                    }
+                </section>
+            }
+
+            <!-- SECTION: DATA SHARE (Conditioned on showDataShare) -->
+            @if (showDataShare)
+            {
+                <section id="sec-datashare" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">Data Share Integration (DMG Branch)</h2>
+                        </div>
+                        <span class="sec-perm-tag @(canEditDev ? "pill-full" : "pill-view")">DMG Enterprise</span>
+                    </div>
+
+                    <p class="sec-text">
+                        The Data Share module facilitates secure forwarding of vehicle telemetry data to third-party endpoints, external logistics platforms, and state transport monitoring servers.
+                    </p>
+
+                    <div class="notice-box emerald">
+                        <div class="notice-title">Branch Scope</div>
+                        <p class="notice-p">
+                            Data Share is an enterprise capability exclusive to the <strong>DMG Branch</strong>. It is disabled in the RTO Branch.
+                        </p>
+                    </div>
+
+                    <h3 class="sec-sub-h3">Key Capabilities</h3>
+                    <ul class="sec-ul">
+                        <li><strong>Active Data Share:</strong> Configure destination API endpoints, auth tokens, and forwarding protocols for specific vehicle sets.</li>
+                        <li><strong>Data Share History:</strong> Complete transmission log showing timestamp, endpoint response codes (200 OK vs failure), and packet payloads.</li>
+                        <li><strong>Transmission Diagnostics:</strong> Inspect failed dispatches and re-trigger manual payload retries.</li>
+                    </ul>
+                </section>
+            }
+
+            <!-- SECTION: TRANSACTIONS (Conditioned on showTransactions) -->
+            @if (showTransactions)
+            {
+                <section id="sec-transactions" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">Financial Transactions & Ledger</h2>
+                        </div>
+                        <span class="sec-perm-tag @(canEditTx ? "pill-full" : "pill-view")">
+                            @(canEditTx ? "Full Ledger Edit Access" : "View-Only Financial Audit")
+                        </span>
+                    </div>
+
+                    <p class="sec-text">
+                        The Transactions module maintains an accounting ledger of all operational cash inflows and outflows, including hardware purchases, recharge costs, installation labor, and client subscription collections.
+                    </p>
+
+                    <div class="feature-card-grid">
+                        <div class="feature-card">
+                            <div class="feature-card-title">Income Inflow</div>
+                            <p class="feature-card-text">Customer subscription fees, hardware sales, installation charges, and device replacement fees.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-card-title">Expense Outflow</div>
+                            <p class="feature-card-text">Telecom bulk SIM top-ups, hardware inventory restocking, server hosting, and contractor field fees.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-card-title">Net Balance Summary</div>
+                            <p class="feature-card-text">Real-time KPI cards display Total Income, Total Expenses, and Net Operating Balance for the selected date range.</p>
+                        </div>
+                    </div>
+
+                    @if (canEditTx)
+                    {
+                        <h3 class="sec-sub-h3">Step-by-Step: Recording a Standard Transaction</h3>
+                        <ol class="step-list">
+                            <li class="step-item">Click <strong>+ New Transaction</strong> or select <em>+ New &rarr; Transaction</em> in the topbar.</li>
+                            <li class="step-item">Choose <strong>Income</strong> or <strong>Expense</strong>.</li>
+                            <li class="step-item">Select the <strong>Payment For</strong> purpose (Device, Recharge, Service Fee, Installation, Overhead). If your purpose is not listed, select <em>+ Add Custom Option...</em> to create it instantly.</li>
+                            <li class="step-item">Select the <strong>Payment Mode</strong> (Cash, UPI, Cheque, Bank Transfer, or a combined split mode).</li>
+                            <li class="step-item">Enter the <strong>Total Amount (₹)</strong> and the <strong>Reference / UTR Number</strong> for audit reconciliation.</li>
+                            <li class="step-item">Specify the <strong>Paid To</strong> destination bank/account (MYGTS, Cash-in-Hand, SBI, HDFC, etc.).</li>
+                            <li class="step-item">Add explanatory audit notes and click <strong>Save Transaction</strong>.</li>
+                        </ol>
+
+                        <h3 class="sec-sub-h3">Split & Merged Payments (Combined Cash + UPI / Split Receipts)</h3>
+                        <p class="sec-text">
+                            In enterprise field operations, customers frequently settle an invoice using multiple payment methods &mdash; for example, paying ₹ 3,000 in cash and the remaining ₹ 2,700 via UPI. MYGTS provides native support for multi-part merged payments:
+                        </p>
+                        <ul class="sec-ul">
+                            <li><strong>Multi-Part Recording:</strong> When creating or editing a transaction, operators can configure multiple payment components. Each sub-payment records its own payment mode (Cash, UPI, Cheque, etc.), exact part amount, individual UTR/reference number, and receiving bank account.</li>
+                            <li><strong>Metadata Persistence:</strong> Sub-payment allocations are structured inside the record's audit metadata via <code>[MERGE_PARTS: [...]]</code>. This guarantees full compatibility with existing accounting tools, reporting pipelines, and Excel exports.</li>
+                            <li><strong>Amount Sub-Breakdown Display:</strong> In the Transactions ledger, the <strong>Amount (₹)</strong> column highlights the full aggregate amount (e.g. <code>₹ 5,700.00</code>) accompanied by an inline sub-breakdown showing exactly how the total was divided (e.g. <code>₹ 3,000 Cash + ₹ 2,700 UPI</code>).</li>
+                            <li><strong>Interactive Dropdown Accordion Sub-Row:</strong> Merged payments feature an interactive <code>MERGED (N PAYMENTS)</code> badge in the UTR column. Clicking this badge expands an accordion dropdown row detailing every constituent sub-transaction: Part number, Mode, Allocated Amount (₹), UTR / Reference ID, and Receiving Bank.</li>
+                            <li><strong>Dual Branch Support:</strong> Available seamlessly across both DMG and RTO branch transaction ledgers.</li>
+                        </ul>
+                    }
+                </section>
+            }
+
+            <!-- SECTION: RECHARGES (Conditioned on showRecharges) -->
+            @if (showRecharges)
+            {
+                <section id="sec-recharges" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">SIM & Device Recharges</h2>
+                        </div>
+                        <span class="sec-perm-tag @(canEditRec ? "pill-full" : "pill-view")">
+                            @(canEditRec ? "Recharge & Extension Access" : "View-Only Recharge History")
+                        </span>
+                    </div>
+
+                    <p class="sec-text">
+                        The Recharges module tracks cellular data renewals for SIM cards embedded inside tracking hardware. Processing a recharge automatically synchronizes with the device's main record, extending its expiry date and resetting its lifecycle state back to <strong>Active</strong>.
+                    </p>
+
+                    <h3 class="sec-sub-h3">Automated Device Synchronization</h3>
+                    <p class="sec-text">
+                        When a recharge record is saved:
+                    </p>
+                    <ul class="sec-ul">
+                        <li>The system updates the matching Device's <code>LatestExpiryDate</code> with the new validity date.</li>
+                        <li>If the device was in <em>Suspension</em> or <em>Terminated</em>, its lifecycle status is immediately reinstated to <strong>Active</strong>.</li>
+                        <li>Any outstanding overdue alerts for that device are cleared from the topbar Notification Center.</li>
+                        <li>A timestamped recharge entry is permanently appended to the vehicle's audit timeline.</li>
+                    </ul>
+
+                    @if (canEditRec)
+                    {
+                        <h3 class="sec-sub-h3">Step-by-Step: Processing a Recharge</h3>
+                        <ol class="step-list">
+                            <li class="step-item">Navigate to <strong>Recharges</strong> and click <strong>+ Add Recharge</strong>.</li>
+                            <li class="step-item">Select the <strong>Vehicle Number</strong> (or enter SIM Cell Number). The form auto-populates current device details.</li>
+                            <li class="step-item">Choose the <strong>Telecom Provider</strong> (Airtel, Vi, BSNL, Taisys).</li>
+                            <li class="step-item">Select <strong>Recharge Duration</strong> (1 Month, 3 Months, 6 Months, 1 Year). The new expiry date is automatically calculated.</li>
+                            <li class="step-item">Enter the recharge cost and payment reference, then click <strong>Submit Recharge</strong>.</li>
+                        </ol>
+                    }
+                </section>
+            }
+
+            <!-- SECTION: TAISYS ADVANCE (Conditioned on showTaisys) -->
+            @if (showTaisys)
+            {
+                <section id="sec-taisys" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">Taisys Advance Batches & Recharges</h2>
+                        </div>
+                        <span class="sec-perm-tag @(canEditTai ? "pill-full" : "pill-view")">
+                            @(canEditTai ? "Batch Management Access" : "View-Only Batches")
+                        </span>
+                    </div>
+
+                    <p class="sec-text">
+                        The Taisys module is dedicated to bulk enterprise SIM provisioning, prepaid wallet management, and multi-SIM batch renewal operations with Taisys telecom services.
+                    </p>
+
+                    <h3 class="sec-sub-h3">Batch Lifecycle Workflow</h3>
+                    <ul class="sec-ul">
+                        <li><strong>Batch Creation:</strong> Grouping dozens of SIM serial numbers into a single activation order.</li>
+                        <li><strong>Prepaid Pool Balance:</strong> Tracking advance payment balance deducted per SIM activation.</li>
+                        <li><strong>Status Audit:</strong> Tracking batches from <em>Submitted</em> &rarr; <em>Processing</em> &rarr; <em>Activated</em>.</li>
+                    </ul>
+                </section>
+            }
+
+            <!-- SECTION: INVENTORY (Conditioned on showInventory) -->
+            @if (showInventory)
+            {
+                <section id="sec-inventory" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">Inventory & Hardware Warehouse</h2>
+                        </div>
+                        <span class="sec-perm-tag @(canEditInv ? "pill-full" : "pill-view")">
+                            @(canEditInv ? "Warehouse & Stock Manager" : "Stock Inquiry Access")
+                        </span>
+                    </div>
+
+                    <p class="sec-text">
+                        The Inventory module tracks physical tracking units (Locate 140B, Teltonika), SIM inventory, immobilizer relays, SOS buttons, and installation accessories across warehouse locations.
+                    </p>
+
+                    <h3 class="sec-sub-h3">Inventory Stock Categories</h3>
+                    <div class="manual-tbl-wrap">
+                        <table class="manual-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Status Category</th>
+                                    <th>Physical Meaning</th>
+                                    <th>Permitted Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong style="color: #15803d;">In Stock</strong></td>
+                                    <td>Tested, functional, and ready on shelf for installation.</td>
+                                    <td>Can be assigned to new vehicle registrations.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #0369a1;">Installed / Allocated</strong></td>
+                                    <td>Currently deployed inside an active vehicle in the fleet.</td>
+                                    <td>Linked to Vehicle No in Devices register.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #b45309;">Faulty / Under Test</strong></td>
+                                    <td>Removed from vehicle due to power, GPS, or GSM error.</td>
+                                    <td>Sent to bench testing or diagnostic review.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #b91c1c;">RMA / Returned</strong></td>
+                                    <td>Defective unit returned to manufacturer under warranty.</td>
+                                    <td>Track replacement tracking number.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (canEditInv)
+                    {
+                        <h3 class="sec-sub-h3">Stock-In Procedure (Receiving Hardware)</h3>
+                        <ol class="step-list">
+                            <li class="step-item">Click <strong>+ Receive Stock</strong>.</li>
+                            <li class="step-item">Choose Hardware Model (e.g., Locate 140B GPS Tracker).</li>
+                            <li class="step-item">Enter IMEI or Serial Number range. Batch copy-pasting is supported.</li>
+                            <li class="step-item">Select Supplier / Vendor and purchase invoice reference.</li>
+                            <li class="step-item">Save to update live shelf count.</li>
+                        </ol>
+                    }
+                </section>
+            }
+
+            <!-- SECTION: INVOICES (Conditioned on showInvoices) -->
+            @if (showInvoices)
+            {
+                <section id="sec-invoices" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">Customer Billing & Invoices</h2>
+                        </div>
+                        <span class="sec-perm-tag @(canEditInvs ? "pill-full" : "pill-view")">
+                            @(canEditInvs ? "Billing & Payment Ops" : "Invoice Inquiry Access")
+                        </span>
+                    </div>
+
+                    <p class="sec-text">
+                        The Invoices module handles client billing for GPS tracking services, hardware supply, SIM renewals, and platform subscriptions. Includes tax/GST calculation, payment tracking, and printable customer invoices.
+                    </p>
+
+                    <h3 class="sec-sub-h3">Advanced Multi-Dimensional Filtering</h3>
+                    <p class="sec-text">
+                        The Invoices ledger provides real-time multi-criteria filtering across all billing records in both DMG and RTO branches:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><strong>Network Operator Filter:</strong> Filter invoices associated with specific telecom operators (BSNL, Airtel, Vodafone, Jio, SMT, or custom operators created via <em>+ Add Custom Option...</em>).</li>
+                        <li><strong>Date Range Selectors:</strong> Dedicated <em>From Date</em> and <em>To Date</em> datepickers allow auditing billings across custom calendar periods, billing quarters, or financial years.</li>
+                        <li><strong>Quantity & Threshold Filtering:</strong> Query records by device quantity or billing amount range to quickly identify enterprise bulk accounts versus individual vehicle renewals.</li>
+                        <li><strong>Full-Text Search:</strong> Search by Customer Name, Invoice Number, Vehicle Registration, or GSTIN.</li>
+                    </ul>
+
+                    <h3 class="sec-sub-h3">Invoice Payment Lifecycle</h3>
+                    <ul class="sec-ul">
+                        <li><strong>Draft:</strong> Created internally, pending review.</li>
+                        <li><strong>Unpaid / Issued:</strong> Finalized and dispatched to customer; payment awaited.</li>
+                        <li><strong>Partially Paid:</strong> Partial payment received; remaining balance flagged.</li>
+                        <li><strong>Paid in Full:</strong> 100% settled. Automatically flags linked devices as financially current.</li>
+                        <li><strong>Overdue:</strong> Due date elapsed without settlement. Alerts appear in Notification Center.</li>
+                    </ul>
+
+                    @if (canEditInvs)
+                    {
+                        <h3 class="sec-sub-h3">Creating & Printing Invoices</h3>
+                        <p class="sec-text">
+                            Click <strong>+ New Invoice</strong> to create a bill. Specify Customer Name, Billing Address, Vehicle numbers included, Line items, and Tax rate. Once saved, click <strong>Print / PDF View</strong> to generate a branded invoice suitable for emailing or printing.
+                        </p>
+                    }
+                </section>
+            }
+
+            <!-- SECTION: REMINDERS (Conditioned on showReminders) -->
+            @if (showReminders)
+            {
+                <section id="sec-reminders" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">Operational Reminders & Follow-Ups</h2>
+                        </div>
+                        <span class="sec-perm-tag @(canEditRem ? "pill-full" : "pill-view")">
+                            @(canEditRem ? "Full Reminder Management" : "Assigned Tasks Only")
+                        </span>
+                    </div>
+
+                    <p class="sec-text">
+                        The Reminders module ensures critical fleet tasks &mdash; such as annual device fitness inspections, customer payment follow-ups, and field technician visits &mdash; are never missed.
+                    </p>
+
+                    <h3 class="sec-sub-h3">Alerts & Follow-Ups Topbar Bell Panel</h3>
+                    <p class="sec-text">
+                        The topbar alert bell aggregates operational urgency into five streamlined categories:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><strong>Overdue & Expired:</strong> Devices operating past their validity window requiring immediate suspension or renewal.</li>
+                        <li><strong>Recent Lifecycle Shifts:</strong> Devices that recently transitioned across states (Active &rarr; Suspended &rarr; Terminated).</li>
+                        <li><strong>Expiring This Week:</strong> Telematics units expiring in the next 7 days, allowing proactive client outreach.</li>
+                        <li><strong>Pending Follow-Ups:</strong> Unresolved reminders and task tickets assigned to you or your role.</li>
+                        <li><strong>Unpaid Recharges:</strong> Completed SIM recharges awaiting client payment reconciliation.</li>
+                    </ul>
+
+                    <h3 class="sec-sub-h3">Batch WhatsApp Renewal Composer</h3>
+                    <p class="sec-text">
+                        Accessible directly from the Alerts menu via <strong>Batch WhatsApp</strong>, this automated utility expedites bulk client renewal messaging:
+                    </p>
+                    <ol class="step-list">
+                        <li class="step-item"><strong>Select Vendor / Client:</strong> Choosing a vendor from the dropdown automatically pulls the vendor's registered mobile number directly from the <em>Vendor Directory</em> &mdash; eliminating manual typing and transcription errors.</li>
+                        <li class="step-item"><strong>Auto-Populated Queue:</strong> Expiring vehicles associated with that vendor are loaded immediately into the renewal queue. Operators can append additional vehicles using <em>+ Add Another Vehicle</em>.</li>
+                        <li class="step-item"><strong>Bilingual Notification Engine (English & Kannada):</strong> The composer automatically generates formatted reminder text in both <strong>English and Kannada (ಕನ್ನಡ)</strong>, ensuring clear communication with regional fleet operators.</li>
+                        <li class="step-item"><strong>One-Click Dispatch:</strong> Click <strong>Open in WhatsApp &rarr;</strong> to launch WhatsApp Web/Desktop with the complete message pre-filled, or click <strong>Copy Text</strong> to paste into custom channels, or <strong>Export Excel</strong> for record keeping.</li>
+                    </ol>
+
+                    <h3 class="sec-sub-h3">Mentions & Notification System</h3>
+                    <p class="sec-text">
+                        When creating a reminder, the <strong>Target Audience</strong> field determines who receives alerts:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><code>@@all</code> or <code>@@everyone</code>: Notifies every authenticated user in the current branch.</li>
+                        <li><code>@@Executive</code>, <code>@@Operations</code>, <code>@@Finance</code>: Targets everyone holding that specific user role.</li>
+                        <li><code>@@username</code>: Directly tags an individual user (e.g. <code>@@john</code>).</li>
+                    </ul>
+                    <p class="sec-text">
+                        Active reminders addressed to you appear directly in the topbar notification bell drawer with due date urgency indicators (Today, Tomorrow, Soon).
+                    </p>
+                </section>
+            }
+
+            <!-- SECTION: VENDORS (Conditioned on showVendors) -->
+            @if (showVendors)
+            {
+                <section id="sec-vendors" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">Vendors Directory</h2>
+                        </div>
+                        <span class="sec-perm-tag @(canEditVen ? "pill-full" : "pill-view")">
+                            @(canEditVen ? "Directory Management" : "Directory Inquiry")
+                        </span>
+                    </div>
+
+                    <p class="sec-text">
+                        The Vendors module provides a centralized directory of hardware manufacturers, SIM card telecommunication operators, and field service technicians.
+                    </p>
+
+                    <h3 class="sec-sub-h3">Direct WhatsApp Communication & Batch Linking</h3>
+                    <p class="sec-text">
+                        Keeping vendor contact numbers accurate is critical for operational automation:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><strong>One-Click WhatsApp Chat:</strong> Every vendor entry with a valid phone number includes a one-click <strong>WhatsApp button</strong> that opens a direct chat window.</li>
+                        <li><strong>Automated Batch Composer Link:</strong> The phone number saved on the vendor record is automatically fetched whenever the vendor is chosen in the <em>Batch WhatsApp Renewal Composer</em>, preventing communication failures.</li>
+                    </ul>
+                </section>
+            }
+
+            <!-- SECTION: EXPENDITURE (Conditioned on showExpenditure) -->
+            @if (showExpenditure)
+            {
+                <section id="sec-expenditure" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">Expenditure Branch & Multi-Year Financial Accounting</h2>
+                        </div>
+                        <span class="sec-perm-tag @(canEditExp ? "pill-full" : "pill-view")">
+                            @(canEditExp ? "Full Financial Edit & Audit" : "Financial Audit Only")
+                        </span>
+                    </div>
+
+                    <p class="sec-text">
+                        The <strong>Expenditure Branch</strong> provides enterprise multi-year financial accounting, capital expense management, and consolidated cash flow segregation across all corporate operations.
+                    </p>
+
+                    <div class="feature-card-grid">
+                        <div class="feature-card">
+                            <div class="feature-card-title">Multi-Year Segregation</div>
+                            <p class="feature-card-text">Books are compartmentalized into distinct Financial Years (FY 2023-24, FY 2024-25, FY 2025-26 [Active], and FY 2026-27), preventing historical contamination.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-card-title">Dynamic Cash Flow Aggregation</div>
+                            <p class="feature-card-text">Automatically pulls and segregates customer revenues from DMG and RTO branch transactions, combining them with direct company receipts.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-card-title">Single Consolidated Audit View</div>
+                            <p class="feature-card-text">A streamlined Annual Financial Comparison summary table presents all financial years without redundant duplicate widgets.</p>
+                        </div>
+                    </div>
+
+                    <h3 class="sec-sub-h3">Financial Flow Architecture</h3>
+                    <p class="sec-text">
+                        The Expenditure branch automatically computes high-level corporate metrics in real time:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><strong>Combined Inflow (₹):</strong> Total consolidated company revenue, representing Direct Inflows + Branch Inflows.</li>
+                        <li><strong>Direct Inflow (₹):</strong> Revenue streams logged directly within the Expenditure branch.</li>
+                        <li><strong>Branch Inflow (₹):</strong> Customer payments automatically aggregated from DMG and RTO branch transactions whose dates fall within the selected financial year.</li>
+                        <li><strong>Total Outflow (₹):</strong> Capital expenditure, vendor payments, hardware bulk orders, and operational costs.</li>
+                        <li><strong>Net Cash Flow (₹):</strong> Combined Inflow minus Total Outflow, showing true company profitability.</li>
+                    </ul>
+
+                    <h3 class="sec-sub-h3">Archived Transactions & Invoices Audit Ledger</h3>
+                    <p class="sec-text">
+                        Operators can inspect the granular books for any selected financial year:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><strong>Year Selection:</strong> Click <strong>View Records &rarr;</strong> on any financial year row in the summary table to load that year's archived books.</li>
+                        <li><strong>Multi-Branch Filter:</strong> Filter transaction records across <em>All Branches</em>, <em>DMG Transactions</em>, or <em>RTO Transactions</em>.</li>
+                        <li><strong>Date Range & Search:</strong> Narrow down archived transactions using exact <em>From Date</em> and <em>To Date</em> datepickers or search by vehicle number, vendor, or UTR.</li>
+                        <li><strong>Archived Invoices & Proforma (PI):</strong> Switch to the Invoices tab to inspect archived billing documents, total quantities, and invoice values for that fiscal period.</li>
+                    </ul>
+                </section>
+            }
+
+            <!-- SECTION: LOCATE 140B HARDWARE MANUAL (Conditioned on showHardware) -->
+            @if (showHardware)
+            {
+                <section id="sec-hardware" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">Locate 140B Hardware Manual & Command Guide</h2>
+                        </div>
+                        <span class="sec-perm-tag pill-full">Field Engineering</span>
+                    </div>
+
+                    <p class="sec-text">
+                        The <strong>Locate 140B GPS Tracker</strong> is the standard tracking hardware deployed across the MYGTS fleet. Below is the comprehensive pinout and SMS configuration reference for field technicians.
+                    </p>
+
+                    <h3 class="sec-sub-h3">6-Pin Wiring Harness & Pinout Reference</h3>
+                    <div class="manual-tbl-wrap">
+                        <table class="manual-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Wire Color</th>
+                                    <th>Function Name</th>
+                                    <th>Voltage / Signal</th>
+                                    <th>Vehicle Wiring Connection</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong style="color: #dc2626;">Red</strong></td>
+                                    <td>Power Positive (VCC)</td>
+                                    <td>+9V to +36V DC</td>
+                                    <td>Connect to Constant +12V/+24V vehicle battery via 2A inline fuse.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #1e293b;">Black</strong></td>
+                                    <td>Ground (GND)</td>
+                                    <td>0V</td>
+                                    <td>Connect securely to vehicle unpainted chassis metal or battery negative.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #ea580c;">Orange</strong></td>
+                                    <td>Ignition ACC (Input 1)</td>
+                                    <td>High = Ignition ON</td>
+                                    <td>Tap into vehicle Ignition Key switch circuit. Critical for trip detection.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #16a34a;">Yellow</strong></td>
+                                    <td>Relay Cut (Output 1)</td>
+                                    <td>Negative Sink (Max 500mA)</td>
+                                    <td>Connect to 86 pin of automotive immobilizer relay to cut fuel pump / starter.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #2563eb;">Blue</strong></td>
+                                    <td>SOS Panic (Input 2)</td>
+                                    <td>Active Low (GND Pulse)</td>
+                                    <td>Connect to hidden dashboard panic button for emergency driver SOS alerts.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong style="color: #7c3aed;">White / Gray</strong></td>
+                                    <td>Analog ADC (Input 3)</td>
+                                    <td>0V to 5V DC</td>
+                                    <td>Connect to analog fuel level sensor or secondary battery voltage probe.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3 class="sec-sub-h3">Essential SMS Configuration Commands</h3>
+                    <p class="sec-text">
+                        Send these commands via SMS from an authorized mobile phone to the SIM card inside the Locate 140B tracker. Default factory password is <code>888888</code> or <code>123456</code>:
+                    </p>
+
+                    <h4 class="sec-sub-h4">1. APN (Access Point Name) Setup</h4>
+                    <p class="sec-text">Configures cellular data carrier connection:</p>
+                    <div class="cmd-box">
+                        <span class="cmd-code">APN,888888,airtelgprs.com#</span>
+                        <button type="button" class="cmd-copy-btn" onclick="navigator.clipboard.writeText('APN,888888,airtelgprs.com#'); this.innerText='Copied!';">Copy</button>
+                    </div>
+
+                    <h4 class="sec-sub-h4">2. Server IP & Port Setup</h4>
+                    <p class="sec-text">Points the tracker to your MYGTS telemetry ingestion server:</p>
+                    <div class="cmd-box">
+                        <span class="cmd-code">SERVER,888888,1,103.120.178.45,5005,0#</span>
+                        <button type="button" class="cmd-copy-btn" onclick="navigator.clipboard.writeText('SERVER,888888,1,103.120.178.45,5005,0#'); this.innerText='Copied!';">Copy</button>
+                    </div>
+
+                    <h4 class="sec-sub-h4">3. Reporting Frequency / Intervals</h4>
+                    <p class="sec-text">Sets reporting interval: 10s while moving, 60s while parked:</p>
+                    <div class="cmd-box">
+                        <span class="cmd-code">TIMER,888888,10,60#</span>
+                        <button type="button" class="cmd-copy-btn" onclick="navigator.clipboard.writeText('TIMER,888888,10,60#'); this.innerText='Copied!';">Copy</button>
+                    </div>
+
+                    <h4 class="sec-sub-h4">4. Device Diagnostic & Location Query</h4>
+                    <p class="sec-text">Queries live satellite coordinates, GSM signal strength, and battery voltage:</p>
+                    <div class="cmd-box">
+                        <span class="cmd-code">STATUS#</span>
+                        <button type="button" class="cmd-copy-btn" onclick="navigator.clipboard.writeText('STATUS#'); this.innerText='Copied!';">Copy</button>
+                    </div>
+
+                    <h4 class="sec-sub-h4">5. Remote Engine Immobilizer Cut / Restore</h4>
+                    <p class="sec-text">Activates relay output to cut engine (1) or restore engine (0):</p>
+                    <div class="cmd-box">
+                        <span class="cmd-code">RELAY,888888,1#</span>
+                        <button type="button" class="cmd-copy-btn" onclick="navigator.clipboard.writeText('RELAY,888888,1#'); this.innerText='Copied!';">Copy</button>
+                    </div>
+                    <div class="cmd-box">
+                        <span class="cmd-code">RELAY,888888,0#</span>
+                        <button type="button" class="cmd-copy-btn" onclick="navigator.clipboard.writeText('RELAY,888888,0#'); this.innerText='Copied!';">Copy</button>
+                    </div>
+
+                    <h3 class="sec-sub-h3">LED Diagnostic Blinking States</h3>
+                    <ul class="sec-ul">
+                        <li><strong>Blue (GPS LED):</strong> Solid ON = Satellites locked (3D fix). Rapid Flash = Searching for GPS signal. OFF = Sleeping or antenna disconnected.</li>
+                        <li><strong>Green (GSM LED):</strong> Slow Flash (every 3s) = Registered on cellular network. Solid ON = Active GPRS data transmission. Rapid Flash = Searching for GSM tower.</li>
+                        <li><strong>Red (Power LED):</strong> Solid ON = External vehicle battery power connected. Flashing = Running on internal backup battery.</li>
+                    </ul>
+                </section>
+            }
+
+            <!-- SECTION: SYSTEM ADMIN & CONTROLS (Only visible to Exec & Admin) -->
+            @if (showAdmin)
+            {
+                <section id="sec-admin" class="manual-section">
+                    <div class="sec-header">
+                        <div class="sec-header-left">
+                            <span class="sec-number-tag">Section @Sec()</span>
+                            <h2 class="sec-title">System Administration & Security Controls</h2>
+                        </div>
+                        <span class="sec-perm-tag pill-admin">Executive & Admin Sovereign</span>
+                    </div>
+
+                    <p class="sec-text">
+                        This section details system-level configuration, user authorization matrices, disaster recovery backups, and global data export available strictly to <strong>Executive</strong> and <strong>Admin</strong> accounts.
+                    </p>
+
+                    <h3 class="sec-sub-h3">1. System Configuration Panel (/Config)</h3>
+                    <p class="sec-text">
+                        Allows real-time tuning of system-wide constants without restarting the web service:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><code>SUSPENSION_DAYS</code> (Default: 30): The number of days a device remains in <em>Suspension</em> before shifting to <em>Terminated</em>.</li>
+                        <li><code>TERMINATION_DAYS</code> (Default: 20): The number of days a device remains in <em>Terminated</em> before shifting to <em>Dead</em>.</li>
+                        <li><strong>WhatsApp Templates:</strong> Customizable text templates for client overdue notices and vendor recharge dispatch.</li>
+                    </ul>
+
+                    <h3 class="sec-sub-h3">2. Corporate Role Hierarchy & User Management (/Users)</h3>
+                    <p class="sec-text">
+                        MYGTS enforces a strict corporate hierarchy with downward-only visibility and peer isolation:
+                    </p>
+                    <div class="manual-tbl-wrap">
+                        <table class="manual-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Role</th>
+                                    <th>Rank</th>
+                                    <th>Visible Subordinates</th>
+                                    <th>Scope of Authority</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Admin</strong></td>
+                                    <td>Tier 1 (Root)</td>
+                                    <td>Executive, Team, User</td>
+                                    <td>Complete system sovereignty, user credential management, system config, backups, and exclusive access to the technical SRC specification.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Executive</strong></td>
+                                    <td>Tier 2 (Leadership)</td>
+                                    <td>Team, User</td>
+                                    <td>Operational oversight and subordinate user management. Executives cannot view fellow executives or admins, and are restricted from the SRC.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Team</strong></td>
+                                    <td>Tier 3 (Specialist)</td>
+                                    <td>Self Only (/Users/Profile)</td>
+                                    <td>Field fleet and operations specialists. Can view and modify their own credentials only; cannot inspect or manage any other users.</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>User</strong></td>
+                                    <td>Tier 4 (Operator)</td>
+                                    <td>Self Only (/Users/Profile)</td>
+                                    <td>Field personnel and inquiry operators. Self-service profile management only.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h4 class="sec-sub-h4">Peer-Isolation & Subordinate Password Oversight</h4>
+                    <ul class="sec-ul">
+                        <li><strong>Peer-Isolation Matrix:</strong> Users can never see accounts at their own tier or higher. An Executive sees only Team and User accounts; Team and User roles see no other users in the system.</li>
+                        <li><strong>Self-Service Profile (/Users/Profile):</strong> Team and User roles are routed directly to their personal profile page where they can review their assigned permissions and update their password and contact details.</li>
+                        <li><strong>Live Password Inspection & Copy:</strong> Managers (Admins and Executives) can view plaintext passwords for subordinate accounts with a toggle show/hide eye icon and one-click copy button. When an employee updates their password on their profile, the updated credentials reflect live in the manager's user table.</li>
+                    </ul>
+
+                    <h3 class="sec-sub-h3">3. System Documentation Security & Admin-Only SRC</h3>
+                    <p class="sec-text">
+                        The platform enforces strict role differentiation across documentation:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><strong>System Requirements Contract (SRC):</strong> Accessible strictly to the <strong>Admin</strong> role (<code>[Authorize(Roles = "Admin")]</code>). Non-admin roles (including Executives) are blocked from accessing or viewing technical contract specifications.</li>
+                        <li><strong>Modular User Manual:</strong> Accessible across all authenticated roles, dynamically filtering modules and action guides according to the user's specific module permissions.</li>
+                    </ul>
+
+                    <h3 class="sec-sub-h3">4. Database Backups & Disaster Recovery (/Backups)</h3>
+                    <p class="sec-text">
+                        The Backups manager protects the system from data corruption or accidental deletions:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><strong>Create Instant Snapshot:</strong> Writes an atomic snapshot of the SQLite database store with timestamp.</li>
+                        <li><strong>Download Backup:</strong> Streams the <code>.db</code> archive to local disk for offline offsite archival.</li>
+                        <li><strong>Safe Restore:</strong> Allows rolling back database state in disaster recovery scenarios.</li>
+                    </ul>
+
+                    <h3 class="sec-sub-h3">4. Enterprise Multi-Sheet Excel Export (/Devices/Export)</h3>
+                    <p class="sec-text">
+                        Clicking <strong>Export Workbook</strong> in the sidebar compiles and downloads a comprehensive Excel spreadsheet containing all Devices, Transactions, Recharges, Inventory, and Vendors across both DMG and RTO branches.
+                    </p>
+
+                    <h3 class="sec-sub-h3">5. Custom Dropdown Options Registry (/DropdownOptions)</h3>
+                    <p class="sec-text">
+                        Dynamic dropdown options are managed and stored permanently in the database:
+                    </p>
+                    <ul class="sec-ul">
+                        <li><strong>Multi-Tenant Database Table:</strong> Persisted in the SQLite <code>CustomDropdownOptions</code> table and indexed by branch (<code>DMG</code> vs <code>RTO</code>) and category.</li>
+                        <li><strong>Zero-Downtime Extensibility:</strong> Eliminates the need for developer intervention or IDE redeployments when introducing new vehicle trackers, telecom carriers, payment methods, or compliance certificate types.</li>
+                        <li><strong>Backup Continuity:</strong> All custom options are automatically included in automated daily and on-demand database snapshots.</li>
+                    </ul>
+                </section>
+            }
+
+        </main>
+    </div>
+</div>
+
+<script>
+    // Live Search Filter across manual sections
+    function filterManual() {
+        const query = document.getElementById('manualSearch').value.toLowerCase().trim();
+        const sections = document.querySelectorAll('.manual-section');
+        const navLinks = document.querySelectorAll('.manual-nav-item');
+
+        sections.forEach((sec, idx) => {
+            const text = sec.innerText.toLowerCase();
+            const match = query === '' || text.includes(query);
+            sec.style.display = match ? 'block' : 'none';
+            if (navLinks[idx]) {
+                navLinks[idx].style.display = match ? 'block' : 'none';
+            }
+        });
+    }
+
+    // ScrollSpy to highlight active outline link
+    window.addEventListener('scroll', () => {
+        const sections = document.querySelectorAll('.manual-section');
+        const scrollPos = window.scrollY + 120;
+
+        sections.forEach(sec => {
+            if (sec.style.display === 'none') return;
+            const top = sec.offsetTop;
+            const height = sec.offsetHeight;
+            const id = sec.getAttribute('id');
+            const link = document.querySelector(`.manual-nav-link[href="#${id}"]`);
+
+            if (link && scrollPos >= top && scrollPos < top + height) {
+                document.querySelectorAll('.manual-nav-link').forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+            }
+        });
+    });
+</script>

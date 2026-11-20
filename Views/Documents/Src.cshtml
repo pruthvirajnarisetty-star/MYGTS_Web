@@ -1,0 +1,1392 @@
+@{
+    var reqBranch = Context.Request.Query["branch"].ToString();
+    if (string.IsNullOrWhiteSpace(reqBranch))
+    {
+        reqBranch = Context.Request.Cookies["mygts_branch"] ?? "";
+    }
+    if (string.IsNullOrWhiteSpace(reqBranch) && Context.Request.Headers.Referer.ToString().Contains("/Expenditure", StringComparison.OrdinalIgnoreCase))
+    {
+        reqBranch = "Expenditure";
+    }
+    var isExpenditure = string.Equals(reqBranch, "Expenditure", StringComparison.OrdinalIgnoreCase);
+    var isRto = string.Equals(reqBranch, "RTO", StringComparison.OrdinalIgnoreCase);
+
+    if (isExpenditure)
+    {
+        Layout = "~/Areas/Expenditure/Views/Shared/_Layout.cshtml";
+    }
+    else if (isRto)
+    {
+        Layout = "~/Areas/RTO/Views/Shared/_Layout.cshtml";
+    }
+    else
+    {
+        Layout = "~/Views/Shared/_Layout.cshtml";
+    }
+    ViewData["Title"] = "System Requirements Contract & Specification (SRC)";
+    var pdfExists = (bool)(ViewBag.PdfExists ?? false);
+    var pdfUrl = (string)(ViewBag.PdfUrl ?? "/docs/MYGTS_SRC_Specification.pdf");
+    var pdfSizeKb = (string)(ViewBag.PdfSizeKb ?? "0");
+    var pdfDate = (string)(ViewBag.PdfLastModified ?? DateTime.Now.ToString("dd MMM yyyy"));
+}
+
+<style>
+    /* Clean layout constraints — no horizontal scroll, no clipping */
+    .content-area {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 24px 20px !important;
+        min-width: 0 !important;
+    }
+    .src-wrap {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 0;
+        margin: 0;
+    }
+    .src-header-banner {
+        background: linear-gradient(135deg,#001d6c 0%,#0d3880 55%,#1e40af 100%);
+        color: #fff;
+        padding: 24px 28px;
+        border-radius: 14px;
+        box-shadow: 0 10px 30px -5px rgba(0,29,108,0.35);
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 18px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    .src-header-title-box {
+        flex: 1 1 360px;
+        min-width: 0;
+        max-width: 100%;
+    }
+    .src-header-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        flex-shrink: 0;
+    }
+    .src-grid {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    .src-body {
+        background: var(--paper,#fff);
+        border: 1px solid var(--line,#e2e8f0);
+        border-radius: 14px;
+        padding: 24px 28px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        min-width: 0;
+        max-width: 100%;
+        width: 100%;
+        box-sizing: border-box;
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+    .src-section { margin-bottom: 36px; min-width: 0; max-width: 100%; box-sizing: border-box; }
+    .src-section:last-child { margin-bottom: 0; }
+    .sec-label { font-size: 0.72rem; font-weight: 800; color: #0f62fe; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+    .sec-h2 {
+        font-size: 1.32rem;
+        font-weight: 800;
+        color: #001d6c;
+        margin: 0 0 10px 0;
+        line-height: 1.4;
+        word-break: break-word;
+        overflow-wrap: break-word;
+    }
+    .sec-h3 {
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: #0f62fe;
+        margin: 18px 0 8px 0;
+        line-height: 1.4;
+        word-break: break-word;
+        overflow-wrap: break-word;
+    }
+    .sec-p  { font-size: 0.92rem; line-height: 1.65; color: #334155; margin: 0 0 10px 0; word-break: break-word; overflow-wrap: break-word; }
+    .sec-ul { margin: 6px 0 10px 0; padding-left: 20px; }
+    .sec-ul li { font-size: 0.89rem; line-height: 1.65; color: #334155; margin-bottom: 4px; word-break: break-word; overflow-wrap: break-word; }
+    .sec-ul li strong { color: #1e293b; }
+    .sec-ul.sub { padding-left: 32px; }
+    .sec-ul.sub li { font-size: 0.86rem; color: #475569; }
+    .info-box {
+        background: var(--paper-hover,#f8fafc);
+        border-left: 4px solid #0f62fe;
+        padding: 14px 18px;
+        border-radius: 0 8px 8px 0;
+        margin: 10px 0;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        word-break: break-word;
+        overflow-wrap: break-word;
+    }
+    .info-box.green { border-color: #10b981; background: #f0fdf4; }
+    .info-box.amber { border-color: #f59e0b; background: #fffbeb; }
+    .code-block {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.82rem;
+        line-height: 1.6;
+        color: #0f172a;
+        margin: 8px 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    .src-hr { border: none; border-top: 1px solid var(--line,#e2e8f0); margin: 32px 0; }
+    .tbl-wrap {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        display: block;
+        margin: 14px 0;
+        box-sizing: border-box;
+        border-radius: 8px;
+        border: 1px solid var(--line, #e2e8f0);
+    }
+    .src-tbl {
+        width: 100%;
+        min-width: 500px;
+        border-collapse: collapse;
+        font-size: 0.84rem;
+    }
+    .src-tbl thead tr { background: #001d6c; color: #fff; }
+    .src-tbl thead th { padding: 9px 12px; text-align: left; font-weight: 700; font-size: 0.81rem; white-space: nowrap; }
+    .src-tbl tbody tr { border-bottom: 1px solid #e2e8f0; }
+    .src-tbl tbody tr:nth-child(even) { background: var(--paper-hover,#f8fafc); }
+    .src-tbl tbody td {
+        padding: 9px 12px;
+        color: #334155;
+        vertical-align: top;
+        line-height: 1.45;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+    .src-tbl tbody td strong { color: #1e293b; }
+    .src-tbl tbody td code { background: #f1f5f9; border-radius: 3px; padding: 1px 5px; font-size: 0.8rem; color: #0f172a; word-break: break-all; }
+    .bg { background: #dcfce7; color: #166534; font-size: 0.74rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-block; }
+    .bb { background: #dbeafe; color: #1e40af; font-size: 0.74rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-block; }
+    .br { background: #fee2e2; color: #991b1b; font-size: 0.74rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-block; }
+    .ba { background: #fef3c7; color: #92400e; font-size: 0.74rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-block; }
+    .bp { background: #ede9fe; color: #5b21b6; font-size: 0.74rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-block; }
+    .tab-btn { background: none; border: none; padding: 10px 20px; font-weight: 600; font-size: 0.91rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; border-bottom: 3px solid transparent; color: var(--ink-light,#64748b); transition: all 0.18s; }
+    .tab-btn.active { color: #0f62fe; border-bottom-color: #0f62fe; font-weight: 700; }
+    
+    .outline-nav {
+        width: 220px;
+        min-width: 0;
+        max-width: 220px;
+        box-sizing: border-box;
+        position: sticky;
+        top: 76px;
+        background: var(--paper,#fff);
+        border: 1px solid var(--line,#e2e8f0);
+        border-radius: 12px;
+        padding: 14px 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        max-height: calc(100vh - 100px);
+        overflow-y: auto;
+    }
+    .outline-nav a { color: var(--ink,#1e293b); text-decoration: none; display: block; padding: 5px 8px; border-radius: 6px; transition: background 0.15s; font-size: 0.81rem; line-height: 1.35; }
+    .outline-nav a:hover { background: #e0e7ff; color: #0f62fe; }
+
+    /* Bracketed controller and file badges */
+    .file-bracket {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 3px;
+        font-size: 0.74rem;
+        font-weight: 600;
+        color: #1e40af;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 6px;
+        padding: 2px 7px;
+        letter-spacing: 0.1px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        vertical-align: middle;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        max-width: 100%;
+        margin-left: 6px;
+    }
+    .sec-h3 .file-bracket {
+        font-size: 0.71rem;
+        color: #0369a1;
+        background: #f0f9ff;
+        border-color: #bae6fd;
+        font-weight: 500;
+    }
+    .file-bracket .b-tag {
+        color: #64748b;
+        font-weight: 400;
+    }
+    .file-bracket .b-file {
+        color: #001d6c;
+        font-weight: 700;
+    }
+    .file-bracket .b-action {
+        color: #0284c7;
+    }
+
+    /* Responsive adjustments: collapse outline to top bar on <= 1260px screens */
+    @@media (max-width: 1260px) {
+        .src-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px;
+        }
+        .outline-nav {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            position: static !important;
+            max-height: 180px !important;
+            margin-bottom: 8px;
+        }
+    }
+
+    /* Dark Mode Overrides for SRC */
+    body:has(#theme:checked) .src-body {
+        background: #0d1527 !important;
+        border-color: #1e293b !important;
+        color: #cbd5e1 !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+    }
+    body:has(#theme:checked) .outline-nav {
+        background: #0d1527 !important;
+        border-color: #1e293b !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+    }
+    body:has(#theme:checked) .outline-nav .outline-title,
+    body:has(#theme:checked) .outline-nav > div:first-child {
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .outline-nav a {
+        color: #94a3b8 !important;
+    }
+    body:has(#theme:checked) .outline-nav a:hover {
+        background: #1e293b !important;
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .sec-label {
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .sec-h2 {
+        color: #60a5fa !important;
+    }
+    body:has(#theme:checked) .sec-h3 {
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .sec-p {
+        color: #cbd5e1 !important;
+    }
+    body:has(#theme:checked) .sec-p strong {
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .sec-ul li {
+        color: #cbd5e1 !important;
+    }
+    body:has(#theme:checked) .sec-ul li strong {
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .sec-ul.sub li {
+        color: #94a3b8 !important;
+    }
+    body:has(#theme:checked) .info-box {
+        background: #111e38 !important;
+        border-left-color: #38bdf8 !important;
+        color: #cbd5e1 !important;
+    }
+    body:has(#theme:checked) .info-box strong {
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .info-box code {
+        background: #090e17 !important;
+        color: #38bdf8 !important;
+        border: 1px solid #1e293b !important;
+    }
+    body:has(#theme:checked) .info-box.green {
+        background: rgba(16, 185, 129, 0.12) !important;
+        border-left-color: #10b981 !important;
+        color: #cbd5e1 !important;
+    }
+    body:has(#theme:checked) .info-box.amber {
+        background: rgba(245, 158, 11, 0.12) !important;
+        border-left-color: #f59e0b !important;
+        color: #cbd5e1 !important;
+    }
+    body:has(#theme:checked) .code-block {
+        background: #090e17 !important;
+        border-color: #1e293b !important;
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .src-hr {
+        border-top-color: #1e293b !important;
+    }
+    body:has(#theme:checked) .tbl-wrap {
+        border-color: #1e293b !important;
+    }
+    body:has(#theme:checked) .src-tbl thead tr {
+        background: #0a1324 !important;
+        border-bottom: 2px solid #1e293b !important;
+    }
+    body:has(#theme:checked) .src-tbl thead th {
+        background: #0a1324 !important;
+        color: #93c5fd !important;
+        border-bottom: 2px solid #1e293b !important;
+    }
+    body:has(#theme:checked) .src-tbl tbody tr {
+        background: #0d1527 !important;
+        border-bottom: 1px solid #1e293b !important;
+    }
+    body:has(#theme:checked) .src-tbl tbody td,
+    body:has(#theme:checked) .src-tbl tbody tr td {
+        background-color: #0d1527 !important;
+        color: #cbd5e1 !important;
+        border-bottom: 1px solid #1e293b !important;
+    }
+    body:has(#theme:checked) .src-tbl tbody tr:nth-child(even),
+    body:has(#theme:checked) .src-tbl tbody tr:nth-child(even) td {
+        background-color: #141f36 !important;
+    }
+    body:has(#theme:checked) .src-tbl tbody tr:hover,
+    body:has(#theme:checked) .src-tbl tbody tr:hover td {
+        background-color: #1a2744 !important;
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .src-tbl tbody td strong {
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .src-tbl tbody td code {
+        background: #080d1a !important;
+        color: #38bdf8 !important;
+        border: 1px solid #1e293b !important;
+    }
+    body:has(#theme:checked) .file-bracket {
+        background: #142036 !important;
+        border-color: #1e3a66 !important;
+        color: #93c5fd !important;
+    }
+    body:has(#theme:checked) .sec-h3 .file-bracket {
+        background: #101c30 !important;
+        border-color: #1e3a66 !important;
+        color: #7dd3fc !important;
+    }
+    body:has(#theme:checked) .file-bracket .b-tag {
+        color: #94a3b8 !important;
+    }
+    body:has(#theme:checked) .file-bracket .b-file {
+        color: #60a5fa !important;
+    }
+    body:has(#theme:checked) .file-bracket .b-action {
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .bg {
+        background: rgba(16, 185, 129, 0.2) !important;
+        color: #4ade80 !important;
+        border: 1px solid rgba(16, 185, 129, 0.4) !important;
+    }
+    body:has(#theme:checked) .bb {
+        background: rgba(59, 130, 246, 0.2) !important;
+        color: #60a5fa !important;
+        border: 1px solid rgba(59, 130, 246, 0.4) !important;
+    }
+    body:has(#theme:checked) .br {
+        background: rgba(239, 68, 68, 0.2) !important;
+        color: #f87171 !important;
+        border: 1px solid rgba(239, 68, 68, 0.4) !important;
+    }
+    body:has(#theme:checked) .ba {
+        background: rgba(245, 158, 11, 0.2) !important;
+        color: #fbbf24 !important;
+        border: 1px solid rgba(245, 158, 11, 0.4) !important;
+    }
+    body:has(#theme:checked) .bp {
+        background: rgba(139, 92, 246, 0.2) !important;
+        color: #c084fc !important;
+        border: 1px solid rgba(139, 92, 246, 0.4) !important;
+    }
+    body:has(#theme:checked) .tab-btn {
+        color: #94a3b8 !important;
+    }
+    body:has(#theme:checked) .tab-btn.active {
+        color: #38bdf8 !important;
+        border-bottom-color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .src-footer-box {
+        background: #111e38 !important;
+        border-color: #1e293b !important;
+    }
+    body:has(#theme:checked) .src-footer-box div {
+        color: #cbd5e1 !important;
+    }
+    body:has(#theme:checked) .src-footer-box strong {
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) #tabContentPdf > div {
+        background: #0d1527 !important;
+        border-color: #1e293b !important;
+    }
+    body:has(#theme:checked) #tabContentPdf > div > div:first-child {
+        background: #141f36 !important;
+        border-color: #1e293b !important;
+        color: #cbd5e1 !important;
+    }
+</style>
+
+<div class="src-wrap">
+
+    <!-- HEADER -->
+    <div class="src-header-banner">
+        <div class="src-header-title-box">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+                <span style="background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.3); padding:4px 12px; border-radius:20px; font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.6px;">Official Architecture Contract</span>
+                <span style="background:#10b981; color:#fff; padding:4px 10px; border-radius:20px; font-size:0.72rem; font-weight:800;">SRC-MYGTS-2026-V3.2</span>
+                <span style="background:#ef4444; color:#fff; padding:4px 10px; border-radius:20px; font-size:0.72rem; font-weight:800;">RESTRICTED: ADMIN EYES ONLY</span>
+            </div>
+            <h1 style="font-size:1.85rem; font-weight:800; line-height:1.2; margin:0 0 8px 0; word-break:break-word; overflow-wrap:break-word;">System Requirements Contract &amp; Specification (SRC)</h1>
+            <p style="font-size:0.92rem; opacity:0.88; margin:0; line-height:1.55; color:#e0e7ff; word-break:break-word; overflow-wrap:break-word;">Comprehensive operational blueprint &mdash; Device Registry, Lifecycle Engine, Financial Accounting, Merged Payments, Multi-Year Expenditure, RBAC Security, WhatsApp Feeds, Backup Recovery. Strictly restricted to System Administrators (<strong>[Authorize(Roles = "Admin")]</strong>). Includes explicit source code mappings: <strong>[Controllers, Models, Views, Services]</strong> beside every feature.</p>
+        </div>
+        <div class="src-header-actions">
+            <a href="@Url.Action("DownloadSrcPdf","Documents")" onclick="switchTab('pdf');" style="background:#fff; color:#001d6c; font-weight:700; padding:10px 20px; border-radius:8px; display:inline-flex; align-items:center; gap:7px; text-decoration:none; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Download PDF (@pdfSizeKb KB)
+            </a>
+            <button type="button" onclick="switchTab('pdf');" style="background:rgba(255,255,255,0.14); color:#fff; font-weight:600; padding:10px 18px; border-radius:8px; display:inline-flex; align-items:center; gap:7px; text-decoration:none; border:1px solid rgba(255,255,255,0.3); cursor:pointer;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                View PDF
+            </button>
+            <a href="@Url.Action("ViewSrcPdf","Documents")" target="_blank" style="background:rgba(255,255,255,0.14); color:#fff; font-weight:600; padding:10px 18px; border-radius:8px; display:inline-flex; align-items:center; gap:7px; text-decoration:none; border:1px solid rgba(255,255,255,0.3);">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                Open Fullscreen
+            </a>
+        </div>
+    </div>
+
+    <!-- TAB BAR -->
+    <div style="display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--line,#e2e8f0);">
+        <button id="tabBtnSpec" class="tab-btn active" onclick="switchTab('spec')" type="button">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+            Detailed Specification (23 Sections with Code Mappings)
+        </button>
+        <button id="tabBtnPdf" class="tab-btn" onclick="switchTab('pdf')" type="button">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            PDF Viewer
+        </button>
+    </div>
+
+    <!-- PDF PANEL (Hidden by default, shown when user selects download / view PDF) -->
+    <div id="tabContentPdf" style="display:none; margin-bottom:24px;">
+        <div style="background:var(--paper,#fff); border:1px solid var(--line,#e2e8f0); border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.06);">
+            <div style="padding:11px 20px; background:var(--paper-hover,#f8fafc); border-bottom:1px solid var(--line,#e2e8f0); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px; font-size:0.84rem; color:var(--ink-light,#64748b);">
+                    <span style="width:8px; height:8px; border-radius:50%; background:#10b981; display:inline-block;"></span>
+                    <span>File: <strong>MYGTS_SRC_Specification.pdf</strong></span>
+                    <span>&bull;</span><span>Generated: <strong>@pdfDate</strong></span>
+                    <span>&bull;</span><span>Size: <strong>@pdfSizeKb KB</strong></span>
+                    <span>&bull;</span><span>Version: <strong>V3.2 &mdash; 22 Sections with Code Maps</strong></span>
+                </div>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <a href="@Url.Action("DownloadSrcPdf","Documents")" style="font-size:0.84rem; color:#0f62fe; text-decoration:none; font-weight:700;">Download &darr;</a>
+                    <button type="button" onclick="switchTab('spec')" style="background:none; border:none; color:#ef4444; font-size:0.84rem; font-weight:700; cursor:pointer;">&times; Close Viewer</button>
+                </div>
+            </div>
+            @if (pdfExists) {
+                <iframe src="@pdfUrl#toolbar=1&navpanes=1" style="width:100%; height:870px; border:none; display:block;" title="MYGTS SRC PDF Document Viewer"></iframe>
+            } else {
+                <div style="padding:60px 20px; text-align:center; color:var(--ink-light,#64748b);">
+                    <p style="font-size:1.1rem; font-weight:600; margin-bottom:12px;">PDF not found at wwwroot/docs/MYGTS_SRC_Specification.pdf</p>
+                    <a href="@Url.Action("Src","Documents")" class="btn btn-primary">Refresh</a>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- SPEC PANEL (Default View) -->
+    <div id="tabContentSpec">
+        <div class="src-grid">
+
+            <!-- SIDEBAR OUTLINE -->
+            <div class="outline-nav">
+                <div style="font-size:0.72rem; text-transform:uppercase; font-weight:800; color:var(--ink-light,#64748b); margin-bottom:10px; letter-spacing:0.5px;">Document Sections</div>
+                <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:2px;">
+                    <li><a href="#sec-1">1. System Overview &amp; Architecture</a></li>
+                    <li><a href="#sec-2">2. Multi-Branch Partitioning</a></li>
+                    <li><a href="#sec-3">3. Device Field Specification</a></li>
+                    <li><a href="#sec-4">4. Fleet Inventory Module</a></li>
+                    <li><a href="#sec-5">5. Lifecycle State Machine</a></li>
+                    <li><a href="#sec-6">6. Search &amp; Filtering Engine</a></li>
+                    <li><a href="#sec-7">7. Import / Export Architecture</a></li>
+                    <li><a href="#sec-8">8. Hardware Replacement</a></li>
+                    <li><a href="#sec-9">9. Data Share &mdash; Cross Branch</a></li>
+                    <li><a href="#sec-10">10. Transaction Ledger</a></li>
+                    <li><a href="#sec-11">11. Invoice &amp; Procurement</a></li>
+                    <li><a href="#sec-12">12. Company Recharges &amp; Taisys</a></li>
+                    <li><a href="#sec-13">13. Alert Feed &amp; WhatsApp Engine</a></li>
+                    <li><a href="#sec-14">14. Reminders &amp; Follow-Ups</a></li>
+                    <li><a href="#sec-15">15. Vendor Registry</a></li>
+                    <li><a href="#sec-16">16. RBAC &amp; Security</a></li>
+                    <li><a href="#sec-17">17. System Configuration</a></li>
+                    <li><a href="#sec-18">18. Backup &amp; Disaster Recovery</a></li>
+                    <li><a href="#sec-19">19. Documents Module</a></li>
+                    <li><a href="#sec-20">20. Batch Color Algorithm</a></li>
+                    <li><a href="#sec-21">21. Executive Dashboard KPIs</a></li>
+                    <li><a href="#sec-22">22. Audit Trail &amp; Compliance</a></li>
+                    <li><a href="#sec-23">23. Expenditure &amp; Multi-Year Books</a></li>
+                    <li><a href="#sec-a">A. Appendix &mdash; Config Keys</a></li>
+                    <li><a href="#sec-b">B. Appendix &mdash; DB Schema</a></li>
+                </ul>
+            </div>
+
+            <!-- MAIN BODY -->
+            <div class="src-body">
+
+                <!-- SEC 1 -->
+                <section id="sec-1" class="src-section">
+                    <div class="sec-label">Section 1.0</div>
+                    <h2 class="sec-h2">
+                        <span>1. System Overview &amp; Core Architecture</span>
+                        <span class="file-bracket">[<span class="b-file">Program.cs</span> &bull; <span class="b-file">Data/ApplicationDbContext.cs</span> &bull; <span class="b-file">Services/EfDataStore.cs</span>]</span>
+                    </h2>
+                    <p class="sec-p">The <strong>MYGTS Fleet Intelligence Platform</strong> is an enterprise-grade telematics fleet management system purpose-built for GPS device lifecycle tracking, regulatory compliance across Karnataka's DMG (Mines &amp; Geology) and RTO (Regional Transport Office) departments, and full-cycle financial accounting. The platform manages over 3,900 active telematics endpoints across two strictly partitioned branches.</p>
+                    <div class="info-box">
+                        <strong>Architectural Foundation</strong>
+                        <ul class="sec-ul" style="margin-top:8px;">
+                            <li><strong>Runtime Host:</strong> ASP.NET Core MVC on .NET 10, Kestrel (port 5253), optional IIS integration.</li>
+                            <li><strong>Database:</strong> SQLite 3 with <code>PRAGMA journal_mode=WAL</code> and <code>synchronous=NORMAL</code> &mdash; crash-resilient, concurrent readers, no table locking. <span class="file-bracket">[<span class="b-file">Data/ApplicationDbContext.cs</span>]</span></li>
+                            <li><strong>Data Access:</strong> EF Core 9, Code-First migrations, global query filters for branch isolation. <code>IAppDataStore</code> in-memory snapshot cache for sub-millisecond reads. <span class="file-bracket">[<span class="b-file">Services/EfDataStore.cs</span> &bull; <span class="b-file">Services/JsonDataStore.cs</span>]</span></li>
+                            <li><strong>DB Path (Runtime):</strong> <code>C:\ProgramData\MyGts_database\mygts_database.db</code> &mdash; consistent across IIS, Kestrel, and background services. <span class="file-bracket">[<span class="b-file">Program.cs</span>]</span></li>
+                            <li><strong>Compression:</strong> Dynamic Brotli + Gzip &mdash; up to 75% payload reduction on cellular links. <span class="file-bracket">[<span class="b-file">Program.cs</span>]</span></li>
+                            <li><strong>CSRF Protection:</strong> Anti-forgery token on all POST/PUT/DELETE. External JSON APIs use <code>[IgnoreAntiforgeryToken]</code> explicitly.</li>
+                        </ul>
+                    </div>
+                    <h3 class="sec-h3">
+                        <span>1.1 Request Middleware Pipeline</span>
+                        <span class="file-bracket">[<span class="b-file">Program.cs</span> &bull; <span class="b-file">Services/SessionValidationMiddleware.cs</span> &bull; <span class="b-file">Services/PermissionAuthorization.cs</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>#</th><th>Middleware</th><th>Controlling File / Code Component</th><th>Responsibility</th></tr></thead>
+                            <tbody>
+                                <tr><td>1</td><td>HTTPS Redirection</td><td><code>Program.cs</code> (app.UseHttpsRedirection)</td><td>Forces HTTP &rarr; HTTPS</td></tr>
+                                <tr><td>2</td><td>Response Compression</td><td><code>Program.cs</code> (Brotli/Gzip provider)</td><td>Brotli/Gzip applied before static files</td></tr>
+                                <tr><td>3</td><td>Static Files (wwwroot)</td><td><code>Program.cs</code> (app.UseStaticFiles)</td><td>CSS, JS, PDFs served with cache headers</td></tr>
+                                <tr><td>4</td><td>Cookie Authentication</td><td><code>Program.cs</code> (AddAuthentication)</td><td>Validates HttpOnly signed session cookies</td></tr>
+                                <tr><td>5</td><td>Single Active Session</td><td><code>Services/SessionValidationMiddleware.cs</code></td><td>Terminates old session when account logs in elsewhere</td></tr>
+                                <tr><td>6</td><td>Authorization Middleware</td><td><code>Services/PermissionAuthorization.cs</code></td><td>ExecutiveOnly policy, RequireModulePermission filters</td></tr>
+                                <tr><td>7</td><td>Global Branch Filter</td><td><code>Data/ApplicationDbContext.cs</code> (OnModelCreating)</td><td>EF Core injects WHERE Branch=&apos;{cookie}&apos; on all queries</td></tr>
+                                <tr><td>8</td><td>MVC Route Dispatch</td><td><code>Program.cs</code> (MapControllerRoute)</td><td>Routes request to correct Controller/Action</td></tr>
+                                <tr><td>9</td><td>15-Min Cross-Tab Idle Daemon</td><td><code>wwwroot/js/site.js</code> &bull; <code>Views/Shared/_Layout.cshtml</code></td><td>Tracks real user activity, syncs across tabs via <code>localStorage.mygts_active_tick</code>, locks session after 15m true idle</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 2 -->
+                <section id="sec-2" class="src-section">
+                    <div class="sec-label">Section 2.0</div>
+                    <h2 class="sec-h2">
+                        <span>2. Tri-Branch Enterprise Tenant Partitioning (DMG, RTO &amp; Expenditure)</span>
+                        <span class="file-bracket">[<span class="b-file">Data/ApplicationDbContext.cs</span> &bull; <span class="b-file">Controllers/CoreControllers.cs</span> &bull; <span class="b-file">Areas/Expenditure/*</span> &bull; <span class="b-file">Views/Shared/_Layout.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">MYGTS enforces strict multi-tenancy via EF Core Global Query Filters bound to the <code>mygts_branch</code> session cookie and dedicated Area routing. Operational data is cleanly partitioned into <strong>DMG</strong> and <strong>RTO</strong>, while the <strong>Expenditure</strong> branch acts as a central financial accounting and multi-year cash flow consolidation engine.</p>
+                    <h3 class="sec-h3">
+                        <span>2.1 Branch Switch Engine &amp; Multi-Tenant Profiles</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/CoreControllers.cs</span>: <span class="b-action">SwitchBranch()</span> &bull; <span class="b-file">Views/Shared/_Layout.cshtml</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Attribute</th><th>DMG &mdash; Mines &amp; Geology</th><th>RTO &mdash; Regional Transport</th><th>Expenditure &mdash; Financial Ledger</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>Business Domain</strong></td><td>Mining haulage &amp; ore transport traceability</td><td>Public passenger &amp; AIS-140 compliance</td><td>Enterprise multi-year capital &amp; operating expenditure</td></tr>
+                                <tr><td><strong>Regulatory Body</strong></td><td>Dept. of Mines &amp; Geology, Karnataka</td><td>Regional Transport Office (MoRTH / AIS-140)</td><td>Corporate accounting &amp; fiscal audit compliance</td></tr>
+                                <tr><td><strong>Validity / Period</strong></td><td>11 months + 15 days from activation</td><td>24 months (2 years) statutory period</td><td>Fiscal Years: FY 23-24, FY 24-25, FY 25-26, FY 26-27</td></tr>
+                                <tr><td><strong>Recharge Price</strong></td><td>&#8377;2,500 standard / &#8377;3,500 reactivate</td><td>&#8377;2,000 standard / &#8377;3,000 reactivate</td><td>Tracks operational outflow vs customer cash flow</td></tr>
+                                <tr><td><strong>SIM Config</strong></td><td>Dual SIM &mdash; Airtel + BSNL fallback</td><td>Single operator (Airtel primary)</td><td>N/A (Accounting ledger)</td></tr>
+                                <tr><td><strong>Invoice Prefix</strong></td><td>INV-DMG-YYYY-NNN</td><td>INV-RTO-YYYY-NNN</td><td>EXP-YYYY-NNN &amp; Archived Proforma Invoices</td></tr>
+                                <tr><td><strong>Cash Flow Integration</strong></td><td>Pushes customer receipts to ledger</td><td>Pushes customer receipts to ledger</td><td>Dynamically aggregates DMG + RTO customer receipts</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 3 -->
+                <section id="sec-3" class="src-section">
+                    <div class="sec-label">Section 3.0</div>
+                    <h2 class="sec-h2">
+                        <span>3. Device Registry &mdash; Hardware Field Specification</span>
+                        <span class="file-bracket">[<span class="b-file">Models/DomainModels.cs</span> (<span class="b-action">DeviceRecord</span>) &bull; <span class="b-file">Controllers/DevicesController.cs</span> &bull; <span class="b-file">Views/Devices/Index.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">Every telematics device is stored as a <code>DeviceRecord</code> entity &mdash; the single source of truth for hardware identity, vehicle binding, SIM provisioning, certification status, and financial linkage.</p>
+                    <h3 class="sec-h3">
+                        <span>3.1 Hardware Field Schema &amp; Mutation Rules</span>
+                        <span class="file-bracket">[<span class="b-file">Models/DomainModels.cs</span>: lines 12-70 &bull; <span class="b-file">Controllers/DevicesController.cs</span>: <span class="b-action">Create, Edit, Details</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Controlling Code / Handling Logic</th><th>Description &amp; Business Rules</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>Id</code></td><td>GUID (32-hex)</td><td><span class="bg">Auto</span></td><td><code>Guid.NewGuid().ToString("N")</code></td><td>Globally unique primary key. Immutable after creation.</td></tr>
+                                <tr><td><code>SlNo</code></td><td>Numeric string</td><td><span class="bg">Yes</span></td><td><code>DevicesController.cs (MAX+1)</code></td><td>Sequential serial. Auto-incremented if omitted or '0'.</td></tr>
+                                <tr><td><code>Branch</code></td><td>String</td><td><span class="bg">Yes</span></td><td><code>ApplicationDbContext.cs</code> filter</td><td>"DMG" or "RTO". Enforces tenant boundary.</td></tr>
+                                <tr><td><code>VehicleNo</code></td><td>String</td><td><span class="ba">Context</span></td><td><code>DevicesController.cs: SlashParser</code></td><td>Vehicle registration (KA35AB1234). NULL/empty = Inventory stock.</td></tr>
+                                <tr><td><code>Imei</code></td><td>15-digit string</td><td><span class="bg">Yes</span></td><td><code>SpreadsheetService.cs: ConflictCheck</code></td><td>Primary telematics hardware identity key.</td></tr>
+                                <tr><td><code>Iccid</code></td><td>19-20 digit</td><td><span class="bg">Yes</span></td><td><code>SpreadsheetService.cs</code></td><td>SIM ICCID. Dual-key conflict deduplication with IMEI.</td></tr>
+                                <tr><td><code>DeviceName</code></td><td>String</td><td><span class="bb">No</span></td><td><code>DevicesController.cs (Invoice prefill)</code></td><td>Model (Bharat101, FMB209). Auto-filled from linked invoice.</td></tr>
+                                <tr><td><code>Vendor</code></td><td>String</td><td><span class="bb">No</span></td><td><code>Controllers/VendorsController.cs</code></td><td>Vendor lookup for WhatsApp dispatch and commission attribution.</td></tr>
+                                <tr><td><code>Owner</code></td><td>String</td><td><span class="bb">No</span></td><td><code>Controllers/AlertsController.cs</code></td><td>Vehicle owner name. Interpolated into WhatsApp renewal messages.</td></tr>
+                                <tr><td><code>CellNo</code></td><td>10-digit</td><td><span class="bb">No</span></td><td><code>AlertsController.cs: PhoneCleaner</code></td><td>Owner mobile. Cleaned to digits; prefixed '91' for WhatsApp.</td></tr>
+                                <tr><td><code>SimAirtel</code></td><td>String</td><td><span class="bb">No</span></td><td><code>Models/DomainModels.cs</code></td><td>Airtel SIM MSISDN/ICCID for DMG dual-SIM telematics units.</td></tr>
+                                <tr><td><code>SimBsnl</code></td><td>String</td><td><span class="bb">No</span></td><td><code>Models/DomainModels.cs</code></td><td>BSNL SIM fallback. Used if Airtel signal unavailable.</td></tr>
+                                <tr><td><code>ActivationDate</code></td><td>ISO Date</td><td><span class="ba">Context</span></td><td><code>DeviceLifecycleHelper.CalculateExpiry()</code></td><td>First provisioned on network. Anchor for expiry calculation.</td></tr>
+                                <tr><td><code>LatestExpiryDate</code></td><td>ISO Date</td><td><span class="ba">Context</span></td><td><code>DeviceLifecycleHelper.cs</code></td><td>Subscription expiry: Activation + 11M+15D (DMG) or +24M (RTO).</td></tr>
+                                <tr><td><code>LifecycleStatus</code></td><td>Enum string</td><td><span class="bg">Yes</span></td><td><code>DeviceLifecycleHelper.SyncDevice()</code></td><td>Active, Suspension, Terminated, Dead, Inventory, Replaced.</td></tr>
+                                <tr><td><code>StockStatus</code></td><td>Enum string</td><td><span class="bg">Yes</span></td><td><code>InventoryController.cs: BulkStatus</code></td><td>New (stock), Used (deployed), Dead (faulty), Error.</td></tr>
+                                <tr><td><code>InvoiceId</code></td><td>String</td><td><span class="bb">No</span></td><td><code>InvoicesController.cs: LinkBatch</code></td><td>Procurement batch. 'old*' exempts device from unpaid detection.</td></tr>
+                                <tr><td><code>UnitCost</code></td><td>Decimal</td><td><span class="bb">No</span></td><td><code>InvoicesController.cs -> Device.UnitCost</code></td><td>Hardware procurement cost from invoice. Used for gross margin.</td></tr>
+                                <tr><td><code>HardwareHistory</code></td><td>Text</td><td><span class="bb">No</span></td><td><code>DevicesController.cs: ReplaceDevicePost</code></td><td>Audit log of device swaps. Auto-appended; immutable once written.</td></tr>
+                                <tr><td><code>ExcludeFromUnpaid</code></td><td>Boolean</td><td><span class="bb">No</span></td><td><code>DevicesController.cs: Filter Logic</code></td><td>Exempts legacy device from 'Unpaid Vehicles' filter.</td></tr>
+                                <tr><td><code>InformedDate</code></td><td>ISO Date</td><td><span class="bb">No</span></td><td><code>AlertsController.cs: MarkInformed</code></td><td>Date vendor notified. Suppresses duplicate alerts for the day.</td></tr>
+                                <tr><td><code>DaysPastExpiry</code></td><td>Computed int</td><td><span class="bg">Auto</span></td><td><code>DeviceLifecycleHelper.SyncDevice()</code></td><td>Days since expiry. Drives state transitions and alert queues.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 4 -->
+                <section id="sec-4" class="src-section">
+                    <div class="sec-label">Section 4.0</div>
+                    <h2 class="sec-h2">
+                        <span>4. Fleet Inventory Module</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/InventoryController.cs</span> &bull; <span class="b-file">Views/Inventory/Index.cshtml</span> &bull; <span class="b-file">Views/Inventory/BatchDetails.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">Shows <strong>all hardware units registered via procurement invoices</strong>, grouped by batch &mdash; including unallocated stock, deployed units, and decommissioned hardware. A device appears in Inventory when it has a non-empty <code>InvoiceId</code>.</p>
+                    <h3 class="sec-h3">
+                        <span>4.1 Status Transitions &amp; Bulk Update Action</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/InventoryController.cs</span>: <span class="b-action">BulkUpdateStatus()</span> &bull; <span class="b-file">Controllers/DevicesController.cs</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Target Status</th><th>Database Changes</th><th>Side Effects &amp; Calculations</th><th>Handler File</th></tr></thead>
+                            <tbody>
+                                <tr><td><span class="bg">Activated</span></td><td><code>StockStatus&rarr;'Used'</code>, <code>LifecycleStatus&rarr;'Active'</code></td><td>ActivationDate = today (UTC). LatestExpiryDate = <code>DeviceLifecycleHelper.CalculateExpiry()</code> using ACTIVATION_EXPIRY_MONTHS + ACTIVATION_EXPIRY_DAYS config.</td><td><code>InventoryController.cs</code></td></tr>
+                                <tr><td><span class="br">Dead</span></td><td><code>StockStatus&rarr;'Dead'</code>, <code>LifecycleStatus&rarr;'Dead'</code></td><td>No date changes. Device remains in Inventory for hardware audit.</td><td><code>InventoryController.cs</code></td></tr>
+                                <tr><td><span class="ba">Error</span></td><td><code>StockStatus&rarr;'Error'</code>, <code>LifecycleStatus&rarr;'Error'</code></td><td>Flags hardware fault. RMA/warranty return indicated.</td><td><code>InventoryController.cs</code></td></tr>
+                                <tr><td><span class="bb">New (Reset)</span></td><td><code>StockStatus&rarr;'New'</code>, <code>LifecycleStatus&rarr;'Inventory'</code></td><td>Clears ActivationDate and LatestExpiryDate. Returns device to unallocated stock.</td><td><code>InventoryController.cs</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <h3 class="sec-h3">
+                        <span>4.2 Batch Grouping &amp; Color Differentiation</span>
+                        <span class="file-bracket">[<span class="b-file">Services/BatchColorHelper.cs</span> &bull; <span class="b-file">Views/Inventory/Index.cshtml</span>]</span>
+                    </h3>
+                    <p class="sec-p">Devices are grouped by their procurement <code>InvoiceId</code>. Each batch header displays total units, available stock (New), deployed count (Used), and faulty units (Dead/Error) with deterministic HSL batch badge colors.</p>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 5 -->
+                <section id="sec-5" class="src-section">
+                    <div class="sec-label">Section 5.0</div>
+                    <h2 class="sec-h2">
+                        <span>5. Device Lifecycle Engine &amp; State Machine</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/DevicesController.cs</span> (<span class="b-action">DeviceLifecycleHelper</span>) &bull; <span class="b-file">Models/DomainModels.cs</span>]</span>
+                    </h2>
+                    <p class="sec-p">Implemented in <code>DeviceLifecycleHelper.SyncDevice(device, config)</code>. Called on every request that touches device data &mdash; no stale states ever appear. Conditions are evaluated IN ORDER; first match wins.</p>
+                    <h3 class="sec-h3">
+                        <span>5.1 Expiry Date Calculation Rules</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/DevicesController.cs</span>: <span class="b-action">CalculateExpiry()</span>]</span>
+                    </h3>
+                    <div class="code-block">DMG Branch:
+  ExpiryDate = ActivationDate + ACTIVATION_EXPIRY_MONTHS (11) months + ACTIVATION_EXPIRY_DAYS (15) days
+  Example: Activation 2026-01-15 -> Expiry 2027-01-30
+
+RTO Branch:
+  ExpiryDate = RegistrationDate + 24 Months  (statutory 2-year AIS-140 roadworthiness)</div>
+                    <h3 class="sec-h3">
+                        <span>5.2 State Machine &mdash; Full Priority-Ordered Transitions</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/DevicesController.cs</span>: <span class="b-action">SyncDevice()</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>#</th><th>State</th><th>Trigger Condition (DPE = Days Past Expiry)</th><th>System Action &amp; Notification Trigger</th><th>Source File</th></tr></thead>
+                            <tbody>
+                                <tr><td>1</td><td><span class="bb">Inventory</span></td><td>StockStatus == 'New' OR VehicleNo is blank/null</td><td>LifecycleStatus = 'Inventory'. Excluded from active fleet.</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>2</td><td><span class="bg">Active</span></td><td>DPE &le; 0 (expiry is today or future)</td><td>Fully operational. Normal telematics reporting.</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>3</td><td><span class="ba">Suspension</span></td><td>1 &le; DPE &le; SUSPENSION_DAYS (default: 30)</td><td>Grace period active. Services continue. Executive alert + WhatsApp template.</td><td><code>AlertsController.cs</code></td></tr>
+                                <tr><td>4</td><td><span class="br">Terminated</span></td><td>SUSPENSION_DAYS &lt; DPE &le; (SUSPENSION_DAYS + TERMINATION_DAYS) [31&ndash;50]</td><td>Carrier disconnection imminent. Reactivation fee required. Terminated alert.</td><td><code>AlertsController.cs</code></td></tr>
+                                <tr><td>5</td><td><span class="br">Dead</span></td><td>DPE &gt; SUSPENSION_DAYS + TERMINATION_DAYS (&gt;50 days)</td><td>SIM physically decommissioned. Hardware replacement indicated.</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>6</td><td><span class="bp">Replaced</span></td><td>Old device when InstallType='Replacement' is processed</td><td>Permanent archive. Excluded from all live fleet views forever.</td><td><code>DevicesController.cs</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 6 -->
+                <section id="sec-6" class="src-section">
+                    <div class="sec-label">Section 6.0</div>
+                    <h2 class="sec-h2">
+                        <span>6. Device Search, Filtering &amp; Smart Query System</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/DevicesController.cs</span> (<span class="b-action">Index</span>) &bull; <span class="b-file">Views/Devices/Index.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">Multi-term full-text search (AND logic, pipe | for OR alternatives) combined with structured dropdown filters and 10+ special pre-built views. Evaluation is fully in-memory for sub-millisecond filtering across 4,000+ records.</p>
+                    <h3 class="sec-h3">
+                        <span>6.1 Full-Text Search Concatenation (23 Fields)</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/DevicesController.cs</span>: lines 110-145]</span>
+                    </h3>
+                    <div class="code-block">SlNo &bull; VehicleNo &bull; DeviceName &bull; Imei &bull; Iccid &bull; SimAirtel &bull; SimBsnl &bull; Vendor &bull; Owner &bull; InvoiceId &bull; EngineNo &bull; ChasisNo &bull; CellNo &bull; Notes &bull; PreviousImei &bull; HardwareHistory &bull; Type &bull; LifecycleStatus &bull; Status &bull; StockStatus &bull; LatestExpiryDate (formatted) &bull; ActivationDate (formatted) &bull; CreatedAt (formatted)</div>
+                    <h3 class="sec-h3">
+                        <span>6.2 Special Filter Pre-Built Views</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/DevicesController.cs</span>: <span class="b-action">ApplyFilter()</span> &bull; <span class="b-file">Views/Devices/Index.cshtml</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Filter Key</th><th>Matching Condition</th><th>Operational Purpose</th><th>Implementation</th></tr></thead>
+                            <tbody>
+                                <tr><td>Suspension Window</td><td><code>LifecycleStatus == 'Suspension'</code></td><td>Primary renewal dispatch queue (1&ndash;30 DPE)</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>Termination Window</td><td><code>LifecycleStatus == 'Terminated'</code></td><td>Urgent reactivation fee collection (31&ndash;50 DPE)</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>Dead / Deactivated</td><td><code>LifecycleStatus == 'Dead'</code></td><td>Field dispatch for hardware replacement (&gt;50 DPE)</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>Suspensions Today</td><td>ExpiryDate == today AND Active</td><td>Devices entering suspension from midnight tonight</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>Terminating Tomorrow</td><td>ExpiryDate == tomorrow</td><td>24-hour pre-termination alert queue</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>Near-Dead</td><td>DaysFromNow in [-30, -1]</td><td>Devices 1&ndash;30 days past expiry before termination window</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>Expired</td><td>DaysFromNow &lt; 0</td><td>All past-expiry devices</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>Expiring This Week</td><td>DaysFromNow in [0, 7]</td><td>Devices expiring within next 7 calendar days</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>No Owner</td><td>Owner is blank/null</td><td>Active deployed devices without owner name recorded</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td>Unpaid Vehicles</td><td>VehicleNo set, no transaction, InvoiceId not 'old*', ExcludeFromUnpaid=false</td><td>Revenue leakage &mdash; GPS in use with no payment on record</td><td><code>DevicesController.cs</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 7 -->
+                <section id="sec-7" class="src-section">
+                    <div class="sec-label">Section 7.0</div>
+                    <h2 class="sec-h2">
+                        <span>7. Device Import / Export Architecture</span>
+                        <span class="file-bracket">[<span class="b-file">Services/SpreadsheetService.cs</span> &bull; <span class="b-file">Controllers/DevicesController.cs</span> (<span class="b-action">Import, Export</span>) &bull; <span class="b-file">Views/Devices/Import.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">Bulk import pipeline for onboarding hundreds of devices from a single .xlsx or .csv file, with multi-stage review, conflict resolution, and atomic commit workflow.</p>
+                    <h3 class="sec-h3">
+                        <span>7.1 Import Pipeline &mdash; 7-Stage Flow</span>
+                        <span class="file-bracket">[<span class="b-file">Services/SpreadsheetService.cs</span>: <span class="b-action">ParseImportedDevices()</span> &bull; <span class="b-file">Controllers/DevicesController.cs</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Stage</th><th>Process</th><th>Technical Detail</th><th>Controlling File</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>1 &mdash; Upload</strong></td><td>User uploads .xlsx or .csv via multipart POST</td><td>Extension validated. Max size: 50MB. Stream opened without disk buffering.</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td><strong>2 &mdash; Parse</strong></td><td><code>SpreadsheetService.ParseImportedDevices()</code></td><td>Case-insensitive header matching (sl_no, vehicle_no, imei, iccid&hellip;).</td><td><code>SpreadsheetService.cs</code></td></tr>
+                                <tr><td><strong>3 &mdash; Slash Parse</strong></td><td>Each VehicleNo passed through <code>ParseVehicleSlash()</code></td><td>Handles 'KA35AB1234/KA01AB0001' &mdash; extracts primary vehicle, appends replacement history.</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td><strong>4 &mdash; Conflict Detect</strong></td><td>Each row checked against existing DB records</td><td>Conflict = existing device where BOTH Imei AND Iccid match.</td><td><code>SpreadsheetService.cs</code></td></tr>
+                                <tr><td><strong>5 &mdash; Review Page</strong></td><td>User views ImportReview with new vs conflict counts</td><td>Per-row action selector (insert/replace/keep). Staged JSON in hidden form field.</td><td><code>Views/Devices/ImportReview.cshtml</code></td></tr>
+                                <tr><td><strong>6 &mdash; Confirm</strong></td><td>User confirms per-row action decisions</td><td>RequestFormLimits configured for 100,000 form entries.</td><td><code>DevicesController.cs</code></td></tr>
+                                <tr><td><strong>7 &mdash; Commit</strong></td><td>All inserts and replaces committed in single save</td><td>'keep'=skip. 'replace'=non-blank fields overwrite. 'insert'=new GUID + SlNo.</td><td><code>EfDataStore.cs</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 8 -->
+                <section id="sec-8" class="src-section">
+                    <div class="sec-label">Section 8.0</div>
+                    <h2 class="sec-h2">
+                        <span>8. Hardware Replacement &amp; History Tracking</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/DevicesController.cs</span>: <span class="b-action">ReplaceDevice(), ReplaceDevicePost()</span> &bull; <span class="b-file">Views/Devices/Replace.cshtml</span> &bull; <span class="b-file">Models/DomainModels.cs</span>]</span>
+                    </h2>
+                    <p class="sec-p">When a GPS device fails or is swapped, MYGTS executes a structured replacement workflow maintaining complete audit continuity &mdash; the old record is permanently archived while a new active record is created.</p>
+                    <h3 class="sec-h3">
+                        <span>8.1 Atomic Replacement Steps &amp; Database Mutations</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/DevicesController.cs</span>: <span class="b-action">ReplaceDevicePost()</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li>Old device's <code>LifecycleStatus &rarr; "Replaced"</code> (permanently removed from all live fleet views).</li>
+                        <li>Full JSON snapshot of old device stored in <code>ReplacedDeviceSnapshot</code> on new record for audit trail.</li>
+                        <li><code>ReplacedDeviceId</code> = old device's GUID for relational linkage.</li>
+                        <li><code>PreviousImei</code> = old device's IMEI number.</li>
+                        <li><code>HardwareHistory</code> appended: <code>"Replaced from: KA35AB1234"</code>. Immutable once written.</li>
+                        <li><strong>Auto-Detection:</strong> Slash format in VehicleNo (e.g., KA35AB1234/KA01AB0001) auto-extracts replacement info without manual entry. <span class="file-bracket">[<span class="b-file">Controllers/DevicesController.cs</span>: <span class="b-action">ParseVehicleSlash()</span>]</span></li>
+                    </ul>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 9 -->
+                <section id="sec-9" class="src-section">
+                    <div class="sec-label">Section 9.0</div>
+                    <h2 class="sec-h2">
+                        <span>9. Data Share &mdash; Cross-Branch Global Search</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/DevicesController.cs</span>: <span class="b-action">CrossBranchSearch()</span> &bull; <span class="b-file">Data/ApplicationDbContext.cs</span> (<span class="b-action">IgnoreQueryFilters</span>) &bull; <span class="b-file">Views/Devices/CrossBranch.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">Privileged capability that bypasses the EF Core branch filter via <code>IgnoreQueryFilters()</code> to search ALL devices across ALL branches simultaneously. Used for locating IMEI ownership before a physical swap or cross-branch reconciliation.</p>
+                    <h3 class="sec-h3">
+                        <span>9.1 Search Pipeline &amp; Audit Log Structure</span>
+                        <span class="file-bracket">[<span class="b-file">Models/DomainModels.cs</span> (<span class="b-action">DataShareRecord</span>) &bull; <span class="b-file">Controllers/DevicesController.cs</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>SharedBy / SharedByEmail / SharedByRole:</strong> Captured from logged-in session claims. <span class="file-bracket">[<span class="b-file">Controllers/DevicesController.cs</span>]</span></li>
+                        <li><strong>SharedAt:</strong> UTC ISO 8601 timestamp of share action.</li>
+                        <li><strong>VehicleNo / Imei / Iccid / DeviceBranch:</strong> Shared device identifiers.</li>
+                        <li><strong>Recipient:</strong> Email/name of receiving party (entered by operator).</li>
+                        <li><strong>Transaction Overlay:</strong> For each result, latest transaction per VehicleNo is fetched across branches with <code>IgnoreQueryFilters()</code>. <span class="file-bracket">[<span class="b-file">Controllers/TransactionsController.cs</span>]</span></li>
+                    </ul>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 10 -->
+                <section id="sec-10" class="src-section">
+                    <div class="sec-label">Section 10.0</div>
+                    <h2 class="sec-h2">
+                        <span>10. Transaction Ledger &amp; Payment Processing</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/TransactionsController.cs</span> &bull; <span class="b-file">Models/DomainModels.cs</span> (<span class="b-action">TransactionRecord</span>) &bull; <span class="b-file">Views/Transactions/Index.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">The financial spine of MYGTS. Every recharge, activation, SIM renewal, and hardware payment is an immutable ledger entry with UTR tracking, vendor attribution, profit margin computation, and expiry date propagation back to the DeviceRecord.</p>
+                    <h3 class="sec-h3">
+                        <span>10.1 Key Transaction Fields &amp; Profit Engine</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/TransactionsController.cs</span>: <span class="b-action">Create, Edit, CalculateProfit</span> &bull; <span class="b-file">Views/Transactions/Create.cshtml</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>Amount:</strong> Total payment received from customer.</li>
+                        <li><strong>Profit Formula:</strong> <code>Amount - (UnitCost + CommissionCost + SimCost)</code>. Computed automatically on transaction save.</li>
+                        <li><strong>PaymentFor Types:</strong> Recharge, Reactivation, Activation, Hardware, Replacement. Aliased dynamically in search queries.</li>
+                        <li><strong>Utr:</strong> Unique Bank / UPI Transaction Reference. Full-text indexed and searchable.</li>
+                        <li><strong>NewExpiryDate Propagation:</strong> Automatically updates linked <code>DeviceRecord.LatestExpiryDate</code> on save. <span class="file-bracket">[<span class="b-file">TransactionsController.cs</span>: lines 210-230]</span></li>
+                    </ul>
+                    <h3 class="sec-h3">
+                        <span>10.2 Pricing Configuration Integration</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/AdminControllers.cs</span> (<span class="b-action">Config</span>) &bull; <span class="b-file">Controllers/TransactionsController.cs</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Config Key</th><th>DMG Default</th><th>RTO Default</th><th>Applied To</th><th>Source File</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>PRICE_RECHARGE</code></td><td>&#8377;2,500</td><td>&#8377;2,000</td><td>Standard annual GPS recharge customer price</td><td><code>ConfigRecord / TransactionsController.cs</code></td></tr>
+                                <tr><td><code>PRICE_REACTIVATION</code></td><td>&#8377;3,500</td><td>&#8377;3,000</td><td>Reactivation fee (device was in Terminated state)</td><td><code>ConfigRecord / TransactionsController.cs</code></td></tr>
+                                <tr><td><code>PRICE_TAX</code></td><td>18% (0.18)</td><td>18% (0.18)</td><td>GST tax multiplier on invoice totals</td><td><code>ConfigRecord / InvoicesController.cs</code></td></tr>
+                                <tr><td><code>SIM_COST</code></td><td>&mdash;</td><td>&#8377;1,300</td><td>2-year SIM subscription cost (RTO)</td><td><code>ConfigRecord / TransactionsController.cs</code></td></tr>
+                                <tr><td><code>COMMISSION_COST</code></td><td>&mdash;</td><td>&#8377;500</td><td>Vendor commission attribution per device</td><td><code>ConfigRecord / TransactionsController.cs</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <h3 class="sec-h3">
+                        <span>10.3 Split / Merged Payments Specification ([MERGE_PARTS: ...] Schema)</span>
+                        <span class="file-bracket">[<span class="b-file">Views/Transactions/Index.cshtml</span> &bull; <span class="b-file">Controllers/TransactionsController.cs</span>]</span>
+                    </h3>
+                    <p class="sec-p">When customers settle single transactions using multiple payment instruments (e.g. combined Cash + UPI or Cheque + Bank Transfer), MYGTS serializes sub-payment allocations into the record's audit metadata string:</p>
+                    <div class="info-box">
+                        <strong>JSON Serialization Contract (Metadata Field)</strong>
+                        <pre style="margin-top:6px; font-size:0.80rem; background:#1e293b; color:#f8fafc; padding:10px; border-radius:6px; overflow-x:auto;">[MERGE_PARTS: [
+  {"PartIndex": 1, "Mode": "Cash", "Amount": 3000.0, "PaidTo": "MYGTS", "Utr": "UTR-CASH-01"},
+  {"PartIndex": 2, "Mode": "UPI",  "Amount": 2700.0, "PaidTo": "HDFC",  "Utr": "653863752870"}
+]]</pre>
+                        <ul class="sec-ul" style="margin-top:8px;">
+                            <li><strong>Fallback Allocation:</strong> If historical records omit explicit part amounts, the view dynamically divides <code>Amount / parts.Count</code>.</li>
+                            <li><strong>Amount Sub-Breakdown:</strong> The Amount column renders the aggregate bold total plus an inline sub-breakdown pill: <code>&#8377; 3,000 Cash + &#8377; 2,700 UPI</code>.</li>
+                            <li><strong>Accordion Dropdown Sub-Row:</strong> Clicking <code>MERGED (N PAYMENTS)</code> dynamically toggles a collapsible table sub-row displaying Part #, Payment Mode, Exact Allocated Amount (&#8377;), Reference / UTR ID, and Bank Destination.</li>
+                            <li><strong>Cross-Branch Availability:</strong> Fully active across both DMG and RTO branches.</li>
+                        </ul>
+                    </div>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 11 -->
+                <section id="sec-11" class="src-section">
+                    <div class="sec-label">Section 11.0</div>
+                    <h2 class="sec-h2">
+                        <span>11. Invoice &amp; Procurement Registry</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/InvoicesController.cs</span> &bull; <span class="b-file">Models/DomainModels.cs</span> (<span class="b-action">InvoiceRecord</span>) &bull; <span class="b-file">Views/Invoices/Index.cshtml</span> &bull; <span class="b-file">Views/Invoices/Details.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">Hardware procurement batches. Financial anchor connecting hardware costs to device unit costs and gross margin calculations.</p>
+                    <h3 class="sec-h3">
+                        <span>11.1 Procurement Calculations &amp; Batch Auto-Provisioning</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/InvoicesController.cs</span>: <span class="b-action">Create, AutoGenerateDevicesFromInvoice</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>CostPerDevice:</strong> Derived as <code>Amount / Quantity</code>. Propagated to <code>DeviceRecord.UnitCost</code> on invoice link. <span class="file-bracket">[<span class="b-file">InvoicesController.cs</span>]</span></li>
+                        <li><strong>TotalWithTaxes formula:</strong> <code>Amount + (Amount &times; PRICE_TAX) + CourierCharges</code>.</li>
+                        <li><strong>Index KPIs:</strong> TotalValue (full spend incl. GST+freight), TotalUnits (hardware procured), TotalExtras (logistics cost), TotalBaseAmount (base hardware cost before tax). <span class="file-bracket">[<span class="b-file">Views/Invoices/Index.cshtml</span>]</span></li>
+                        <li><strong>Device Display Order within Invoice:</strong> StockStatus='New' first, then 'Used'/'Activated', then 'Dead', ordered by SlNoSortable.</li>
+                    </ul>
+                    <h3 class="sec-h3">
+                        <span>11.2 Multi-Dimensional Invoice Filtering Engine</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/InvoicesController.cs</span>: <span class="b-action">Index</span> &bull; <span class="b-file">Views/Invoices/Index.cshtml</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>Network Operator Query Filter:</strong> Filter invoices and proforma records matching specified SIM operators (BSNL, Airtel, Vodafone, Jio, SMT, or dynamic options).</li>
+                        <li><strong>Date Range Filtering (From &amp; To Date):</strong> ISO 8601 boundary query over <code>InvoiceDate</code>, enabling custom accounting quarter and fiscal audits.</li>
+                        <li><strong>Quantity Thresholds:</strong> Segment high-volume bulk hardware orders from single-device renewals.</li>
+                        <li><strong>Proforma vs Tax Invoice Mode:</strong> Dynamic tab switching preserves active filters across document types.</li>
+                    </ul>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 12 -->
+                <section id="sec-12" class="src-section">
+                    <div class="sec-label">Section 12.0</div>
+                    <h2 class="sec-h2">
+                        <span>12. Company Recharges &amp; Taisys Advance Tracking</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/CompanyRechargesController.cs</span> &bull; <span class="b-file">Controllers/RechargesController.cs</span> &bull; <span class="b-file">Views/CompanyRecharges/Index.cshtml</span> &bull; <span class="b-file">Models/DomainModels.cs</span>]</span>
+                    </h2>
+                    <p class="sec-p">Manages bulk advance payments made to cellular connectivity providers (e.g., Taisys). Prepaid advance batches are drawn down per-device as individual recharges are processed.</p>
+                    <h3 class="sec-h3">
+                        <span>12.1 Advance Batch Drawdown Engine &amp; Device Items</span>
+                        <span class="file-bracket">[<span class="b-file">Models/DomainModels.cs</span> (<span class="b-action">CompanyRechargeBatch, CompanyRechargeItem</span>) &bull; <span class="b-file">Controllers/CompanyRechargesController.cs</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>Total Advance Paid:</strong> Sum of <code>AdvanceAmount</code> across all batches.</li>
+                        <li><strong>Total Consumed:</strong> Sum of <code>TotalAmount</code> (actual spend to date).</li>
+                        <li><strong>Total Balance:</strong> Total Advance Paid &minus; Total Consumed (unspent credit remaining). <span class="file-bracket">[<span class="b-file">CompanyRechargesController.cs</span>]</span></li>
+                        <li><strong>Per-unit rates:</strong> MYGTS (<code>COMPANY_RECHARGE_RATE</code> default &#8377;1,298 / <code>COMPANY_REACTIVATION_RATE</code> default &#8377;1,534) and BlueMine (<code>BLUEMINE_RECHARGE_RATE</code> default &#8377;1,156.40 / <code>BLUEMINE_REACTIVATION_RATE</code> default &#8377;1,392.40).</li>
+                        <li><strong>Per-Device Item:</strong> Each batch contains one CompanyRechargeItem per device: VehicleNo, Imei, Iccid, RequestId (provider recharge ID for disputes), Amount deducted, RechargeType, Date, Status (Success/Pending/Failed).</li>
+                    </ul>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 13 -->
+                <section id="sec-13" class="src-section">
+                    <div class="sec-label">Section 13.0</div>
+                    <h2 class="sec-h2">
+                        <span>13. Alert Feed &amp; WhatsApp Notification Engine</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/AlertsController.cs</span> &bull; <span class="b-file">Views/Alerts/Index.cshtml</span> &bull; <span class="b-file">Views/Shared/_Layout.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">Real-time JSON API <code>GET /Alerts/Feed</code> powers the navigation header notification drawer. Returns four alert categories with pre-formatted WhatsApp deeplinks.</p>
+                    <h3 class="sec-h3">
+                        <span>13.1 Real-Time Alert Categories &amp; Trigger Conditions</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/AlertsController.cs</span>: <span class="b-action">Feed()</span> &bull; <span class="b-file">Services/DashboardService.cs</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Category</th><th>Trigger Condition</th><th>Visibility</th><th>Handler Action</th></tr></thead>
+                            <tbody>
+                                <tr><td><span class="br">Overdue Alerts</span></td><td>DaysPastExpiry in [1, 30] AND InformedDate &ne; today. Ordered by DPE descending.</td><td>Executive &amp; Admin only</td><td><code>AlertsController.Feed()</code></td></tr>
+                                <tr><td><span class="ba">Expiring This Week</span></td><td>ExpiryDate within next 0&ndash;7 days AND InformedDate &ne; today. Ordered by DaysFromNow ascending.</td><td>Executive &amp; Admin only</td><td><code>AlertsController.Feed()</code></td></tr>
+                                <tr><td><span class="bb">Lifecycle Shifts</span></td><td>Device recently (within 7 days) crossed Active&rarr;Suspension, Suspension&rarr;Terminated, or Terminated&rarr;Dead.</td><td>Executive &amp; Admin only</td><td><code>AlertsController.Feed()</code></td></tr>
+                                <tr><td><span class="bg">Open Follow-Ups</span></td><td>Manual Reminders not complete, matching current user's branch and TargetAudience.</td><td>All users matching target</td><td><code>AlertsController.Feed()</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <h3 class="sec-h3">
+                        <span>13.2 WhatsApp Deep Link Generation &amp; Phone Cleaning</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/AlertsController.cs</span>: <span class="b-action">GenerateWhatsAppLink()</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li>Owner phone from <code>device.CellNo</code>: stripped to digits only. If exactly 10 digits &rarr; prefixed with '91'.</li>
+                        <li>Vendor phone from <code>Vendors</code> table lookup by vendor name. Same cleaning applied. <span class="file-bracket">[<span class="b-file">Controllers/VendorsController.cs</span>]</span></li>
+                        <li>URL format: <code>https://web.whatsapp.com/send?phone={phone}&amp;text={URLEncodedMessage}</code></li>
+                        <li><strong>Mark Informed Action:</strong> POST <code>/Alerts/MarkInformed</code> sets <code>device.InformedDate = today (UTC)</code>, suppressing duplicate notifications for that day. <span class="file-bracket">[<span class="b-file">AlertsController.cs</span>: <span class="b-action">MarkInformed</span>]</span></li>
+                    </ul>
+                    <h3 class="sec-h3">
+                        <span>13.3 Batch WhatsApp Renewal Composer &amp; Bilingual Engine</span>
+                        <span class="file-bracket">[<span class="b-file">Views/Shared/_Layout.cshtml</span> &bull; <span class="b-file">Controllers/VendorsController.cs</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>Vendor Mobile Phone Auto-Population:</strong> Selecting a vendor in the composer modal automatically fetches and injects their registered WhatsApp phone number from the <code>Vendors</code> directory, eliminating manual phone entry.</li>
+                        <li><strong>Expiring Vehicle Queue:</strong> Queries all vehicles assigned to that vendor that are currently expiring or overdue, enabling single-message bulk notices.</li>
+                        <li><strong>Bilingual Message Engine:</strong> Generates message text formatted in both <strong>English and Kannada (ಕನ್ನಡ)</strong>, with vehicle registration numbers, due dates, and payment instructions.</li>
+                        <li><strong>Dispatch Actions:</strong> Direct WhatsApp Web link opening, clipboard copy, and formatted Excel export.</li>
+                    </ul>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 14 -->
+                <section id="sec-14" class="src-section">
+                    <div class="sec-label">Section 14.0</div>
+                    <h2 class="sec-h2">
+                        <span>14. Reminders &amp; Follow-Up Management</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/RemindersController.cs</span> &bull; <span class="b-file">Models/DomainModels.cs</span> (<span class="b-action">ManualReminder</span>) &bull; <span class="b-file">Views/Reminders/Index.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">Automated device-state bucketing combined with manual follow-up ticket creation for field operations teams.</p>
+                    <h3 class="sec-h3">
+                        <span>14.1 Automated Device Status Bucketing &amp; Manual Reminders</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/RemindersController.cs</span>: <span class="b-action">Index, Create, ToggleComplete</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Bucket</th><th>Condition</th><th>Required Action</th><th>Source File</th></tr></thead>
+                            <tbody>
+                                <tr><td><span class="ba">Suspension Window</span></td><td>LifecycleStatus == 'Suspension' (1&ndash;30 DPE)</td><td>Immediate renewal outreach. WhatsApp dispatch via vendor phone.</td><td><code>RemindersController.cs</code></td></tr>
+                                <tr><td><span class="br">Termination Window</span></td><td>LifecycleStatus == 'Terminated' (31&ndash;50 DPE)</td><td>Urgent reactivation fee collection. Last window before SIM decommission.</td><td><code>RemindersController.cs</code></td></tr>
+                                <tr><td><span class="br">Dead / Deactivated</span></td><td>LifecycleStatus == 'Dead' (&gt;50 DPE)</td><td>Field team dispatch for hardware replacement.</td><td><code>RemindersController.cs</code></td></tr>
+                                <tr><td><span class="bb">Expiring This Week</span></td><td>DaysFromNow in [0, 7]</td><td>Pre-emptive renewal before any service gap.</td><td><code>RemindersController.cs</code></td></tr>
+                                <tr><td><span class="bp">Unpaid Vehicles</span></td><td>VehicleNo set, no transaction, InvoiceId not 'old*', ExcludeFromUnpaid=false</td><td>Revenue recovery &mdash; GPS in use with no payment on record.</td><td><code>RemindersController.cs</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="sec-p" style="margin-top:10px;"><strong>Reminder Visibility Rule:</strong> User sees a reminder if <code>TargetAudience == '@@all'</code> OR TargetAudience contains the user's display name or email (case-insensitive). Branch must also match or be blank.</p>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 15 -->
+                <section id="sec-15" class="src-section">
+                    <div class="sec-label">Section 15.0</div>
+                    <h2 class="sec-h2">
+                        <span>15. Vendor Registry &amp; Contact Book</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/VendorsController.cs</span> &bull; <span class="b-file">Models/DomainModels.cs</span> (<span class="b-action">VendorRecord</span>) &bull; <span class="b-file">Views/Vendors/Index.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">Contact profiles for all GPS field installation and service vendors. Cross-referenced by the Alert engine for WhatsApp phone number retrieval. Fields: <strong>Name, Phone, AltPhone, Email, Address, Notes, Branch</strong>. <code>Vendor.Phone</code> is fetched by name-match (case-insensitive) to <code>device.Vendor</code> on every alert computation.</p>
+                    <h3 class="sec-h3">
+                        <span>15.1 Vendor-to-Device Relational Lookup</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/VendorsController.cs</span> &bull; <span class="b-file">Controllers/AlertsController.cs</span> &bull; <span class="b-file">Controllers/DevicesController.cs</span>]</span>
+                    </h3>
+                    <p class="sec-p">Vendors are linked by name to devices and recharges. Allows filtering all devices or transactions installed by a specific vendor, and batch-dispatching renewal reminders to that vendor via WhatsApp.</p>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 16 -->
+                <section id="sec-16" class="src-section">
+                    <div class="sec-label">Section 16.0</div>
+                    <h2 class="sec-h2">
+                        <span>16. Role-Based Access Control (RBAC) &amp; Security</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/AdminControllers.cs</span> &bull; <span class="b-file">Services/PermissionAuthorization.cs</span> &bull; <span class="b-file">Services/PasswordService.cs</span> &bull; <span class="b-file">Services/SessionValidationMiddleware.cs</span>]</span>
+                    </h2>
+                    <p class="sec-p">Four-tier RBAC enforced at three levels: ASP.NET Core policy-based authorization, the <code>RequireModulePermission</code> action filter, and Claims-based extension methods on ClaimsPrincipal.</p>
+                    <h3 class="sec-h3">
+                        <span>16.1 Role Definitions &amp; Permission Hierarchy</span>
+                        <span class="file-bracket">[<span class="b-file">Services/PermissionAuthorization.cs</span> &bull; <span class="b-file">Models/DomainModels.cs</span> (<span class="b-action">UserRecord</span>) &bull; <span class="b-file">Views/Users/Index.cshtml</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Role</th><th>Authority</th><th>Default Module Access</th><th>Hierarchy &amp; Visibility</th><th>Enforcement File</th></tr></thead>
+                            <tbody>
+                                <tr><td><span class="br">Admin</span></td><td>System-wide root</td><td>Edit on ALL modules incl. Users, Config, Backups. Exclusive SRC access.</td><td>Can see and manage Executive, Team, User. Full credential oversight.</td><td><code>[Authorize(Roles = "Admin")]</code></td></tr>
+                                <tr><td><span class="bp">Executive</span></td><td>Strategic oversight</td><td>Edit on operational modules. Full financial visibility. Modular User Manual.</td><td>Can see and manage Team and User only. Peers and Admins hidden. Blocked from SRC.</td><td><code>ExecutiveOnly / UsersController</code></td></tr>
+                                <tr><td><span class="bb">Team</span></td><td>Day-to-day operations</td><td>Configurable per-module Read or Edit. Modular User Manual.</td><td>Self-only profile (/Users/Profile). Cannot view other users.</td><td><code>RequireModulePermission</code></td></tr>
+                                <tr><td><span class="ba">User</span></td><td>Restricted field access</td><td>Read access to assigned modules. Modular User Manual.</td><td>Self-only profile (/Users/Profile). Cannot view other users.</td><td><code>PermissionAuthorization.cs</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <h3 class="sec-h3">
+                        <span>16.2 Single Active Session Token &amp; Authentication Middleware</span>
+                        <span class="file-bracket">[<span class="b-file">Services/SessionValidationMiddleware.cs</span> &bull; <span class="b-file">Controllers/AccountController.cs</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>Cookie Authentication:</strong> HttpOnly signed cookies using <code>CookieAuthenticationDefaults</code>, bound to server Data Protection key ring.</li>
+                        <li><strong>Password Hashing:</strong> BCrypt adaptive hashing via <code>PasswordService</code> with configurable iteration count. <span class="file-bracket">[<span class="b-file">Services/PasswordService.cs</span>]</span></li>
+                        <li><strong>Single Active Session:</strong> Every login generates a new <code>ActiveSessionToken</code> in DB. The <code>SessionValidationMiddleware</code> invalidates earlier browser sessions if a newer token exists. <span class="file-bracket">[<span class="b-file">Services/SessionValidationMiddleware.cs</span>]</span></li>
+                    </ul>
+                    <h3 class="sec-h3">
+                        <span>16.3 Downward-Only Peer Isolation &amp; Live Password Oversight</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/UsersController.cs</span> &bull; <span class="b-file">Views/Users/Index.cshtml</span> &bull; <span class="b-file">Views/Users/Profile.cshtml</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>Peer-Isolation Query Filter:</strong> In <code>UsersController.Index</code>, accounts at the caller's tier or higher are excluded from the dataset. Executives only view Team and User records. Team and User roles are redirected directly to <code>/Users/Profile</code>.</li>
+                        <li><strong>Live Plaintext Password Inspection:</strong> Managers (Admin &amp; Executive) can toggle-view and copy subordinate plaintext passwords directly from the user table. When employees change their password on <code>/Users/Profile</code>, updates sync immediately for their managers.</li>
+                        <li><strong>Strict Admin Gate for SRC:</strong> The System Requirements Contract (SRC) endpoints (<code>/Documents/Src</code>, <code>DownloadSrcPdf</code>, <code>ViewSrcPdf</code>) are decorated with <code>[Authorize(Roles = "Admin")]</code>. Executives and operational users receive 403 Forbidden or login redirects.</li>
+                    </ul>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 17 -->
+                <section id="sec-17" class="src-section">
+                    <div class="sec-label">Section 17.0</div>
+                    <h2 class="sec-h2">
+                        <span>17. System Configuration (Admin Settings)</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/AdminControllers.cs</span> (<span class="b-action">Config</span>) &bull; <span class="b-file">Models/DomainModels.cs</span> (<span class="b-action">ConfigRecord</span>) &bull; <span class="b-file">Views/Config/Index.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p"><code>/Config</code> module &mdash; Executive and Admin only. Config values stored in <code>ConfigItem</code> table, loaded into a runtime dictionary. Changes take immediate effect on next page load &mdash; no server restart needed.</p>
+                    <h3 class="sec-h3">
+                        <span>17.1 Runtime Configuration Dictionary &amp; Edit Guard</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/AdminControllers.cs</span>: <span class="b-action">Config(), UpdateConfig()</span> &bull; <span class="b-file">Views/Config/Index.cshtml</span>]</span>
+                    </h3>
+                    <p class="sec-p">Config UI requires the "Enable Editing" checkbox to be explicitly checked before saving. If not enabled, POST handler rejects all changes &mdash; preventing accidental modification of pricing and lifecycle parameters.</p>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Config Key</th><th>Description</th><th>DMG Default</th><th>RTO Default</th><th>Controlling File</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>PRICE_RECHARGE</code></td><td>Standard GPS recharge customer price</td><td>&#8377;2,500.00</td><td>&#8377;2,000.00</td><td><code>AdminControllers.cs</code></td></tr>
+                                <tr><td><code>PRICE_REACTIVATION</code></td><td>Reactivation fee (after termination window)</td><td>&#8377;3,500.00</td><td>&#8377;3,000.00</td><td><code>AdminControllers.cs</code></td></tr>
+                                <tr><td><code>PRICE_TAX</code></td><td>GST multiplier for invoice totals</td><td>0.18</td><td>0.18</td><td><code>InvoicesController.cs</code></td></tr>
+                                <tr><td><code>SIM_COST</code></td><td>2-year SIM subscription cost</td><td>&mdash;</td><td>&#8377;1,300.00</td><td><code>TransactionsController.cs</code></td></tr>
+                                <tr><td><code>COMMISSION_COST</code></td><td>Vendor commission per device</td><td>&mdash;</td><td>&#8377;500.00</td><td><code>TransactionsController.cs</code></td></tr>
+                                <tr><td><code>SUSPENSION_DAYS</code></td><td>Grace window (days) after expiry &mdash; Suspension</td><td>30</td><td>30</td><td><code>DeviceLifecycleHelper.cs</code></td></tr>
+                                <tr><td><code>TERMINATION_DAYS</code></td><td>Termination window after suspension ends</td><td>20</td><td>20</td><td><code>DeviceLifecycleHelper.cs</code></td></tr>
+                                <tr><td><code>ACTIVATION_EXPIRY_MONTHS</code></td><td>Months added to ActivationDate for expiry</td><td>11</td><td>24</td><td><code>DeviceLifecycleHelper.cs</code></td></tr>
+                                <tr><td><code>ACTIVATION_EXPIRY_DAYS</code></td><td>Extra days after months for expiry</td><td>15</td><td>0</td><td><code>DeviceLifecycleHelper.cs</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 18 -->
+                <section id="sec-18" class="src-section">
+                    <div class="sec-label">Section 18.0</div>
+                    <h2 class="sec-h2">
+                        <span>18. Automated Database Backup &amp; Disaster Recovery</span>
+                        <span class="file-bracket">[<span class="b-file">Services/DatabaseBackupService.cs</span> &bull; <span class="b-file">Controllers/BackupsController.cs</span> &bull; <span class="b-file">Views/Backups/Index.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">Multi-layered backup framework using SQLite's <code>VACUUM INTO</code> online backup API &mdash; hot snapshots while fully operational, no table locks, no service interruption.</p>
+                    <h3 class="sec-h3">
+                        <span>18.1 Online Hot-Snapshot Engine &amp; Backup Tiers</span>
+                        <span class="file-bracket">[<span class="b-file">Services/DatabaseBackupService.cs</span>: <span class="b-action">CreateBackupAsync()</span> &bull; <span class="b-file">Controllers/BackupsController.cs</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Tier</th><th>Trigger</th><th>Storage Location</th><th>Retention</th><th>Service Implementation</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>Today</strong></td><td>Manual &mdash; /Backups/RunSqliteBackup</td><td><code>Data\backups\Today\</code></td><td>Until manually cleared</td><td><code>BackupsController.cs</code></td></tr>
+                                <tr><td><strong>Daily</strong></td><td>Automated &mdash; DatabaseBackupService midnight UTC</td><td><code>Data\backups\Daily\</code></td><td>30 daily snapshots</td><td><code>DatabaseBackupService.cs</code></td></tr>
+                                <tr><td><strong>Weekly</strong></td><td>Automated &mdash; Sunday midnight UTC</td><td><code>Data\backups\Weekly\</code></td><td>12 weekly snapshots</td><td><code>DatabaseBackupService.cs</code></td></tr>
+                                <tr><td><strong>Monthly</strong></td><td>Automated &mdash; 1st of month midnight UTC</td><td><code>Data\backups\Monthly\</code></td><td>12 monthly snapshots</td><td><code>DatabaseBackupService.cs</code></td></tr>
+                                <tr><td><strong>Yearly</strong></td><td>Automated &mdash; January 1st midnight UTC</td><td><code>Data\backups\Yearly\</code></td><td>Indefinite archival</td><td><code>DatabaseBackupService.cs</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 19 -->
+                <section id="sec-19" class="src-section">
+                    <div class="sec-label">Section 19.0</div>
+                    <h2 class="sec-h2">
+                        <span>19. Documents Module (SRC &amp; User Manual Repository)</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/DocumentsController.cs</span> &bull; <span class="b-file">Views/Documents/Src.cshtml</span> &bull; <span class="b-file">Views/Documents/UserManual.cshtml</span> &bull; <span class="b-file">Views/Shared/_Layout.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">In-application repository for system architecture, compliance contracts, and user operational guidance. Access is strictly partitioned by role: <strong>The System Requirements Contract (SRC)</strong> is restricted exclusively to System Administrators via <code>[Authorize(Roles = "Admin")]</code>, while the modular <strong>User Manual</strong> is accessible to all authenticated operators with dynamic section filtering based on role permissions.</p>
+                    <h3 class="sec-h3">
+                        <span>19.1 Role Gate &amp; Dual Delivery Engine (Interactive + PDF)</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/DocumentsController.cs</span>: <span class="b-action">Src, UserManual, DownloadSrcPdf, ViewSrcPdf</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Sub-Module</th><th>Route</th><th>Authorization Gate</th><th>Visibility &amp; Files Involved</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>SRC (Contract)</strong></td><td><code>/Documents/Src</code></td><td><code>[Authorize(Roles = "Admin")]</code> (Admin Only)</td><td><code>Views/Documents/Src.cshtml</code> &bull; Inaccessible to Executives &amp; Staff</td></tr>
+                                <tr><td><strong>User Manual</strong></td><td><code>/Documents/UserManual</code></td><td><code>[Authorize]</code> (All Authenticated)</td><td><code>Views/Documents/UserManual.cshtml</code> &bull; Modular per-user permissions</td></tr>
+                                <tr><td><strong>PDF Download</strong></td><td><code>/Documents/DownloadSrcPdf</code></td><td><code>[Authorize(Roles = "Admin")]</code> (Admin Only)</td><td>Streams binary PDF with <code>application/pdf</code> header</td></tr>
+                                <tr><td><strong>PDF Inline</strong></td><td><code>/Documents/ViewSrcPdf</code></td><td><code>[Authorize(Roles = "Admin")]</code> (Admin Only)</td><td>Streams inline binary PDF with <code>inline</code> content-disposition</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 20 -->
+                <section id="sec-20" class="src-section">
+                    <div class="sec-label">Section 20.0</div>
+                    <h2 class="sec-h2">
+                        <span>20. Batch Color Mapping Algorithm</span>
+                        <span class="file-bracket">[<span class="b-file">Services/BatchColorHelper.cs</span> &bull; <span class="b-file">Views/Devices/Index.cshtml</span> &bull; <span class="b-file">Views/Inventory/Index.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">Each unique InvoiceId/batch name is assigned a persistent, algorithmically generated color badge for visual identification across large tabular grids:</p>
+                    <h3 class="sec-h3">
+                        <span>20.1 Golden Angle Hue Generation &amp; Alias Resolution</span>
+                        <span class="file-bracket">[<span class="b-file">Services/BatchColorHelper.cs</span>: <span class="b-action">GetBatchColor(), RtoBatchToInvoiceMap</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li>All unique InvoiceId values collected from full device set (ignoring branch filter for RTO batch aliases). <span class="file-bracket">[<span class="b-file">BatchColorHelper.cs</span>]</span></li>
+                        <li>Sorted deterministically: numeric IDs sorted numerically, then alphabetically.</li>
+                        <li>Each batch index <em>i</em> &rarr; HSL color: <strong>Hue = (i &times; 137.508&deg;) mod 360</strong>, Saturation &asymp; 65&ndash;75%, Lightness &asymp; 45&ndash;55%.</li>
+                        <li>Golden angle (&asymp;137.508&deg;) ensures maximum perceptual separation even across 50+ batches.</li>
+                        <li><code>BatchColorHelper.RtoBatchToInvoiceMap</code> provides alias resolution so RTO batch names map to canonical invoice numbers.</li>
+                    </ul>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 21 -->
+                <section id="sec-21" class="src-section">
+                    <div class="sec-label">Section 21.0</div>
+                    <h2 class="sec-h2">
+                        <span>21. Executive Dashboard &amp; Business Intelligence KPIs</span>
+                        <span class="file-bracket">[<span class="b-file">Controllers/CoreControllers.cs</span> (<span class="b-action">Dashboard</span>) &bull; <span class="b-file">Services/DashboardService.cs</span> &bull; <span class="b-file">Views/Dashboard/Index.cshtml</span>]</span>
+                    </h2>
+                    <p class="sec-p">High-level operational overview synthesizing real-time counts, revenue analytics, expiry trajectories, and stock health for executive decision making.</p>
+                    <h3 class="sec-h3">
+                        <span>21.1 Real-Time Fleet Metric Aggregation</span>
+                        <span class="file-bracket">[<span class="b-file">Services/DashboardService.cs</span>: <span class="b-action">GetDashboardStats()</span> &bull; <span class="b-file">Controllers/CoreControllers.cs</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>Active Fleet Count:</strong> Deployed vehicles with valid non-expired subscription. <span class="file-bracket">[<span class="b-file">DashboardService.cs</span>]</span></li>
+                        <li><strong>Suspension Count:</strong> Vehicles in 1&ndash;30 days post-expiry grace period.</li>
+                        <li><strong>Terminated Count:</strong> Vehicles in 31&ndash;50 days post-expiry window pending disconnection.</li>
+                        <li><strong>Inventory Stock:</strong> Unallocated devices (StockStatus = 'New').</li>
+                        <li><strong>Monthly Revenue &amp; Renewal Projections:</strong> Aggregated from Transactions table grouped by month. <span class="file-bracket">[<span class="b-file">TransactionsController.cs</span>]</span></li>
+                    </ul>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 22 -->
+                <section id="sec-22" class="src-section">
+                    <div class="sec-label">Section 22.0</div>
+                    <h2 class="sec-h2">
+                        <span>22. Audit Trail, Immutability &amp; Regulatory Compliance</span>
+                        <span class="file-bracket">[<span class="b-file">Models/DomainModels.cs</span> &bull; <span class="b-file">Data/ApplicationDbContext.cs</span> &bull; <span class="b-file">Controllers/DevicesController.cs</span>]</span>
+                    </h2>
+                    <p class="sec-p">Ensures full regulatory compliance with AIS-140 statutory norms, MoRTH guidelines, and Karnataka Department of Mines &amp; Geology (DMG) mineral transport rules.</p>
+                    <h3 class="sec-h3">
+                        <span>22.1 Hardware Swap Immutability &amp; Regulatory Certificates</span>
+                        <span class="file-bracket">[<span class="b-file">Models/DomainModels.cs</span> (<span class="b-action">HardwareHistory, CdacCertificate, VldtCertificate</span>)]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>HardwareHistory Append-Only:</strong> Swapped devices append historical notes that cannot be deleted or modified through the UI. <span class="file-bracket">[<span class="b-file">DevicesController.cs</span>]</span></li>
+                        <li><strong>AIS-140 CDAC Certification:</strong> RTO vehicles validate <code>CdacCertificate</code> and <code>VldtCertificate</code> status for roadworthiness approval. <span class="file-bracket">[<span class="b-file">Models/DomainModels.cs</span>]</span></li>
+                        <li><strong>DMG Compliance:</strong> Mineral haulage permits require valid EngineNo and ChassisNo verification before renewal.</li>
+                    </ul>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- SEC 23 -->
+                <section id="sec-23" class="src-section">
+                    <div class="sec-label">Section 23.0</div>
+                    <h2 class="sec-h2">
+                        <span>23. Enterprise Multi-Year Financial Architecture (Expenditure Branch)</span>
+                        <span class="file-bracket">[<span class="b-file">Areas/Expenditure/*</span> &bull; <span class="b-file">Controllers/ExpensesController.cs</span> &bull; <span class="b-file">Controllers/TransactionsController.cs</span>]</span>
+                    </h2>
+                    <p class="sec-p">Enterprise cross-cutting accounting branch providing complete fiscal year segregation, capital asset depreciation, vendor procurement tracking, and dynamic cash flow consolidation across all company divisions.</p>
+                    
+                    <h3 class="sec-h3">
+                        <span>23.1 Multi-Year Fiscal Segregation Engine</span>
+                        <span class="file-bracket">[<span class="b-file">Areas/Expenditure/Controllers/PreviousYearsController.cs</span> &bull; <span class="b-file">Areas/Expenditure/Views/PreviousYears/Index.cshtml</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>Fiscal Year Partitions:</strong> Books are partitioned into <code>FY 2023-24</code> (2023-04-01 to 2024-03-31), <code>FY 2024-25</code> (2024-04-01 to 2025-03-31), <code>FY 2025-26</code> (Active Operating Year), and <code>FY 2026-27</code> (Advance Provisioning).</li>
+                        <li><strong>Annual Financial Comparison Audit Summary:</strong> Single consolidated summary table rendering Direct Inflow, Branch Inflow, Total Combined Inflow, Total Outflow, Net Cash Flow, and total invoice/transaction counts per fiscal year.</li>
+                        <li><strong>Direct Drill-Down Action:</strong> Operators click <code>Selected</code> or <code>View Records &rarr;</code> on any row to dynamically load and audit that year's archived books.</li>
+                    </ul>
+
+                    <h3 class="sec-h3">
+                        <span>23.2 Dynamic Inflow &amp; Cash Flow Aggregation Algorithm</span>
+                        <span class="file-bracket">[<span class="b-file">Areas/Expenditure/Controllers/ExpensesController.cs</span>: <span class="b-action">Index, ComputeCashFlow</span>]</span>
+                    </h3>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Metric</th><th>Derivation Formula</th><th>Data Sources</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>Direct Inflow (&#8377;)</strong></td><td><code>&sum; (InvoiceRecord.TotalAmount) WHERE Branch='Expenditure' AND Type='Inflow'</code></td><td>Direct non-branch corporate revenue</td></tr>
+                                <tr><td><strong>Branch Inflow (&#8377;)</strong></td><td><code>&sum; (TransactionRecord.Amount) WHERE Date &isin; [FY_Start, FY_End] AND Branch &isin; ['DMG', 'RTO']</code></td><td>Customer transactions from DMG &amp; RTO branches</td></tr>
+                                <tr><td><strong>Combined Total Inflow (&#8377;)</strong></td><td><code>Direct Inflow + Branch Inflow</code></td><td>Consolidated total organizational cash intake</td></tr>
+                                <tr><td><strong>Total Outflow (&#8377;)</strong></td><td><code>&sum; (InvoiceRecord.TotalAmount) WHERE Branch='Expenditure' AND Type='Outflow'</code></td><td>Hardware procurement, server hosting, SIM bulk refills</td></tr>
+                                <tr><td><strong>Net Cash Flow (&#8377;)</strong></td><td><code>Combined Total Inflow - Total Outflow</code></td><td>Corporate net operating profit for the fiscal year</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3 class="sec-h3">
+                        <span>23.3 Archived Ledger &amp; Multi-Branch Filter Engine</span>
+                        <span class="file-bracket">[<span class="b-file">Areas/Expenditure/Views/PreviousYears/Index.cshtml</span>]</span>
+                    </h3>
+                    <ul class="sec-ul">
+                        <li><strong>Tabbed Ledger Navigation:</strong> Seamless switching between <em>Archived Invoices &amp; Proforma (PI)</em> and <em>Archived Branch Transactions</em>.</li>
+                        <li><strong>Branch Filtering:</strong> Filter archived transactions by <em>All Branches</em>, <em>DMG Transactions</em>, or <em>RTO Transactions</em>.</li>
+                        <li><strong>Date Range &amp; Search Constraints:</strong> Filter records by <code>fromDate</code>, <code>toDate</code>, and free-text vehicle/vendor search within the active fiscal year bounds.</li>
+                    </ul>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- APPENDIX A -->
+                <section id="sec-a" class="src-section">
+                    <div class="sec-label">Appendix A</div>
+                    <h2 class="sec-h2">
+                        <span>Appendix A &mdash; Configuration Keys Quick Reference</span>
+                        <span class="file-bracket">[<span class="b-file">Models/DomainModels.cs</span> (<span class="b-action">ConfigRecord</span>) &bull; <span class="b-file">Controllers/AdminControllers.cs</span> &bull; <span class="b-file">Data/DataSeeder.cs</span>]</span>
+                    </h2>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Key Name</th><th>Controlling Controller / Method</th><th>Affected File</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>PRICE_RECHARGE</code></td><td>Transactions/Create &mdash; ViewBag price lookup</td><td><code>Controllers/TransactionsController.cs</code></td></tr>
+                                <tr><td><code>PRICE_REACTIVATION</code></td><td>Transactions/Create &mdash; ViewBag price lookup</td><td><code>Controllers/TransactionsController.cs</code></td></tr>
+                                <tr><td><code>PRICE_TAX</code></td><td>Invoices &mdash; TotalWithTaxes computation</td><td><code>Controllers/InvoicesController.cs</code></td></tr>
+                                <tr><td><code>SIM_COST</code></td><td>Transactions/Create &mdash; SIM cost field prefill</td><td><code>Controllers/TransactionsController.cs</code></td></tr>
+                                <tr><td><code>SIM_COST_1_YEAR</code></td><td>Transactions/Create &mdash; 1-year SIM cost field</td><td><code>Controllers/TransactionsController.cs</code></td></tr>
+                                <tr><td><code>COMMISSION_COST</code></td><td>Transactions/Create &mdash; commission field prefill</td><td><code>Controllers/TransactionsController.cs</code></td></tr>
+                                <tr><td><code>REMINDER_DAYS</code></td><td>Reminders/Index &mdash; forward-looking bucket cutoff</td><td><code>Controllers/RemindersController.cs</code></td></tr>
+                                <tr><td><code>SUSPENSION_DAYS</code></td><td>DeviceLifecycleHelper.SyncDevice()</td><td><code>Controllers/DevicesController.cs</code></td></tr>
+                                <tr><td><code>TERMINATION_DAYS</code></td><td>DeviceLifecycleHelper.SyncDevice()</td><td><code>Controllers/DevicesController.cs</code></td></tr>
+                                <tr><td><code>ACTIVATION_EXPIRY_MONTHS</code></td><td>Devices/Create, Devices/Edit, Inventory BulkActivate</td><td><code>Controllers/DevicesController.cs</code></td></tr>
+                                <tr><td><code>ACTIVATION_EXPIRY_DAYS</code></td><td>Devices/Create, Devices/Edit, Inventory BulkActivate</td><td><code>Controllers/DevicesController.cs</code></td></tr>
+                                <tr><td><code>COMPANY_RECHARGE_RATE</code></td><td>CompanyRecharges/Index &mdash; per-unit rate display</td><td><code>Controllers/CompanyRechargesController.cs</code></td></tr>
+                                <tr><td><code>COMPANY_REACTIVATION_RATE</code></td><td>CompanyRecharges/Index &mdash; per-unit reactivation rate</td><td><code>Controllers/CompanyRechargesController.cs</code></td></tr>
+                                <tr><td><code>BLUEMINE_RECHARGE_RATE</code></td><td>CompanyRecharges/Index &mdash; BlueMine per-unit recharge rate</td><td><code>Controllers/CompanyRechargesController.cs</code></td></tr>
+                                <tr><td><code>BLUEMINE_REACTIVATION_RATE</code></td><td>CompanyRecharges/Index &mdash; BlueMine per-unit reactivation rate</td><td><code>Controllers/CompanyRechargesController.cs</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <hr class="src-hr" />
+
+                <!-- APPENDIX B -->
+                <section id="sec-b" class="src-section">
+                    <div class="sec-label">Appendix B</div>
+                    <h2 class="sec-h2">
+                        <span>Appendix B &mdash; Database Schema &amp; Architectural Mapping</span>
+                        <span class="file-bracket">[<span class="b-file">Data/ApplicationDbContext.cs</span> &bull; <span class="b-file">Models/DomainModels.cs</span> &bull; <span class="b-file">Data/DataSeeder.cs</span>]</span>
+                    </h2>
+                    <div class="tbl-wrap">
+                        <table class="src-tbl">
+                            <thead><tr><th>Table</th><th>Entity</th><th>Primary Controlling Controller</th><th>Controlling Views</th><th>Approx. Records</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>Devices</code></td><td><code>DeviceRecord</code></td><td><code>Controllers/DevicesController.cs</code></td><td><code>Views/Devices/Index, Details, Edit, Replace</code></td><td>3,914+</td></tr>
+                                <tr><td><code>Transactions</code></td><td><code>TransactionRecord</code></td><td><code>Controllers/TransactionsController.cs</code></td><td><code>Views/Transactions/Index, Create, Details, Edit</code></td><td>Thousands</td></tr>
+                                <tr><td><code>Invoices</code></td><td><code>InvoiceRecord</code></td><td><code>Controllers/InvoicesController.cs</code></td><td><code>Views/Invoices/Index, Create, Details, Edit</code></td><td>Hundreds</td></tr>
+                                <tr><td><code>Vendors</code></td><td><code>VendorRecord</code></td><td><code>Controllers/VendorsController.cs</code></td><td><code>Views/Vendors/Index, Create, Edit</code></td><td>Tens</td></tr>
+                                <tr><td><code>Users</code></td><td><code>UserRecord</code></td><td><code>Controllers/AdminControllers.cs</code></td><td><code>Views/Users/Index, Create, Edit</code></td><td>User Accounts</td></tr>
+                                <tr><td><code>ManualReminders</code></td><td><code>ManualReminder</code></td><td><code>Controllers/RemindersController.cs</code></td><td><code>Views/Reminders/Index</code></td><td>Dozens</td></tr>
+                                <tr><td><code>Config</code></td><td><code>ConfigItem</code></td><td><code>Controllers/AdminControllers.cs</code></td><td><code>Views/Config/Index</code></td><td>&sim;15 keys</td></tr>
+                                <tr><td><code>DataShareRecords</code></td><td><code>DataShareRecord</code></td><td><code>Controllers/DevicesController.cs</code></td><td><code>Views/Devices/CrossBranch</code></td><td>Audit Log</td></tr>
+                                <tr><td><code>CompanyRechargeBatches</code></td><td><code>CompanyRechargeBatch</code></td><td><code>Controllers/CompanyRechargesController.cs</code></td><td><code>Views/CompanyRecharges/Index</code></td><td>Dozens</td></tr>
+                                <tr><td><code>CompanyRechargeItems</code></td><td><code>CompanyRechargeItem</code></td><td><code>Controllers/CompanyRechargesController.cs</code></td><td><code>Views/CompanyRecharges/Index</code></td><td>Thousands</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Sign-off -->
+                    <div class="src-footer-box" style="margin-top:32px; border-radius:10px; padding:20px 24px; display:grid; grid-template-columns:1fr 1fr; gap:12px; border:1px solid var(--line,#e2e8f0); background:var(--paper-hover,#f8fafc);">
+                        <div style="font-size:0.85rem;"><strong>Document Reference:</strong> SRC-MYGTS-2026-V3.2 &nbsp;&bull;&nbsp; <strong>Total Sections:</strong> 22 + 2 Appendices</div>
+                        <div style="font-size:0.85rem;"><strong>Prepared By:</strong> Bluemine Technologies / Antigravity Systems Engineering</div>
+                        <div style="font-size:0.85rem;"><strong>Status:</strong> <span style="color:#10b981; font-weight:800;">RATIFIED &amp; OPERATIONAL</span></div>
+                        <div style="font-size:0.85rem;"><strong>Architectural Tracing:</strong> Controllers, Models, Views &amp; Services explicitly mapped</div>
+                    </div>
+                </section>
+
+            </div><!-- end src-body -->
+        </div><!-- end grid -->
+    </div><!-- end spec panel -->
+</div><!-- end src-wrap -->
+
+<script>
+    function switchTab(tab) {
+        const btnPdf  = document.getElementById('tabBtnPdf');
+        const btnSpec = document.getElementById('tabBtnSpec');
+        const pdfPane = document.getElementById('tabContentPdf');
+        const specPane = document.getElementById('tabContentSpec');
+        if (tab === 'pdf') {
+            btnPdf.classList.add('active');   btnSpec.classList.remove('active');
+            pdfPane.style.display = 'block';  specPane.style.display = 'none';
+        } else {
+            btnSpec.classList.add('active');  btnPdf.classList.remove('active');
+            specPane.style.display = 'block'; pdfPane.style.display = 'none';
+        }
+    }
+</script>

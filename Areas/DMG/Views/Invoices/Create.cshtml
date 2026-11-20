@@ -1,0 +1,670 @@
+@model InvoiceCreatePageViewModel
+@{
+    ViewData["Title"] = "New invoice";
+    ViewData["BodyClass"] = "form-background-container";
+    var currentBranch = Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG";
+}
+
+<div class="glass-wrapper">
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Procurement / new invoice</div>
+        <h1>Add invoice / batch</h1>
+        <p>Capture a new invoice batch, or use Add-on to append devices directly into an existing batch.</p>
+    </div>
+    <a class="btn-back" asp-action="Index">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        Back to invoices
+    </a>
+</div>
+
+<style>
+/* Cyberpunk checkbox */
+.cyberpunk-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--blue-600);
+  border-radius: 5px;
+  background-color: transparent;
+  display: inline-block;
+  position: relative;
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+.cyberpunk-checkbox:before {
+  content: "";
+  background-color: var(--blue-600);
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  transition: all 0.3s ease-in-out;
+}
+
+.cyberpunk-checkbox:checked:before {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.cyberpunk-checkbox-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.mode-switcher-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding: 16px 20px;
+    background: rgba(0,0,0,0.025);
+    border-radius: 12px;
+    border: 1px solid var(--line);
+}
+
+.segmented-group {
+    display: inline-flex;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 3px;
+    border-radius: 8px;
+    gap: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.segmented-btn {
+    padding: 7px 18px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.2s ease;
+}
+
+.segmented-btn.active {
+    background: var(--blue-600);
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.disabled-invoice-input {
+    background-color: #f1f5f9 !important;
+    color: var(--muted) !important;
+    border-style: dashed !important;
+    cursor: not-allowed !important;
+}
+
+.custum-file-upload {
+  height: 200px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #b9d1ff;
+  background-color: #f8fbff;
+  padding: 1.5rem;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.custum-file-upload:hover {
+  background-color: #eaf2ff;
+  border-color: var(--blue-600);
+}
+
+.custum-file-upload .icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custum-file-upload .icon svg {
+  height: 60px;
+  fill: var(--blue-600);
+  transition: transform 0.2s ease;
+}
+
+.custum-file-upload:hover .icon svg {
+  transform: translateY(-4px);
+}
+
+.custum-file-upload .text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custum-file-upload .text span {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--blue-700);
+}
+
+.custum-file-upload input {
+  display: none;
+}
+</style>
+
+<div class="card form-card" style="margin: 0 auto;">
+    
+    <!-- Top Configuration: Single / Multiple File Upload + Add-on Checkbox & Existing Batch Selector -->
+    <div class="mode-switcher-row">
+        <div>
+            <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); display: block; margin-bottom: 6px;">ENTRY / UPLOAD OPTION</span>
+            <div class="segmented-group">
+                <button type="button" id="btn-mode-single" class="segmented-btn @(Model.ActiveTab == "single" ? "active" : "")" onclick="setEntryMode('single')">Single</button>
+                <button type="button" id="btn-mode-multiple" class="segmented-btn @(Model.ActiveTab == "multiple" ? "active" : "")" onclick="setEntryMode('multiple')">Multiple (Upload File)</button>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+            <label class="cyberpunk-checkbox-label" title="Append new devices directly under an existing batch">
+                <input type="checkbox" class="cyberpunk-checkbox" id="addon-toggle" @(Model.SingleModel.IsAddon || Model.MultipleModel.IsAddon ? "checked" : "") onchange="toggleAddonMode(this.checked)">
+                Add-on
+            </label>
+
+            <div id="addon-batch-wrapper" style="@(Model.SingleModel.IsAddon || Model.MultipleModel.IsAddon ? "display: flex;" : "display: none;") align-items: center; gap: 8px;">
+                <label for="addon-batch-select" style="font-size: 0.85rem; font-weight: 600; color: var(--text-main); margin: 0; white-space: nowrap;">Existing Batch:</label>
+                <select id="addon-batch-select" class="select" style="min-width: 190px; height: 38px; padding: 4px 12px; font-weight: 600; border-color: var(--blue-600); border-radius: 6px;" onchange="onAddonBatchChanged(this.value)">
+                    <option value="">-- Select Existing Batch --</option>
+                    @foreach (var batch in Model.ExistingInvoices)
+                    {
+                        var isSel = string.Equals(batch, Model.SingleModel.ExistingInvoiceNo ?? Model.MultipleModel.ExistingInvoiceNo ?? Model.SelectedAddonBatch, StringComparison.OrdinalIgnoreCase);
+                        <option value="@batch" selected="@(isSel ? "selected" : null)">Batch @batch</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Single Invoice Form -->
+    <form id="single-entry-panel" asp-action="CreateSingle" method="post" style="@(Model.ActiveTab == "single" ? "" : "display: none;")">
+        <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+        
+        <input type="hidden" asp-for="SingleModel.IsAddon" id="SingleModel_IsAddon" />
+        <input type="hidden" asp-for="SingleModel.ExistingInvoiceNo" id="SingleModel_ExistingInvoiceNo" />
+
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="SingleModel.Date" class="form-label">Invoice date</label>
+                <input asp-for="SingleModel.Date" class="input" />
+                <span asp-validation-for="SingleModel.Date" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="SingleModel.DeviceType" class="form-label">Device type</label>
+                @if (currentBranch == "RTO") {
+                    <input asp-for="SingleModel.DeviceType" class="input" value="Bharat101" readonly style="background: #f1f5f9; color: var(--muted); pointer-events: none;" />
+                } else {
+                    <select asp-for="SingleModel.DeviceType" class="select">
+                        <option value="None">None</option>
+                        <option value="Teltonica">Teltonica</option>
+                        <option value="WeTrack">WeTrack</option>
+                        <option value="Bharat101">Bharat101</option>
+                    </select>
+                }
+                <span asp-validation-for="SingleModel.DeviceType" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="SingleModel.NetworkOperator" class="form-label">Network operator</label>
+                <select asp-for="SingleModel.NetworkOperator" class="select">
+                    <option value="">-- None --</option>
+                    <option value="Taisys (MYGTS)">Taisys (MYGTS)</option>
+                    <option value="Taisys (BABU)">Taisys (BABU)</option>
+                    <option value="SMT">SMT</option>
+                    <option value="Sensorise">Sensorise</option>
+                </select>
+                <span asp-validation-for="SingleModel.NetworkOperator" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="SingleModel.InvoiceNo" class="form-label">Invoice number</label>
+                <input asp-for="SingleModel.InvoiceNo" id="SingleModel_InvoiceNo" class="input @(Model.SingleModel.IsAddon ? "disabled-invoice-input" : "")" placeholder="e.g. INV-12345" />
+                <span asp-validation-for="SingleModel.InvoiceNo" class="validation-summary-errors"></span>
+                <small id="single-addon-hint" style="@(Model.SingleModel.IsAddon ? "display: block;" : "display: none;") color: var(--blue-600); font-weight: 500; margin-top: 4px;">Adding devices under existing batch.</small>
+            </div>
+            
+            <div class="field">
+                <label asp-for="SingleModel.Quantity" class="form-label">Quantity</label>
+                <input asp-for="SingleModel.Quantity" class="input" type="number" min="1" step="1" data-invoice-quantity placeholder="e.g. 50" />
+                <span asp-validation-for="SingleModel.Quantity" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="SingleModel.Rate" class="form-label">Rate per device</label>
+                <input asp-for="SingleModel.Rate" class="input" type="number" min="0" step="0.01" data-invoice-rate placeholder="e.g. 1500.00" />
+                <span asp-validation-for="SingleModel.Rate" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="SingleModel.CourierCharges" class="form-label">Extra charges</label>
+                <input asp-for="SingleModel.CourierCharges" class="input" type="number" min="0" step="0.01" data-invoice-courier placeholder="e.g. 200.00" />
+                <span asp-validation-for="SingleModel.CourierCharges" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="SingleModel.PanicButtonQuantity" class="form-label">Panic button quantity</label>
+                <input asp-for="SingleModel.PanicButtonQuantity" class="input" type="number" min="0" step="1" data-panic-quantity placeholder="e.g. 10 (manual entry)" />
+                <span asp-validation-for="SingleModel.PanicButtonQuantity" class="validation-summary-errors"></span>
+                <small style="color: var(--muted); font-size: 0.78rem; display: block; margin-top: 4px;">Manual entry</small>
+            </div>
+            
+            <div class="field">
+                <label asp-for="SingleModel.PanicButtonCost" class="form-label">Panic button cost</label>
+                <input asp-for="SingleModel.PanicButtonCost" class="input" type="number" min="0" step="0.01" data-panic-cost placeholder="e.g. 250.00" />
+                <span asp-validation-for="SingleModel.PanicButtonCost" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label class="form-label">Panic button total</label>
+                <input class="input" type="text" data-panic-total-input readonly style="background: #f1f5f9; color: var(--muted); pointer-events: none;" value="₹0.00" />
+            </div>
+            
+            <div class="field full">
+                <label asp-for="SingleModel.Notes" class="form-label">Notes</label>
+                <textarea asp-for="SingleModel.Notes" class="textarea" placeholder="e.g. Payment for August fleet"></textarea>
+                <span asp-validation-for="SingleModel.Notes" class="validation-summary-errors"></span>
+            </div>
+        </div>
+        
+        <div class="trace-grid" style="margin-top: 20px;">
+            <div class="card" style="padding: 16px;">
+                <span class="eyebrow">Base amount</span>
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-amount>₹0.00</strong>
+            </div>
+            
+            <div class="card" style="padding: 16px;">
+                <span class="eyebrow">Round Off</span>
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-roundoff>₹0.00</strong>
+            </div>
+
+            <div class="card" style="padding: 16px;">
+                <span class="eyebrow">Loaded total</span>
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-total>₹0.00</strong>
+            </div>
+            
+            <div class="card" style="padding: 16px;">
+                <span class="eyebrow">Cost / device</span>
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-per-device>₹0.00</strong>
+            </div>
+        </div>
+        
+        <div class="permission-note" style="margin-top: 18px;">
+            Loaded total applies an 18% tax calculation and adds extra charges. The server repeats this calculation when saving.
+        </div>
+        
+        <div class="form-actions">
+            <a class="button ghost" asp-action="Index">Cancel</a>
+            <button class="button" type="submit">Save invoice</button>
+        </div>
+    </form>
+
+    <!-- Multiple Invoices Form (File Upload) -->
+    <form id="multiple-entry-panel" asp-action="CreateMultiple" method="post" enctype="multipart/form-data" style="@(Model.ActiveTab == "multiple" ? "" : "display: none;")">
+        <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+        
+        <input type="hidden" asp-for="MultipleModel.IsAddon" id="MultipleModel_IsAddon" />
+        <input type="hidden" asp-for="MultipleModel.ExistingInvoiceNo" id="MultipleModel_ExistingInvoiceNo" />
+
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="MultipleModel.Date" class="form-label">Invoice date</label>
+                <input asp-for="MultipleModel.Date" class="input" type="date" required />
+                <span asp-validation-for="MultipleModel.Date" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="MultipleModel.DeviceType" class="form-label">Device type</label>
+                @if (currentBranch == "RTO") {
+                    <input asp-for="MultipleModel.DeviceType" class="input" value="Bharat101" readonly style="background: #f1f5f9; color: var(--muted); pointer-events: none;" />
+                } else {
+                    <select asp-for="MultipleModel.DeviceType" class="select">
+                        <option value="None">None</option>
+                        <option value="Teltonica">Teltonica</option>
+                        <option value="WeTrack">WeTrack</option>
+                        <option value="Bharat101">Bharat101</option>
+                    </select>
+                }
+                <span asp-validation-for="MultipleModel.DeviceType" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="MultipleModel.NetworkOperator" class="form-label">Network operator</label>
+                <select asp-for="MultipleModel.NetworkOperator" class="select">
+                    <option value="">-- None --</option>
+                    <option value="Taisys (MYGTS)">Taisys (MYGTS)</option>
+                    <option value="Taisys (BABU)">Taisys (BABU)</option>
+                    <option value="SMT">SMT</option>
+                    <option value="Sensorise">Sensorise</option>
+                </select>
+                <span asp-validation-for="MultipleModel.NetworkOperator" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="MultipleModel.InvoiceNo" class="form-label">Invoice number</label>
+                <input asp-for="MultipleModel.InvoiceNo" id="MultipleModel_InvoiceNo" class="input @(Model.MultipleModel.IsAddon ? "disabled-invoice-input" : "")" placeholder="e.g. INV-12345" />
+                <span asp-validation-for="MultipleModel.InvoiceNo" class="validation-summary-errors"></span>
+                <small id="multiple-addon-hint" style="@(Model.MultipleModel.IsAddon ? "display: block;" : "display: none;") color: var(--blue-600); font-weight: 500; margin-top: 4px;">Adding devices under existing batch.</small>
+            </div>
+            
+            <div class="field">
+                <label asp-for="MultipleModel.Quantity" class="form-label">Expected quantity</label>
+                <input asp-for="MultipleModel.Quantity" class="input" type="number" min="1" step="1" data-invoice-quantity placeholder="e.g. 50" />
+                <span asp-validation-for="MultipleModel.Quantity" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="MultipleModel.Rate" class="form-label">Rate per device</label>
+                <input asp-for="MultipleModel.Rate" class="input" type="number" min="0" step="0.01" data-invoice-rate placeholder="e.g. 1500.00" />
+                <span asp-validation-for="MultipleModel.Rate" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="MultipleModel.CourierCharges" class="form-label">Extra charges</label>
+                <input asp-for="MultipleModel.CourierCharges" class="input" type="number" min="0" step="0.01" data-invoice-courier placeholder="e.g. 200.00" />
+                <span asp-validation-for="MultipleModel.CourierCharges" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="MultipleModel.PanicButtonQuantity" class="form-label">Panic button quantity</label>
+                <input asp-for="MultipleModel.PanicButtonQuantity" class="input" type="number" min="0" step="1" data-panic-quantity placeholder="e.g. 10 (manual entry)" />
+                <span asp-validation-for="MultipleModel.PanicButtonQuantity" class="validation-summary-errors"></span>
+                <small style="color: var(--muted); font-size: 0.78rem; display: block; margin-top: 4px;">Manual entry</small>
+            </div>
+            
+            <div class="field">
+                <label asp-for="MultipleModel.PanicButtonCost" class="form-label">Panic button cost</label>
+                <input asp-for="MultipleModel.PanicButtonCost" class="input" type="number" min="0" step="0.01" data-panic-cost placeholder="e.g. 250.00" />
+                <span asp-validation-for="MultipleModel.PanicButtonCost" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field">
+                <label class="form-label">Panic button total</label>
+                <input class="input" type="text" data-panic-total-input readonly style="background: #f1f5f9; color: var(--muted); pointer-events: none;" value="₹0.00" />
+            </div>
+
+            <div class="field full">
+                <label asp-for="MultipleModel.Notes" class="form-label">Notes</label>
+                <textarea asp-for="MultipleModel.Notes" class="textarea" placeholder="e.g. Payment for August fleet"></textarea>
+                <span asp-validation-for="MultipleModel.Notes" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field full">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label asp-for="MultipleModel.File" class="form-label" style="margin-bottom: 0;">Upload Device Roster</label>
+                    <a class="button secondary" asp-action="DownloadSampleRoster" asp-route-branch="@currentBranch" style="font-size: 0.82rem; padding: 4px 12px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;" title="Download sample Excel template with @(currentBranch == "RTO" ? "serial number, iccid, imei" : "iccid, imei, airtel, bsnl") columns">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Download sample roster (.xlsx)
+                    </a>
+                </div>
+                <label class="custum-file-upload" for="MultipleModel_File">
+                    <div class="icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="" viewBox="0 0 24 24"><g stroke-width="0" id="SVGRepo_bgCarrier"></g><g stroke-linejoin="round" stroke-linecap="round" id="SVGRepo_tracerCarrier"></g><g id="SVGRepo_iconCarrier"> <path fill="" d="M10 1C9.73478 1 9.48043 1.10536 9.29289 1.29289L3.29289 7.29289C3.10536 7.48043 3 7.73478 3 8V20C3 21.6569 4.34315 23 6 23H7C7.55228 23 8 22.5523 8 22C8 21.4477 7.55228 21 7 21H6C5.44772 21 5 20.5523 5 20V9H10C10.5523 9 11 8.55228 11 8V3H18C18.5523 3 19 3.44772 19 4V9C19 9.55228 19.4477 10 20 10C20.5523 10 21 9.55228 21 9V4C21 2.34315 19.6569 1 18 1H10ZM9 7H6.41421L9 4.41421V7ZM14 15.5C14 14.1193 15.1193 13 16.5 13C17.8807 13 19 14.1193 19 15.5V16V17H20C21.1046 17 22 17.8954 22 19C22 20.1046 21.1046 21 20 21H13C11.8954 21 11 20.1046 11 19C11 17.8954 11.8954 17 13 17H14V16V15.5ZM16.5 11C14.142 11 12.2076 12.8136 12.0156 15.122C10.2825 15.5606 9 17.1305 9 19C9 21.2091 10.7909 23 13 23H20C22.2091 23 24 21.2091 24 19C24 17.1305 22.7175 15.5606 20.9844 15.122C20.7924 12.8136 18.858 11 16.5 11Z" clip-rule="evenodd" fill-rule="evenodd"></path> </g></svg>
+                    </div>
+                    <div class="text">
+                        <span id="file-upload-filename">Click to upload Excel or CSV</span>
+                    </div>
+                    <input asp-for="MultipleModel.File" type="file" accept=".xlsx,.csv" id="MultipleModel_File" />
+                </label>
+                <span asp-validation-for="MultipleModel.File" class="validation-summary-errors"></span>
+            </div>
+        </div>
+        
+        <div class="trace-grid" style="margin-top: 20px;">
+            <div class="card" style="padding: 16px;">
+                <span class="eyebrow">Base amount</span>
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-amount>₹0.00</strong>
+            </div>
+            
+            <div class="card" style="padding: 16px;">
+                <span class="eyebrow">Round Off</span>
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-roundoff>₹0.00</strong>
+            </div>
+
+            <div class="card" style="padding: 16px;">
+                <span class="eyebrow">Loaded total</span>
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-total>₹0.00</strong>
+            </div>
+            
+            <div class="card" style="padding: 16px;">
+                <span class="eyebrow">Cost / device</span>
+                <strong style="display:block; margin-top: 8px; font-size: 1.55rem;" data-invoice-per-device>₹0.00</strong>
+            </div>
+        </div>
+        
+        <div class="permission-note" style="margin-top: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div>
+                Uploading a file will automatically parse rows containing columns named <strong>iccid</strong> and <strong>imei</strong> (case-insensitive) and import them as device inventory records under this invoice / batch.@(currentBranch == "RTO" ? " Column serial number is parsed for device serial numbers." : " Columns named airtel and bsnl are optional.")
+            </div>
+            <a class="button secondary" asp-action="DownloadSampleRoster" asp-route-branch="@currentBranch" style="white-space: nowrap; font-size: 0.82rem; padding: 5px 12px;">
+                ↓ Sample roster (.xlsx)
+            </a>
+        </div>
+        
+        <div class="form-actions">
+            <a class="button ghost" asp-action="Index">Cancel</a>
+            <button class="button" type="submit">Upload and import</button>
+        </div>
+    </form>
+</div>
+</div>
+
+@section Scripts {
+    <script>
+        const panelSingle = document.getElementById('single-entry-panel');
+        const panelMultiple = document.getElementById('multiple-entry-panel');
+        const btnSingle = document.getElementById('btn-mode-single');
+        const btnMultiple = document.getElementById('btn-mode-multiple');
+
+        function setEntryMode(mode) {
+            if (mode === 'multiple') {
+                syncForms('SingleModel', 'MultipleModel');
+                if (btnMultiple) btnMultiple.classList.add('active');
+                if (btnSingle) btnSingle.classList.remove('active');
+                if (panelMultiple) panelMultiple.style.display = '';
+                if (panelSingle) panelSingle.style.display = 'none';
+                calculateTotals('multiple-entry-panel');
+            } else {
+                syncForms('MultipleModel', 'SingleModel');
+                if (btnSingle) btnSingle.classList.add('active');
+                if (btnMultiple) btnMultiple.classList.remove('active');
+                if (panelSingle) panelSingle.style.display = '';
+                if (panelMultiple) panelMultiple.style.display = 'none';
+                calculateTotals('single-entry-panel');
+            }
+        }
+
+        function toggleAddonMode(isAddon) {
+            const addonWrapper = document.getElementById('addon-batch-wrapper');
+            const addonSelect = document.getElementById('addon-batch-select');
+            const singleInvInput = document.getElementById('SingleModel_InvoiceNo');
+            const multipleInvInput = document.getElementById('MultipleModel_InvoiceNo');
+            const singleAddonHint = document.getElementById('single-addon-hint');
+            const multipleAddonHint = document.getElementById('multiple-addon-hint');
+            const singleIsAddon = document.getElementById('SingleModel_IsAddon');
+            const multipleIsAddon = document.getElementById('MultipleModel_IsAddon');
+
+            if (addonWrapper) addonWrapper.style.display = isAddon ? 'flex' : 'none';
+            if (singleIsAddon) singleIsAddon.value = isAddon ? 'true' : 'false';
+            if (multipleIsAddon) multipleIsAddon.value = isAddon ? 'true' : 'false';
+
+            if (isAddon) {
+                if (singleInvInput) {
+                    singleInvInput.readOnly = true;
+                    singleInvInput.classList.add('disabled-invoice-input');
+                    singleInvInput.placeholder = "Inherited from existing batch";
+                }
+                if (multipleInvInput) {
+                    multipleInvInput.readOnly = true;
+                    multipleInvInput.classList.add('disabled-invoice-input');
+                    multipleInvInput.placeholder = "Inherited from existing batch";
+                }
+                if (singleAddonHint) singleAddonHint.style.display = 'block';
+                if (multipleAddonHint) multipleAddonHint.style.display = 'block';
+
+                if (addonSelect && addonSelect.value) {
+                    onAddonBatchChanged(addonSelect.value);
+                }
+            } else {
+                if (singleInvInput) {
+                    singleInvInput.readOnly = false;
+                    singleInvInput.classList.remove('disabled-invoice-input');
+                    singleInvInput.placeholder = "e.g. INV-12345";
+                }
+                if (multipleInvInput) {
+                    multipleInvInput.readOnly = false;
+                    multipleInvInput.classList.remove('disabled-invoice-input');
+                    multipleInvInput.placeholder = "e.g. INV-12345";
+                }
+                if (singleAddonHint) singleAddonHint.style.display = 'none';
+                if (multipleAddonHint) multipleAddonHint.style.display = 'none';
+
+                const sExisting = document.getElementById('SingleModel_ExistingInvoiceNo');
+                const mExisting = document.getElementById('MultipleModel_ExistingInvoiceNo');
+                if (sExisting) sExisting.value = '';
+                if (mExisting) mExisting.value = '';
+            }
+        }
+
+        function onAddonBatchChanged(batchVal) {
+            const singleInvInput = document.getElementById('SingleModel_InvoiceNo');
+            const multipleInvInput = document.getElementById('MultipleModel_InvoiceNo');
+            const sExisting = document.getElementById('SingleModel_ExistingInvoiceNo');
+            const mExisting = document.getElementById('MultipleModel_ExistingInvoiceNo');
+
+            if (singleInvInput) singleInvInput.value = batchVal;
+            if (multipleInvInput) multipleInvInput.value = batchVal;
+            if (sExisting) sExisting.value = batchVal;
+            if (mExisting) mExisting.value = batchVal;
+        }
+
+        function syncForms(fromPrefix, toPrefix) {
+            const fields = ['Date', 'DeviceType', 'InvoiceNo', 'Quantity', 'Rate', 'CourierCharges', 'PanicButtonQuantity', 'PanicButtonCost', 'Notes', 'IsAddon', 'ExistingInvoiceNo'];
+            fields.forEach(field => {
+                const fromEl = document.getElementById(`${fromPrefix}_${field}`);
+                const toEl = document.getElementById(`${toPrefix}_${field}`);
+                if (fromEl && toEl) {
+                    toEl.value = fromEl.value;
+                }
+            });
+        }
+
+        function calculateTotals(formId) {
+            const form = document.getElementById(formId);
+            if (!form) return;
+            
+            const qtyInput = form.querySelector('[data-invoice-quantity]');
+            const rateInput = form.querySelector('[data-invoice-rate]');
+            const extraInput = form.querySelector('[data-invoice-courier]');
+            const pQtyInput = form.querySelector('[data-panic-quantity]');
+            const pCostInput = form.querySelector('[data-panic-cost]');
+            
+            const amountDisplay = form.querySelector('[data-invoice-amount]');
+            const totalDisplay = form.querySelector('[data-invoice-total]');
+            const perDeviceDisplay = form.querySelector('[data-invoice-per-device]');
+            const panicTotalDisplay = form.querySelector('[data-panic-total]');
+            const panicTotalInput = form.querySelector('[data-panic-total-input]');
+            
+            if (!qtyInput && !rateInput && !extraInput && !pQtyInput && !pCostInput) return;
+            
+            const qty = parseFloat(qtyInput?.value) || 0;
+            const rate = parseFloat(rateInput?.value) || 0;
+            const extra = parseFloat(extraInput?.value) || 0;
+            const pQty = parseFloat(pQtyInput?.value) || 0;
+            const pCost = parseFloat(pCostInput?.value) || 0;
+            
+            const pTotal = pQty * pCost;
+            const amount = (qty * rate) + pTotal + extra;
+            const exactTotal = amount * 1.18;
+            const total = Math.round(exactTotal);
+            const roundOff = total - exactTotal;
+            const perDevice = qty > 0 ? (total / qty) : 0;
+            
+            const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+            
+            if (amountDisplay) amountDisplay.textContent = formatCurrency(amount);
+            
+            const roundOffDisplay = form.querySelector('[data-invoice-roundoff]');
+            if (roundOffDisplay) roundOffDisplay.textContent = formatCurrency(roundOff);
+
+            if (totalDisplay) totalDisplay.textContent = formatCurrency(total);
+            if (perDeviceDisplay) perDeviceDisplay.textContent = formatCurrency(perDevice);
+            if (panicTotalDisplay) panicTotalDisplay.textContent = formatCurrency(pTotal);
+            if (panicTotalInput) panicTotalInput.value = formatCurrency(pTotal);
+        }
+
+        ['single-entry-panel', 'multiple-entry-panel'].forEach(formId => {
+            const form = document.getElementById(formId);
+            if (form) {
+                form.addEventListener('input', (e) => {
+                    if (e.target.matches('[data-invoice-quantity], [data-invoice-rate], [data-invoice-courier], [data-panic-quantity], [data-panic-cost]')) {
+                        calculateTotals(formId);
+                    }
+                });
+            }
+        });
+
+        const fileInput = document.getElementById('MultipleModel_File');
+        const fileNameDisplay = document.getElementById('file-upload-filename');
+        const fileUploadLabel = document.querySelector('.custum-file-upload');
+
+        if (fileInput && fileNameDisplay) {
+            fileInput.addEventListener('change', function(e) {
+                if (this.files && this.files.length > 0) {
+                    fileNameDisplay.textContent = this.files[0].name;
+                } else {
+                    fileNameDisplay.textContent = 'Click to upload Excel or CSV';
+                }
+            });
+            
+            if (fileUploadLabel) {
+                fileUploadLabel.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    fileUploadLabel.style.borderColor = 'var(--primary-600)';
+                    fileUploadLabel.style.backgroundColor = 'rgba(var(--primary-rgb), 0.05)';
+                });
+                fileUploadLabel.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    fileUploadLabel.style.borderColor = '';
+                    fileUploadLabel.style.backgroundColor = '';
+                });
+                fileUploadLabel.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    fileUploadLabel.style.borderColor = '';
+                    fileUploadLabel.style.backgroundColor = '';
+                    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        fileInput.files = e.dataTransfer.files;
+                        fileInput.dispatchEvent(new Event('change'));
+                    }
+                });
+            }
+        }
+
+        // Initialize Addon mode on load if checked
+        window.addEventListener('DOMContentLoaded', () => {
+            const addonToggle = document.getElementById('addon-toggle');
+            if (addonToggle && addonToggle.checked) {
+                toggleAddonMode(true);
+            }
+        });
+    </script>
+}

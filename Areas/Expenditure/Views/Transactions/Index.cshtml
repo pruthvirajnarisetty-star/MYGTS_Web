@@ -1,0 +1,825 @@
+@model MygtsMvc.Models.ExpenditureBranchTransactionsViewModel
+@{
+    ViewData["Title"] = "BRANCH TRANSACTIONS (DMG & RTO)";
+    var f = Model.Filters;
+    var isDmgActive = string.Equals(f.Branch, "DMG", StringComparison.OrdinalIgnoreCase);
+    var isRtoActive = string.Equals(f.Branch, "RTO", StringComparison.OrdinalIgnoreCase);
+    var isAllBranch = !isDmgActive && !isRtoActive;
+}
+
+<style>
+    .kpi-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .kpi-item {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.18s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.18s ease;
+        user-select: none;
+    }
+
+    .kpi-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .kpi-item.active-filter {
+        border-width: 2px !important;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25), 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .kpi-item-title {
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #64748b;
+        letter-spacing: 0.6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .kpi-item-value {
+        font-size: 1.55rem;
+        font-weight: 900;
+        letter-spacing: -0.5px;
+        margin: 6px 0 4px 0;
+    }
+
+    .kpi-val-total { color: #059669; }
+    .kpi-val-dmg { color: #0284c7; }
+    .kpi-val-rto { color: #c2410c; }
+    .kpi-val-profit { color: #4338ca; }
+
+    .kpi-item-sub {
+        font-size: 0.70rem;
+        font-weight: 700;
+        color: #94a3b8;
+    }
+
+    .kpi-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.64rem;
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        padding: 4px 9px;
+        border-radius: 999px;
+        margin-top: 10px;
+        width: fit-content;
+        text-transform: uppercase;
+        transition: all 0.15s ease;
+    }
+
+    .kpi-pill-subtle {
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+    }
+
+    .kpi-pill-blue {
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #7dd3fc;
+    }
+
+    .kpi-pill-orange {
+        background: #ffedd5;
+        color: #c2410c;
+        border: 1px solid #fdba74;
+    }
+
+    .kpi-pill-green {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #86efac;
+    }
+
+    .kpi-pill-indigo {
+        background: #e0e7ff;
+        color: #4338ca;
+        border: 1px solid #c7d2fe;
+    }
+
+    /* FILTER BAR */
+    .exp-filter-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px 22px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+
+    .exp-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 14px;
+        align-items: end;
+    }
+
+    .exp-field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .exp-label {
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #475569;
+        letter-spacing: 0.5px;
+    }
+
+    .exp-input, .exp-select {
+        height: 38px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 0 10px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        background: #f8fafc;
+        color: #0f172a;
+        width: 100%;
+        outline: none;
+        transition: all 0.15s ease;
+    }
+
+    .exp-input:focus, .exp-select:focus {
+        border-color: #0284c7;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    }
+
+    /* TABLE */
+    .exp-table-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .exp-table-header {
+        padding: 16px 24px;
+        background: #fafbfc;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .exp-table-title {
+        font-weight: 800;
+        color: #0f172a;
+        font-size: 0.92rem;
+    }
+
+    .exp-table-container {
+        overflow-x: auto;
+        width: 100%;
+    }
+
+    .exp-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .exp-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 800;
+        font-size: 0.72rem;
+        letter-spacing: 0.6px;
+        padding: 12px 14px;
+        border-bottom: 2px solid #cbd5e1;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .exp-table td {
+        padding: 11px 14px;
+        border-bottom: 1px solid #f1f5f9;
+        font-weight: 600;
+        color: #1e293b;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .exp-table th.col-sticky-action {
+        width: 110px;
+        text-align: center;
+        position: sticky;
+        left: 0;
+        background: #f8fafc;
+        z-index: 2;
+    }
+
+    .exp-table td.col-sticky-action {
+        text-align: center;
+        position: sticky;
+        left: 0;
+        background: #ffffff;
+        z-index: 1;
+    }
+
+    .exp-table tr:hover td {
+        background-color: #f1f5f9;
+    }
+
+    .exp-table tr:hover td.col-sticky-action {
+        background-color: #f1f5f9;
+    }
+
+    .cell-vehicleno {
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .cell-amount {
+        font-weight: 900;
+        color: #059669;
+        font-size: 0.90rem;
+    }
+
+    .cell-profit {
+        font-weight: 800;
+        color: #4338ca;
+    }
+
+    .cell-notes {
+        color: #64748b;
+        font-size: 0.75rem;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* BADGES */
+    .badge-branch-dmg {
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+        padding: 3px 9px;
+        border-radius: 4px;
+        font-size: 0.70rem;
+        font-weight: 900;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .badge-branch-rto {
+        background: #ffedd5;
+        color: #c2410c;
+        border: 1px solid #fed7aa;
+        padding: 3px 9px;
+        border-radius: 4px;
+        font-size: 0.70rem;
+        font-weight: 900;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .action-link {
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        transition: all 0.15s;
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+    }
+
+    .action-link:hover {
+        background: #bae6fd;
+        color: #0284c7;
+    }
+
+    /* PAGINATION */
+    .exp-pagination {
+        padding: 14px 24px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        background: #f8fafc;
+    }
+
+    .exp-pagination-info {
+        font-size: 0.80rem;
+        font-weight: 700;
+        color: #64748b;
+    }
+
+    .exp-pagination-current {
+        font-size: 0.80rem;
+        font-weight: 800;
+        padding: 0 8px;
+        color: #0f172a;
+    }
+
+    .exp-page-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 14px;
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-decoration: none;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #1e293b;
+        border: 1px solid #cbd5e1;
+        transition: all 0.15s ease;
+    }
+
+    .exp-page-btn:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+        color: #0f172a;
+    }
+
+    /* DARK MODE OVERRIDES (COMFORTABLE SLATE TONES - NO BLINDING WHITE OR NEON COLORS) */
+    body:has(#theme:checked) .exp-table-title {
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .exp-table {
+        background-color: #0b0f19 !important;
+    }
+    body:has(#theme:checked) .exp-table th {
+        background-color: #111827 !important;
+        border-bottom-color: #1e293b !important;
+        color: #94a3b8 !important;
+    }
+    body:has(#theme:checked) .exp-table th.col-sticky-action {
+        background-color: #111827 !important;
+    }
+    body:has(#theme:checked) .exp-table td {
+        background-color: #0b0f19 !important;
+        border-bottom-color: #1e293b !important;
+        color: #cbd5e1 !important;
+    }
+    body:has(#theme:checked) .exp-table td.col-sticky-action {
+        background-color: #0b0f19 !important;
+    }
+    /* ROW HOVER: SUBDUED DARK NAVY SLATE (NEVER WHITE!) */
+    body:has(#theme:checked) .exp-table tr:hover td,
+    body:has(#theme:checked) .exp-table tbody tr:hover td {
+        background-color: #1e293b !important;
+        color: #f1f5f9 !important;
+    }
+    body:has(#theme:checked) .exp-table tr:hover td.col-sticky-action,
+    body:has(#theme:checked) .exp-table tbody tr:hover td.col-sticky-action {
+        background-color: #1e293b !important;
+    }
+    body:has(#theme:checked) .kpi-val-total { color: #34d399 !important; }
+    body:has(#theme:checked) .kpi-val-dmg { color: #38bdf8 !important; }
+    body:has(#theme:checked) .kpi-val-rto { color: #fb923c !important; }
+    body:has(#theme:checked) .kpi-val-profit { color: #a5b4fc !important; }
+    body:has(#theme:checked) .cell-vehicleno {
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .cell-amount {
+        color: #34d399 !important;
+    }
+    body:has(#theme:checked) .cell-profit {
+        color: #a5b4fc !important;
+    }
+    body:has(#theme:checked) .cell-notes {
+        color: #94a3b8 !important;
+    }
+    body:has(#theme:checked) .action-link {
+        background: rgba(2, 132, 199, 0.18) !important;
+        color: #38bdf8 !important;
+        border-color: rgba(56, 189, 248, 0.35) !important;
+    }
+    body:has(#theme:checked) .action-link:hover {
+        background: rgba(2, 132, 199, 0.35) !important;
+        color: #7dd3fc !important;
+        border-color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .badge-branch-dmg {
+        background: rgba(2, 132, 199, 0.22) !important;
+        color: #38bdf8 !important;
+        border-color: rgba(56, 189, 248, 0.4) !important;
+    }
+    body:has(#theme:checked) .badge-branch-rto {
+        background: rgba(249, 115, 22, 0.22) !important;
+        color: #fb923c !important;
+        border-color: rgba(251, 146, 60, 0.4) !important;
+    }
+    body:has(#theme:checked) .exp-pagination {
+        background: #0f172a !important;
+        border-top-color: #1e293b !important;
+    }
+    body:has(#theme:checked) .exp-pagination-info {
+        color: #94a3b8 !important;
+    }
+    body:has(#theme:checked) .exp-pagination-current {
+        color: #e2e8f0 !important;
+    }
+    body:has(#theme:checked) .exp-page-btn {
+        background: #1e293b !important;
+        color: #cbd5e1 !important;
+        border-color: #334155 !important;
+    }
+    body:has(#theme:checked) .exp-page-btn:hover {
+        background: #273549 !important;
+        color: #ffffff !important;
+        border-color: #475569 !important;
+    }
+    body:has(#theme:checked) .button.btn-primary {
+        background: #0284c7 !important;
+        border-color: #0369a1 !important;
+        color: #ffffff !important;
+    }
+    body:has(#theme:checked) .button.btn-primary:hover {
+        background: #0369a1 !important;
+        border-color: #0284c7 !important;
+    }
+    body:has(#theme:checked) .button.btn-secondary {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        color: #cbd5e1 !important;
+    }
+    body:has(#theme:checked) .button.btn-secondary:hover {
+        background: #273549 !important;
+        border-color: #475569 !important;
+        color: #ffffff !important;
+    }
+</style>
+
+<!-- TOP NAVIGATION TABS -->
+<div class="exp-nav-tabs">
+    <a href="/Expenditure/Expenses" class="exp-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span>INVOICES & PROFORMA (PI)</span>
+    </a>
+    <a href="/Expenditure/Transactions" class="exp-tab active">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        <span>BRANCH TRANSACTIONS (DMG & RTO)</span>
+        <span class="exp-tab-badge">@Model.FinancialYearLabel</span>
+    </a>
+    <a href="/Expenditure/PreviousYears" class="exp-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline><path d="M4 12a8 8 0 0 1 14.93-4"></path></svg>
+        <span>PREVIOUS FINANCIAL YEARS</span>
+        <span class="exp-tab-badge" style="background: rgba(99, 102, 241, 0.25); color: #818cf8;">ARCHIVE</span>
+    </a>
+</div>
+
+<!-- CURRENT FINANCIAL YEAR BANNER -->
+<div style="margin: 0 0 18px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.25); border-radius: 8px; padding: 10px 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 800; color: #0284c7;">
+        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #0284c7;"></span>
+        <span>CURRENT FINANCIAL YEAR: @Model.FinancialYearLabel (01 APR @Model.SelectedFinancialYear — 31 MAR @(Model.SelectedFinancialYear + 1))</span>
+    </div>
+    <a href="/Expenditure/PreviousYears" class="exp-page-btn" style="text-decoration: none; font-size: 0.74rem; font-weight: 800; padding: 4px 12px; display: inline-flex; align-items: center; gap: 5px;">
+        <span>VIEW PREVIOUS YEARS ARCHIVE</span>
+        <span>&rarr;</span>
+    </a>
+</div>
+
+<!-- PAGE HEADING -->
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">CUSTOMER REVENUE & RECONCILIATION</div>
+        <h1 style="font-size: 1.65rem; font-weight: 900; letter-spacing: -0.5px; margin: 2px 0 4px 0;">BRANCH TRANSACTIONS</h1>
+        <p style="color: var(--muted); font-size: 0.85rem; font-weight: 600; margin: 0;">
+            REAL-TIME CUSTOMER INFLOW TRANSACTIONS AUTOMATICALLY PULLED FROM DMG & RTO BRANCHES.
+        </p>
+    </div>
+    <div class="page-heading-actions" style="display: flex; gap: 10px; align-items: center;">
+        <a href="@Url.Action("Export", "Transactions", new { area = "Expenditure", StartDate = f.StartDate, EndDate = f.EndDate, Branch = f.Branch, PaidTo = f.PaidTo, PaymentMode = f.PaymentMode, Vendor = f.Vendor, Query = f.Query })" class="button btn-secondary" style="font-weight: 800; font-size: 0.82rem; padding: 8px 16px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>EXPORT CSV</span>
+        </a>
+    </div>
+</div>
+
+<!-- KPI SUMMARY CARDS -->
+<div class="kpi-container">
+    <!-- 1. TOTAL INFLOW -->
+    <div class="kpi-item @(isAllBranch ? "active-filter" : "")" 
+         onclick="applyBranchFilter('ALL')" 
+         title="Click to view all branch transactions"
+         style="border-left: 5px solid #059669; @(isAllBranch ? "background: #f0fdf4; border-color: #059669;" : "")">
+        <div class="kpi-item-title">
+            <span>TOTAL BRANCH INFLOW</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><line x1="17" y1="7" x2="7" y2="17"></line><polyline points="17 17 7 17 7 7"></polyline></svg>
+        </div>
+        <div class="kpi-item-value kpi-val-total">₹@Model.TotalAmount.ToString("N2")</div>
+        <div class="kpi-item-sub">@Model.TotalCount TOTAL TRANSACTIONS LOGGED</div>
+        @if (isAllBranch)
+        {
+            <div class="kpi-pill kpi-pill-green">✓ ALL BRANCHES VIEW</div>
+        }
+        else
+        {
+            <div class="kpi-pill kpi-pill-subtle">CLICK TO SHOW ALL</div>
+        }
+    </div>
+
+    <!-- 2. DMG INFLOW -->
+    <div class="kpi-item @(isDmgActive ? "active-filter" : "")" 
+         onclick="applyBranchFilter('DMG')" 
+         title="Click to filter by DMG branch only"
+         style="border-left: 5px solid #0284c7; @(isDmgActive ? "background: #f0f9ff; border-color: #0284c7;" : "")">
+        <div class="kpi-item-title">
+            <span>DMG INFLOW</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
+        </div>
+        <div class="kpi-item-value kpi-val-dmg">₹@Model.DmgAmount.ToString("N2")</div>
+        <div class="kpi-item-sub">@Model.DmgCount TRANSACTIONS RECORDED</div>
+        @if (isDmgActive)
+        {
+            <div class="kpi-pill kpi-pill-blue">✓ ACTIVE: DMG ONLY</div>
+        }
+        else
+        {
+            <div class="kpi-pill kpi-pill-subtle">CLICK TO FILTER DMG</div>
+        }
+    </div>
+
+    <!-- 3. RTO INFLOW -->
+    <div class="kpi-item @(isRtoActive ? "active-filter" : "")" 
+         onclick="applyBranchFilter('RTO')" 
+         title="Click to filter by RTO branch only"
+         style="border-left: 5px solid #f97316; @(isRtoActive ? "background: #fff7ed; border-color: #f97316;" : "")">
+        <div class="kpi-item-title">
+            <span>RTO INFLOW</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
+        </div>
+        <div class="kpi-item-value kpi-val-rto">₹@Model.RtoAmount.ToString("N2")</div>
+        <div class="kpi-item-sub">@Model.RtoCount TRANSACTIONS RECORDED</div>
+        @if (isRtoActive)
+        {
+            <div class="kpi-pill kpi-pill-orange">✓ ACTIVE: RTO ONLY</div>
+        }
+        else
+        {
+            <div class="kpi-pill kpi-pill-subtle">CLICK TO FILTER RTO</div>
+        }
+    </div>
+
+    <!-- 4. TOTAL PROFIT -->
+    <div class="kpi-item" style="border-left: 5px solid #6366f1;">
+        <div class="kpi-item-title">
+            <span>ESTIMATED PROFIT</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="kpi-item-value kpi-val-profit">₹@Model.TotalProfit.ToString("N2")</div>
+        <div class="kpi-item-sub">ACROSS FILTERED TRANSACTIONS</div>
+        <div class="kpi-pill kpi-pill-indigo">CUSTOMER PROFIT MARGIN</div>
+    </div>
+</div>
+
+<!-- FILTERS CARD -->
+<div class="exp-filter-card">
+    <form method="get" action="/Expenditure/Transactions" id="branchTxnFilterForm">
+        <div class="exp-filter-grid">
+            <!-- DATE RANGE -->
+            <div class="exp-field-group">
+                <label class="exp-label">FROM DATE</label>
+                <input type="date" name="StartDate" value="@f.StartDate" class="exp-input" />
+            </div>
+            <div class="exp-field-group">
+                <label class="exp-label">TO DATE</label>
+                <input type="date" name="EndDate" value="@f.EndDate" class="exp-input" />
+            </div>
+
+            <!-- BRANCH -->
+            <div class="exp-field-group">
+                <label class="exp-label">BRANCH</label>
+                <select name="Branch" id="filterBranchSelect" class="exp-select">
+                    <option value="ALL">ALL BRANCHES</option>
+                    <!option value="DMG" @(string.Equals(f.Branch, "DMG", StringComparison.OrdinalIgnoreCase) ? "selected" : "")>DMG BRANCH</!option>
+                    <!option value="RTO" @(string.Equals(f.Branch, "RTO", StringComparison.OrdinalIgnoreCase) ? "selected" : "")>RTO BRANCH</!option>
+                </select>
+            </div>
+
+            <!-- BANK / PAID TO -->
+            <div class="exp-field-group">
+                <label class="exp-label">BANK / PAID TO</label>
+                <select name="PaidTo" class="exp-select">
+                    <option value="ALL">ALL BANKS</option>
+                    @foreach (var b in Model.AvailableBanks)
+                    {
+                        <!option value="@b" @(string.Equals(f.PaidTo, b, StringComparison.OrdinalIgnoreCase) ? "selected" : "")>@b</!option>
+                    }
+                </select>
+            </div>
+
+            <!-- PAYMENT MODE -->
+            <div class="exp-field-group">
+                <label class="exp-label">PAYMENT MODE</label>
+                <select name="PaymentMode" class="exp-select">
+                    <option value="ALL">ALL MODES</option>
+                    @foreach (var m in Model.AvailablePaymentModes)
+                    {
+                        <!option value="@m" @(string.Equals(f.PaymentMode, m, StringComparison.OrdinalIgnoreCase) ? "selected" : "")>@m</!option>
+                    }
+                </select>
+            </div>
+
+            <!-- CUSTOMER / VENDOR -->
+            <div class="exp-field-group">
+                <label class="exp-label">CUSTOMER / VENDOR</label>
+                <input type="text" name="Vendor" value="@f.Vendor" placeholder="FILTER CUSTOMER..." class="exp-input" />
+            </div>
+
+            <!-- GLOBAL SEARCH -->
+            <div class="exp-field-group" style="grid-column: span 2;">
+                <label class="exp-label">SEARCH ANY FIELD</label>
+                <input type="text" name="Query" value="@f.Query" placeholder="SEARCH VEHICLE #, CUSTOMER, PURPOSE, UTR, AMOUNT..." class="exp-input" />
+            </div>
+
+            <!-- BUTTONS -->
+            <div style="display: flex; gap: 8px; align-items: flex-end;">
+                <button type="submit" class="button btn-primary" style="height: 38px; padding: 0 18px; font-size: 0.82rem; font-weight: 800;">
+                    APPLY
+                </button>
+                <a href="/Expenditure/Transactions" class="button btn-secondary" style="height: 38px; padding: 0 14px; font-size: 0.82rem; font-weight: 800; display: inline-flex; align-items: center; text-decoration: none;">
+                    CLEAR
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- DATA TABLE CARD -->
+<div class="exp-table-card">
+    <div class="exp-table-header">
+        <div class="exp-table-title">
+            SHOWING @Model.Transactions.Count OF @Model.TotalCount TRANSACTIONS
+            @if (!string.IsNullOrEmpty(f.Query) || !string.IsNullOrEmpty(f.Branch) && f.Branch != "ALL")
+            {
+                <span style="color: #64748b; font-weight: 600; font-size: 0.80rem;">(FILTERED VIEW)</span>
+            }
+        </div>
+        <div style="display: flex; gap: 14px; font-size: 0.74rem; font-weight: 800;">
+            <span class="badge-branch-dmg">DMG TRANSACTIONS</span>
+            <span class="badge-branch-rto">RTO TRANSACTIONS</span>
+        </div>
+    </div>
+
+    <div class="exp-table-container">
+        <table class="exp-table">
+            <thead>
+                <tr>
+                    <th class="col-sticky-action">ACTIONS</th>
+                    <th>DATE</th>
+                    <th>BRANCH</th>
+                    <th>VEHICLE NO</th>
+                    <th>CUSTOMER / VENDOR</th>
+                    <th>PAYMENT FOR</th>
+                    <th>PAID TO (BANK)</th>
+                    <th>PAYMENT MODE</th>
+                    <th>UTR / REF #</th>
+                    <th>AMOUNT (₹)</th>
+                    <th>PROFIT (₹)</th>
+                    <th>NOTES</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Transactions.Count == 0)
+                {
+                    <tr>
+                        <td colspan="12" style="text-align: center; padding: 48px 16px; color: #64748b;">
+                            <div style="font-size: 1.1rem; font-weight: 800; color: #0f172a;" class="exp-table-title">NO TRANSACTIONS FOUND</div>
+                            <div style="font-size: 0.82rem; margin-top: 4px;">NO CUSTOMER TRANSACTIONS MATCH YOUR SELECTED FILTERS.</div>
+                        </td>
+                    </tr>
+                }
+                @foreach (var item in Model.Transactions)
+                {
+                    var isDmg = string.Equals(item.Branch, "DMG", StringComparison.OrdinalIgnoreCase);
+
+                    <tr>
+                        <!-- ACTIONS -->
+                        <td class="col-sticky-action">
+                            <a href="/@item.Branch/Transactions?query=@item.VehicleNo" target="_blank" class="action-link" style="white-space: nowrap; font-size: 0.68rem;" title="View in @item.Branch branch">
+                                VIEW IN @item.Branch ↗
+                            </a>
+                        </td>
+
+                        <!-- DATE -->
+                        <td style="font-weight: 700;">@item.Date</td>
+
+                        <!-- BRANCH -->
+                        <td>
+                            @if (isDmg)
+                            {
+                                <span class="badge-branch-dmg">DMG</span>
+                            }
+                            else
+                            {
+                                <span class="badge-branch-rto">RTO</span>
+                            }
+                        </td>
+
+                        <!-- VEHICLE NO -->
+                        <td class="cell-vehicleno">@item.VehicleNo</td>
+
+                        <!-- CUSTOMER / VENDOR -->
+                        <td style="font-weight: 700;">@item.Vendor</td>
+
+                        <!-- PAYMENT FOR -->
+                        <td>@item.PaymentFor</td>
+
+                        <!-- PAID TO -->
+                        <td style="font-weight: 700;">@(string.IsNullOrWhiteSpace(item.PaidTo) ? "-" : item.PaidTo)</td>
+
+                        <!-- PAYMENT MODE -->
+                        <td>@item.PaymentMode</td>
+
+                        <!-- UTR -->
+                        <td style="font-family: monospace; font-size: 0.78rem;">@(string.IsNullOrWhiteSpace(item.Utr) ? "-" : item.Utr)</td>
+
+                        <!-- AMOUNT -->
+                        <td class="cell-amount">
+                            ₹@(item.Amount.HasValue ? item.Amount.Value.ToString("N2") : "0.00")
+                        </td>
+
+                        <!-- PROFIT -->
+                        <td class="cell-profit">
+                            ₹@(item.Profit.HasValue ? item.Profit.Value.ToString("N2") : "0.00")
+                        </td>
+
+                        <!-- NOTES -->
+                        <td class="cell-notes" title="@item.Notes">
+                            @(string.IsNullOrWhiteSpace(item.Notes) ? "-" : item.Notes)
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PAGINATION -->
+    @if (Model.TotalPages > 1)
+    {
+        <div class="exp-pagination">
+            <div class="exp-pagination-info">
+                PAGE @Model.CurrentPage OF @Model.TotalPages (@Model.TotalCount TOTAL ITEMS)
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                @if (Model.CurrentPage > 1)
+                {
+                    <a href="@Url.Action("Index", "Transactions", new { area = "Expenditure", Page = Model.CurrentPage - 1, PageSize = Model.PageSize, StartDate = f.StartDate, EndDate = f.EndDate, Branch = f.Branch, PaidTo = f.PaidTo, PaymentMode = f.PaymentMode, Vendor = f.Vendor, Query = f.Query })" class="exp-page-btn">
+                        &laquo; PREV
+                    </a>
+                }
+                
+                <span class="exp-pagination-current">
+                    @Model.CurrentPage / @Model.TotalPages
+                </span>
+
+                @if (Model.CurrentPage < Model.TotalPages)
+                {
+                    <a href="@Url.Action("Index", "Transactions", new { area = "Expenditure", Page = Model.CurrentPage + 1, PageSize = Model.PageSize, StartDate = f.StartDate, EndDate = f.EndDate, Branch = f.Branch, PaidTo = f.PaidTo, PaymentMode = f.PaymentMode, Vendor = f.Vendor, Query = f.Query })" class="exp-page-btn">
+                        NEXT &raquo;
+                    </a>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<script>
+    function applyBranchFilter(branch) {
+        const select = document.getElementById('filterBranchSelect');
+        if (select) {
+            select.value = branch;
+            document.getElementById('branchTxnFilterForm').submit();
+        }
+    }
+</script>
+

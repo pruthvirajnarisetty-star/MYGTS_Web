@@ -1,0 +1,4480 @@
+@model DeviceFilterViewModel
+
+
+
+@{
+
+
+
+    ViewData["Title"] = "Devices";
+
+
+
+    string SortDir(string col) => Model.SortColumn == col && Model.SortDirection == "asc" ? "desc" : "asc";
+
+
+
+    string SortIcon(string col) => Model.SortColumn == col ? (Model.SortDirection == "desc" ? " ↓" : " ↑") : " ↑↓";
+
+
+
+    string NextCol(string col) => Model.SortColumn == col && Model.SortDirection == "desc" ? "" : col;
+
+
+
+    var currentBranch = Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG";
+
+
+
+    var batchMap = ViewBag.BatchColorMap as Dictionary<string, int>;
+
+
+
+    string GetBatchClass(string? invoiceId) => MygtsMvc.Services.BatchColorHelper.GetBatchClass(invoiceId, batchMap);
+
+
+
+}
+
+
+
+
+
+
+
+<style>
+
+
+
+    /* Row selection checkbox column: visible and styled */
+
+
+
+    .col-select {
+
+
+
+        display: table-cell !important;
+
+
+
+    }
+
+
+
+
+
+
+
+    /* Highlight rows that are selected */
+
+
+
+    .data-table tr.row-selected,
+    .data-table tr.batch-row.row-selected,
+    tr.row-selected {
+        background-color: rgba(37, 99, 235, 0.16) !important;
+        outline: 2px solid rgba(37, 99, 235, 0.45) !important;
+        outline-offset: -2px !important;
+    }
+
+
+
+
+
+
+
+    /* Paid badge styles */
+
+
+
+    .badge-paid-btn {
+
+
+
+        display: inline-flex;
+
+
+
+        align-items: center;
+
+
+
+        justify-content: center;
+
+
+
+        min-width: 48px;
+
+
+
+        padding: 2px 10px;
+
+
+
+        border-radius: 9999px;
+
+
+
+        font-size: 0.76rem;
+
+
+
+        font-weight: 600;
+
+
+
+        text-transform: uppercase;
+
+
+
+        letter-spacing: 0.04em;
+
+
+
+        cursor: pointer;
+
+
+
+        border: 1px solid transparent;
+
+
+
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+
+
+        outline: none;
+
+
+
+        user-select: none;
+
+
+
+    }
+
+
+
+    .badge-paid-readonly {
+
+
+
+        display: inline-flex;
+
+
+
+        align-items: center;
+
+
+
+        justify-content: center;
+
+
+
+        min-width: 48px;
+
+
+
+        padding: 2px 10px;
+
+
+
+        border-radius: 9999px;
+
+
+
+        font-size: 0.76rem;
+
+
+
+        font-weight: 600;
+
+
+
+        text-transform: uppercase;
+
+
+
+        letter-spacing: 0.04em;
+
+
+
+        user-select: none;
+
+
+
+        cursor: default;
+
+
+
+    }
+
+
+
+    .paid-yes {
+
+
+
+        background-color: rgba(36, 161, 72, 0.15) !important;
+
+
+
+        color: #198038 !important;
+
+
+
+        border-color: rgba(36, 161, 72, 0.35) !important;
+
+
+
+    }
+
+
+
+    .paid-no {
+
+
+
+        background-color: rgba(218, 30, 40, 0.12) !important;
+
+
+
+        color: #da1e28 !important;
+
+
+
+        border-color: rgba(218, 30, 40, 0.3) !important;
+
+
+
+    }
+
+
+
+    .badge-paid-btn:hover {
+
+
+
+        transform: translateY(-1px) scale(1.05);
+
+
+
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+
+
+
+    }
+
+
+
+    .badge-paid-btn.paid-yes:hover {
+
+
+
+        background-color: #24a148 !important;
+
+
+
+        color: #ffffff !important;
+
+
+
+    }
+
+
+
+    .badge-paid-btn.paid-no:hover {
+
+
+
+        background-color: #da1e28 !important;
+
+
+
+        color: #ffffff !important;
+
+
+
+    }
+
+
+
+.badge.not-in-use,
+.badge.status-not-in-use {
+    background: rgba(239, 68, 68, 0.12) !important;
+    color: #dc2626 !important;
+    border: 1px solid rgba(239, 68, 68, 0.25) !important;
+    font-weight: 700 !important;
+}
+body:has(#theme:checked) .badge.not-in-use,
+body:has(#theme:checked) .badge.status-not-in-use {
+    background: rgba(239, 68, 68, 0.25) !important;
+    color: #f87171 !important;
+    border-color: rgba(239, 68, 68, 0.4) !important;
+}
+</style>
+
+
+
+
+
+
+
+<div class="page-heading">
+
+
+
+    <div>
+
+
+
+        <div class="eyebrow">Fleet registry / traceability</div>
+
+
+
+        <h1>Devices</h1>
+
+
+
+        <p>Search, segment, and maintain the GPS fleet from one operational record.</p>
+
+
+
+    </div>
+
+
+
+
+
+
+
+    <div class="page-heading-actions">
+
+
+
+        @* Standard Download Dropdown *@
+
+
+
+        <div class="dropdown-wrapper" style="position: relative; display: inline-block;">
+
+
+
+            <button type="button" class="button secondary" onclick="toggleExportMenu('exportMenu')" data-testid="devices-export" style="display: inline-flex; align-items: center; gap: 6px;">
+
+
+
+                <span>↓ Download Sheet</span>
+
+
+
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+
+
+
+            </button>
+
+
+
+            <div id="exportMenu" class="export-dropdown-panel" style="display: none; position: absolute; right: 0; top: calc(100% + 4px); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); min-width: 280px; z-index: 100; overflow: hidden; padding: 6px 0;">
+
+
+
+                <div style="padding: 6px 16px 2px; font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">Default Format</div>
+
+
+
+                <a class="export-opt" href="javascript:void(0)" onclick="handleDownloadOptionClick('')" style="display: flex; flex-direction: column; padding: 8px 16px; text-decoration: none; color: var(--text-main); transition: background 0.15s;">
+
+
+
+                    <strong style="font-size: 0.84rem;">☑️ Select Rows to Download (<span class="sel-count-badge">0</span>)</strong>
+
+
+
+                    <span style="font-size: 0.74rem; color: var(--muted);">Click to show checkboxes & select specific rows for export</span>
+
+
+
+                </a>
+
+
+
+                <a class="export-opt" asp-action="ExportAll" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-FromDate="@Model.FromDate" asp-route-ToDate="@Model.ToDate" asp-route-DateType="@Model.DateType" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection" asp-route-Page="@Model.Page" asp-route-PageSize="@Model.PageSize" asp-route-thisPageOnly="true" style="display: flex; flex-direction: column; padding: 8px 16px; text-decoration: none; color: var(--text-main); transition: background 0.15s;">
+
+
+
+                    <strong style="font-size: 0.84rem;">📄 Download This Page Only</strong>
+
+
+
+                    <span style="font-size: 0.74rem; color: var(--muted);">Page @Model.Page of @Model.TotalPages (@Model.Devices.Count rows on this page)</span>
+
+
+
+                </a>
+
+
+
+                <a class="export-opt" asp-action="ExportAll" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-FromDate="@Model.FromDate" asp-route-ToDate="@Model.ToDate" asp-route-DateType="@Model.DateType" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection" asp-route-thisPageOnly="false" style="display: flex; flex-direction: column; padding: 8px 16px; text-decoration: none; color: var(--text-main); transition: background 0.15s;">
+
+
+
+                    <strong style="font-size: 0.84rem;">📊 Download All Filtered Records</strong>
+
+
+
+                    <span style="font-size: 0.74rem; color: var(--muted);">Export all @Model.TotalItems matching records across all pages</span>
+
+
+
+                </a>
+
+
+
+            </div>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        @if (currentBranch == "RTO")
+
+
+
+        {
+
+
+
+            <a class="button secondary" asp-action="DownloadSample" asp-route-branch="@currentBranch" asp-route-format="kyc_upload" title="Download KYC Upload Form sample (.xls)" style="display: inline-flex; align-items: center; gap: 6px; border-color: #2563eb; color: #2563eb; font-weight: 600;">
+
+
+
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+
+
+
+                <span>📥 Sample Upload Form (.xls)</span>
+
+
+
+            </a>
+
+
+
+            <a class="button secondary" asp-action="DownloadSample" asp-route-branch="@currentBranch" asp-route-format="kyc_cl" title="Download KYC Common Layer sample (.xls)" style="display: inline-flex; align-items: center; gap: 6px; border-color: #10b981; color: #10b981; font-weight: 600;">
+
+
+
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+
+
+
+                <span>📥 Sample Common Layer (.xls)</span>
+
+
+
+            </a>
+
+
+
+        }
+
+
+
+        <script>
+
+
+
+            function toggleExportMenu(id) {
+
+
+
+                const target = document.getElementById(id);
+
+
+
+                if (!target) return;
+
+
+
+                const isCurrentlyOpen = target.style.display === 'block';
+
+
+
+                document.querySelectorAll('.export-dropdown-panel').forEach(p => p.style.display = 'none');
+
+
+
+                
+
+
+
+                if (!isCurrentlyOpen) {
+
+
+
+                    target.style.display = 'block';
+
+
+
+                } else {
+
+
+
+                    target.style.display = 'none';
+
+
+
+                }
+
+
+
+            }
+
+
+
+
+
+
+
+            document.addEventListener('click', function(e) {
+
+
+
+                const dropdownWrapper = e.target.closest('.dropdown-wrapper');
+
+
+
+                const isExportDropdown = e.target.closest('.export-dropdown-panel');
+
+
+
+
+
+
+
+                // 1. Collapse export dropdown if clicked outside dropdown wrapper
+
+
+
+                if (!dropdownWrapper && !isExportDropdown) {
+
+
+
+                    document.querySelectorAll('.export-dropdown-panel').forEach(p => p.style.display = 'none');
+
+
+
+                }
+
+
+
+
+
+
+
+                // 2. If selection mode is active and user clicks anywhere other than the checkboxes or bottom bar:
+
+
+
+                if (document.body.classList.contains('selection-mode-active')) {
+
+
+
+                    const isCheckbox = e.target.closest('.row-select-checkbox') 
+
+
+
+                        || e.target.closest('#selectAllCheckbox') 
+
+
+
+                        || e.target.closest('.col-select');
+
+
+
+                    const isSelectionBar = e.target.closest('#selectionBar');
+
+
+
+                    const isSelectRowsOption = e.target.closest('.export-opt') || e.target.closest('a[onclick*="handleDownloadOptionClick"]');
+
+
+
+                    const isDownloadDropdownBtn = e.target.closest('[data-testid="devices-export"]');
+
+
+
+
+
+
+
+                    if (!isCheckbox && !isSelectionBar && !isSelectRowsOption && !isDownloadDropdownBtn) {
+
+
+
+                        if (typeof exitSelectionMode === 'function') {
+
+
+
+                            exitSelectionMode();
+
+
+
+                        }
+
+
+
+                        document.querySelectorAll('.export-dropdown-panel').forEach(p => p.style.display = 'none');
+
+
+
+                    }
+
+
+
+                }
+
+
+
+            });
+
+
+
+        </script>
+
+
+
+        <a class="button secondary" asp-action="DownloadSample" asp-route-branch="@currentBranch" title="Download sample devices Excel template (.xlsx)">📥 Sample sheet</a>
+
+
+
+        @if (User.CanEditModule("Devices"))
+
+
+
+        {
+
+
+
+            <a class="button secondary" asp-action="Import" data-testid="devices-import">↑ Import devices</a>
+
+
+
+            <a class="button btn-primary" asp-action="Create" data-testid="devices-add">+ Add device</a>
+
+
+
+        }
+
+
+
+        else
+
+
+
+        {
+
+
+
+        }
+
+
+
+    </div>
+
+
+
+</div>
+
+
+
+
+
+
+
+<form class="card toolbar" method="get" asp-action="Index" data-testid="device-filters">
+
+
+
+    <div class="filter-grid" style="align-items: flex-end; width: 100%;">
+
+
+
+        <div class="field toolbar-search">
+
+
+
+            <label for="QueryInput" class="form-label" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">SEARCH</label>
+
+
+
+            <div style="position: relative; width: 100%;">
+
+
+
+                <button type="button" style="position: absolute; top: 50%; transform: translateY(-50%); left: 16px; padding: 0; background: transparent; border: none; display: flex; align-items: center; justify-content: center;">
+
+
+
+                    <svg width="17" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; color: #4b5563;">
+
+
+
+                        <path d="M7.667 12.667A5.333 5.333 0 107.667 2a5.333 5.333 0 000 10.667zM14.334 14l-2.9-2.9" stroke="currentColor" stroke-width="1.333" stroke-linecap="round" stroke-linejoin="round"></path>
+
+
+
+                    </svg>
+
+
+
+                </button>
+
+
+
+                <input type="hidden" asp-for="Query" id="Query" />
+
+
+
+                <input type="hidden" asp-for="SpecialFilter" />
+
+
+
+                <input type="hidden" asp-for="SortColumn" />
+
+
+
+                <input type="hidden" asp-for="SortDirection" />
+
+
+
+                <input id="QueryInput" name="QueryInput" class="input shadow-md w-full" style="padding: 0 44px; border-radius: 9999px; height: 42px; width: 100%; border: 1px solid var(--line); outline: none; transition: all 0.3s; font-size: 14px;" placeholder="Add a filter..." type="text" data-testid="device-search" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--line)'" />
+
+
+
+                <button type="button" onclick="document.getElementById('QueryInput').value=''; document.getElementById('Query').value=''; this.closest('form').submit();" style="position: absolute; top: 50%; transform: translateY(-50%); right: 12px; padding: 0; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+
+
+
+                    <svg xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; color: #4b5563;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+
+
+
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+
+
+
+                    </svg>
+
+
+
+                </button>
+
+
+
+            </div>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="field" style="min-width: 150px;">
+            <label class="form-label" asp-for="Vendor">Vendor</label>
+            <select class="select @(!string.IsNullOrEmpty(Model.Vendor) ? "filter-active" : "")" asp-for="Vendor" style="min-width: 150px;">
+
+
+
+                <option value="">All vendors</option>
+
+
+
+                @foreach (var vendor in Model.Vendors)
+
+
+
+                {
+
+
+
+                    <option value="@vendor">@vendor</option>
+
+
+
+                }
+
+
+
+            </select>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="field">
+
+
+
+            <label class="form-label" asp-for="Lifecycle">Lifecycle</label>
+
+
+
+            <select class="select @(!string.IsNullOrEmpty(Model.Lifecycle) ? "filter-active" : "")" asp-for="Lifecycle">
+
+
+
+                <option value="">All statuses</option>
+
+
+
+                @foreach (var option in Model.LifecycleOptions)
+
+
+
+                {
+
+
+
+                    <option value="@option">@option</option>
+
+
+
+                }
+
+
+
+            </select>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="field">
+
+
+
+            <label class="form-label" asp-for="Stock">Stock</label>
+
+
+
+            <select class="select @(!string.IsNullOrEmpty(Model.Stock) ? "filter-active" : "")" asp-for="Stock">
+
+
+
+                <option value="">All stocks</option>
+
+
+
+                @foreach (var option in Model.StockOptions)
+
+
+
+                {
+
+
+
+                    <option value="@option">@option</option>
+
+
+
+                }
+
+
+
+            </select>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="field">
+
+
+
+            <label class="form-label" asp-for="Paid">Paid</label>
+
+
+
+            <select class="select @(!string.IsNullOrEmpty(Model.Paid) ? "filter-active" : "")" asp-for="Paid" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
+
+
+
+                <option value="">All</option>
+
+
+
+                <option value="Yes">Yes</option>
+
+
+
+                <option value="No">No</option>
+
+
+
+            </select>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="field">
+
+
+
+            <label class="form-label" asp-for="NetworkOperator">Network Operator</label>
+
+
+
+            <select class="select @(!string.IsNullOrEmpty(Model.NetworkOperator) ? "filter-active" : "")" asp-for="NetworkOperator">
+
+
+
+                <option value="">All operators</option>
+
+
+
+                @foreach (var op in Model.NetworkOperators)
+
+
+
+                {
+
+
+
+                    <option value="@op">@op</option>
+
+
+
+                }
+
+
+
+            </select>
+
+
+
+        </div>
+
+        <div class="field" style="min-width: 130px; flex: 0 0 auto;">
+            <label class="form-label" for="DateType" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">Date Type</label>
+            <select id="DateType" name="DateType" class="select @(!string.IsNullOrEmpty(Model.DateType) && Model.DateType != "All" && (!string.IsNullOrEmpty(Model.FromDate) || !string.IsNullOrEmpty(Model.ToDate)) ? "filter-active" : "")" style="height: 42px; border-radius: 8px; width: 100%; font-size: 13px;" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
+                <option value="All" selected="@(string.IsNullOrEmpty(Model.DateType) || Model.DateType == "All")">All</option>
+                <option value="Expiry" selected="@(Model.DateType == "Expiry")">Expiry Date</option>
+                <option value="Activation" selected="@(Model.DateType == "Activation")">Activation Date</option>
+                <option value="Registration" selected="@(Model.DateType == "Registration")">Registration Date</option>
+            </select>
+        </div>
+
+        <div class="field" style="min-width: 140px; flex: 0 0 auto;">
+            <label class="form-label" for="FromDate" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">From Date</label>
+            <input type="date" id="FromDate" name="FromDate" value="@Model.FromDate" class="input @(!string.IsNullOrEmpty(Model.FromDate) ? "filter-active" : "")" style="height: 42px; border-radius: 8px; width: 100%; font-size: 13px;" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()" />
+        </div>
+
+        <div class="field" style="min-width: 140px; flex: 0 0 auto;">
+            <label class="form-label" for="ToDate" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">To Date</label>
+            <input type="date" id="ToDate" name="ToDate" value="@Model.ToDate" class="input @(!string.IsNullOrEmpty(Model.ToDate) ? "filter-active" : "")" style="height: 42px; border-radius: 8px; width: 100%; font-size: 13px;" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()" />
+        </div>
+
+
+
+
+
+
+
+        <div class="field">
+
+
+
+            <label class="form-label" asp-for="PageSize">Rows per page</label>
+
+
+
+            <select class="select" asp-for="PageSize" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
+
+
+
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="1000000">All</option>
+            </select>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="field" style="min-width: 140px;">
+
+
+
+            <label class="form-label" for="PageSelect" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">Page</label>
+
+
+
+            <div style="display: flex; align-items: center; gap: 4px;">
+
+
+
+                <button type="button" class="button secondary" title="Previous Page" @(Model.Page <= 1 ? "disabled" : "") onclick="goToTopPage(@(Model.Page - 1))" style="padding: 0 8px; height: 42px; border-radius: 8px; min-width: 34px; display: inline-flex; align-items: center; justify-content: center; @(Model.Page <= 1 ? "opacity: 0.4; cursor: not-allowed;" : "")">
+
+
+
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+
+
+
+                </button>
+
+
+
+                <select class="select" id="PageSelect" name="Page" onchange="goToTopPage(this.value)" style="height: 42px; border-radius: 8px; padding: 0 26px 0 10px; font-weight: 600; width: auto;">
+
+
+
+                    @for (int p = 1; p <= Math.Max(1, Model.TotalPages); p++)
+
+
+
+                    {
+
+
+
+                        if (p == Model.Page)
+
+
+
+                        {
+
+
+
+                            <option value="@p" selected>@p / @(Model.TotalPages == 0 ? 1 : Model.TotalPages)</option>
+
+
+
+                        }
+
+
+
+                        else
+
+
+
+                        {
+
+
+
+                            <option value="@p">@p / @(Model.TotalPages == 0 ? 1 : Model.TotalPages)</option>
+
+
+
+                        }
+
+
+
+                    }
+
+
+
+                </select>
+
+
+
+                <button type="button" class="button secondary" title="Next Page" @(Model.Page >= Model.TotalPages ? "disabled" : "") onclick="goToTopPage(@(Model.Page + 1))" style="padding: 0 8px; height: 42px; border-radius: 8px; min-width: 34px; display: inline-flex; align-items: center; justify-content: center; @(Model.Page >= Model.TotalPages ? "opacity: 0.4; cursor: not-allowed;" : "")">
+
+
+
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+
+
+
+                </button>
+
+
+
+            </div>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="field toolbar-actions">
+
+
+
+            <button class="button btn-primary" type="submit" data-testid="device-search-submit" style="height: 42px; border-radius: 8px; padding: 0 20px; white-space: nowrap;">Apply filters</button>
+
+
+
+            <a asp-action="Index" asp-route-clear="true" class="button secondary" style="height: 42px; border-radius: 8px; padding: 0 16px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; white-space: nowrap;" title="Reset all filters">
+
+
+
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+
+
+
+                <span>Clear filters</span>
+
+
+
+            </a>
+
+
+
+        </div>
+
+
+
+    </div>
+
+
+
+    @{
+
+
+
+        var queryTerms = string.IsNullOrWhiteSpace(Model.Query) ? Array.Empty<string>() : Model.Query.Trim().Split('|', StringSplitOptions.RemoveEmptyEntries);
+        var hasDateRange = !string.IsNullOrEmpty(Model.FromDate) || !string.IsNullOrEmpty(Model.ToDate);
+
+
+
+    }
+
+
+
+    @if (queryTerms.Length > 0 || hasDateRange)
+
+
+
+    {
+
+
+
+        <div class="flex flex-wrap gap-2 mt-4" style="padding-bottom: 8px; width: 100%;">
+
+
+
+            @foreach (var term in queryTerms)
+
+
+
+            {
+
+
+
+                <span class="filter-chip inline-flex items-center gap-1 px-3 py-1 text-sm rounded-full">
+
+
+
+                    @term
+
+
+
+                    <button type="button" onclick="removeChip('@term')" class="text-gray-400 hover:text-gray-700">
+
+
+
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+
+
+
+                    </button>
+
+
+
+                </span>
+
+
+
+            }
+
+            @if (hasDateRange)
+            {
+                <span class="filter-chip inline-flex items-center gap-1 px-3 py-1 text-sm rounded-full">
+                    @(Model.DateType == "Activation" ? "Activation" : (Model.DateType == "Registration" ? "Registration" : (Model.DateType == "Expiry" ? "Expiry" : "Date"))): @(Model.FromDate ?? "...") to @(Model.ToDate ?? "...")
+                    <button type="button" onclick="clearDateFields()" class="text-gray-400 hover:text-gray-700">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </span>
+            }
+
+
+
+        </div>
+
+
+
+    }
+
+
+
+</form>
+
+
+
+
+
+
+
+<script>
+
+
+
+    function goToTopPage(pageNum) {
+        if (!pageNum || pageNum < 1) pageNum = 1;
+        var form = document.querySelector('form.toolbar');
+        if (!form) return;
+        var pageSelect = document.getElementById('PageSelect');
+        if (pageSelect) pageSelect.value = pageNum;
+        var queryInput = document.getElementById('QueryInput');
+        if (queryInput && queryInput.value.trim() === '') {
+            queryInput.disabled = true;
+        }
+        window._isPageChange = true;
+        if (form.requestSubmit) {
+            form.requestSubmit();
+        } else {
+            form.submit();
+        }
+    }
+
+
+
+
+
+
+
+    document.querySelector('form.toolbar').addEventListener('submit', function(e) {
+
+
+
+        var queryInput = document.getElementById('QueryInput');
+
+
+
+        var queryHidden = document.getElementById('Query');
+
+
+
+        if (queryInput && queryInput.value.trim() !== '') {
+
+
+
+            var current = queryHidden.value ? queryHidden.value + '|' : '';
+
+
+
+            queryHidden.value = current + queryInput.value.trim();
+
+
+
+            queryInput.value = ''; // Don't submit the visual input
+
+
+
+        }
+
+
+
+        if (!window._isPageChange) {
+
+
+
+            var pageSelect = document.getElementById('PageSelect');
+
+
+
+            if (pageSelect) pageSelect.value = '1';
+
+
+
+            var pageInput = this.querySelector('input[name="Page"]');
+
+
+
+            if (pageInput) pageInput.value = '1';
+
+
+
+        }
+
+
+
+        window._isPageChange = false;
+
+
+
+    });
+
+
+
+
+
+
+
+    function removeChip(term) {
+
+
+
+        var queryHidden = document.getElementById('Query');
+
+
+
+        var terms = queryHidden.value.split('|').filter(t => t !== '' && t !== term);
+
+
+
+        queryHidden.value = terms.join('|');
+
+
+
+        window._isPageChange = false;
+
+
+
+        document.querySelector('form.toolbar').submit();
+
+
+
+    }
+
+    function clearDateFields() {
+        var fd = document.getElementById('FromDate');
+        var td = document.getElementById('ToDate');
+        var dt = document.getElementById('DateType');
+        if (fd) fd.value = '';
+        if (td) td.value = '';
+        if (dt) dt.value = 'All';
+        window._isPageChange = false;
+        var form = document.querySelector('form.toolbar');
+        if (form) (form.requestSubmit ? form.requestSubmit() : form.submit());
+    }
+
+
+
+</script>
+
+
+
+
+
+
+
+<section class="card">
+
+
+
+    <div class="section-heading" style="padding: 0 20px; margin: 20px 0 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+
+
+
+        <div>
+
+
+
+            <h2>@Model.TotalItems.ToString("N0") device records</h2>
+
+
+
+            <p>Records exclude unused inventory unless explicitly filtered; source lifecycle labels are preserved. Page @Model.Page of @(Model.TotalPages == 0 ? 1 : Model.TotalPages)</p>
+
+
+
+        </div>
+
+
+
+        @if (Model.TotalPages > 1)
+
+
+
+        {
+
+
+
+            <div style="display: flex; align-items: center; gap: 6px;">
+
+
+
+                <span style="font-size: 0.82rem; color: var(--muted); font-weight: 500;">Jump to page:</span>
+
+
+
+                <button type="button" class="button secondary" title="Previous Page" @(Model.Page <= 1 ? "disabled" : "") onclick="goToTopPage(@(Model.Page - 1))" style="padding: 0 8px; height: 32px; min-width: 32px; display: inline-flex; align-items: center; justify-content: center; @(Model.Page <= 1 ? "opacity: 0.4; cursor: not-allowed;" : "")">
+
+
+
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+
+
+
+                </button>
+
+
+
+                <select class="select page-jump-select" data-pagination="true" onchange="goToTopPage(this.value)" style="height: 32px; padding: 0 24px 0 8px; font-size: 0.82rem; font-weight: 600; width: auto; background-image: none !important;">
+
+
+
+                    @for (int p = 1; p <= Model.TotalPages; p++)
+
+
+
+                    {
+
+
+
+                        if (p == Model.Page)
+
+
+
+                        {
+
+
+
+                            <option value="@p" selected>Page @p of @Model.TotalPages</option>
+
+
+
+                        }
+
+
+
+                        else
+
+
+
+                        {
+
+
+
+                            <option value="@p">Page @p of @Model.TotalPages</option>
+
+
+
+                        }
+
+
+
+                    }
+
+
+
+                </select>
+
+
+
+                <button type="button" class="button secondary" title="Next Page" @(Model.Page >= Model.TotalPages ? "disabled" : "") onclick="goToTopPage(@(Model.Page + 1))" style="padding: 0 8px; height: 32px; min-width: 32px; display: inline-flex; align-items: center; justify-content: center; @(Model.Page >= Model.TotalPages ? "opacity: 0.4; cursor: not-allowed;" : "")">
+
+
+
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+
+
+
+                </button>
+
+
+
+            </div>
+
+
+
+        }
+
+
+
+    </div>
+
+
+
+
+
+
+
+    <div class="table-wrap">
+
+
+
+        <table class="data-table" data-testid="devices-table">
+
+
+
+            <thead>
+
+
+
+                <tr>
+
+
+
+                    <th class="col-select" style="width: 38px; min-width: 38px; text-align: center;"><input type="checkbox" id="selectAllCheckbox" title="Select all rows on this page" onchange="toggleSelectAllRows(this.checked)" style="cursor: pointer; width: 16px; height: 16px;" /></th>
+
+
+
+                    <th class="col-action" style="width: 50px; min-width: 50px;"></th>
+
+
+
+                    <th class="col-slno" style="width: 70px; min-width: 70px;"><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("slno")" asp-route-SortDirection="@SortDir("slno")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">SLNo @SortIcon("slno")</a></th>
+
+
+
+                    <th class="col-vehicleno" style="width: 140px; min-width: 140px; max-width: 140px;"><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-Paid="@Model.Paid" asp-route-SortColumn="@NextCol("vehicle")" asp-route-SortDirection="@SortDir("vehicle")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Vehicle No @SortIcon("vehicle")</a></th>
+
+
+
+                    <th class="col-paid" style="width: 85px; min-width: 85px; text-align: center;"><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-Paid="@Model.Paid" asp-route-SortColumn="@NextCol("paid")" asp-route-SortDirection="@SortDir("paid")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Paid @SortIcon("paid")</a></th>
+
+
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-Paid="@Model.Paid" asp-route-SortColumn="@NextCol("iccid")" asp-route-SortDirection="@SortDir("iccid")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">ICCID @SortIcon("iccid")</a></th>
+
+
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("imei")" asp-route-SortDirection="@SortDir("imei")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">IMEI Number @SortIcon("imei")</a></th>
+
+
+
+                    @if (currentBranch == "RTO")
+
+
+
+                    {
+
+
+
+                        <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("deviceserial")" asp-route-SortDirection="@SortDir("deviceserial")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Device Serial No @SortIcon("deviceserial")</a></th>
+
+
+
+                    }
+
+
+
+                    <th>Device Sim (Airtel)</th>
+
+
+
+                    <th>Device Sim (BSNL)</th>
+
+
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("status")" asp-route-SortDirection="@SortDir("status")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Status @SortIcon("status")</a></th>
+
+
+
+                    @if (currentBranch == "RTO")
+
+
+
+                    {
+
+
+
+                        <th style="text-align: center;"><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("cdacc")" asp-route-SortDirection="@SortDir("cdacc")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">CDAC-C @SortIcon("cdacc")</a></th>
+
+
+
+                        <th style="text-align: center;"><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("vldtc")" asp-route-SortDirection="@SortDir("vldtc")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">VLDT-C @SortIcon("vldtc")</a></th>
+
+
+
+                        <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("type")" asp-route-SortDirection="@SortDir("type")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Type @SortIcon("type")</a></th>
+
+
+
+                    }
+
+
+
+                    <th>Latest Expiry Date</th>
+
+
+
+                    @if (currentBranch == "RTO")
+
+
+
+                    {
+
+
+
+                        <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("registration")" asp-route-SortDirection="@SortDir("registration")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Registration Date @SortIcon("registration")</a></th>
+
+
+
+                    }
+
+
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("vendor")" asp-route-SortDirection="@SortDir("vendor")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">VENDOR @SortIcon("vendor")</a></th>
+
+
+
+                    <th>Owner Details</th>
+
+
+
+                    <th>Cell No</th>
+
+
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("activation")" asp-route-SortDirection="@SortDir("activation")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Activation Date @SortIcon("activation")</a></th>
+
+
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("device")" asp-route-SortDirection="@SortDir("device")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Device Name @SortIcon("device")</a></th>
+
+
+
+                    <th>Network Operator</th>
+
+
+
+                    @if (currentBranch == "RTO")
+
+
+
+                    {
+
+
+
+                        <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("engine")" asp-route-SortDirection="@SortDir("engine")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Engine No @SortIcon("engine")</a></th>
+
+
+
+                        <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("chasis")" asp-route-SortDirection="@SortDir("chasis")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Chassis No @SortIcon("chasis")</a></th>
+
+
+
+                        <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("make")" asp-route-SortDirection="@SortDir("make")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Vehicle Manufacture @SortIcon("make")</a></th>
+
+
+
+                        <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("model")" asp-route-SortDirection="@SortDir("model")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Vehicle Model @SortIcon("model")</a></th>
+
+
+
+                        <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("rto")" asp-route-SortDirection="@SortDir("rto")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">RTO @SortIcon("rto")</a></th>
+
+
+
+                        <th style="min-width: 140px; max-width: 160px;"><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("address")" asp-route-SortDirection="@SortDir("address")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Address @SortIcon("address")</a></th>
+
+
+
+                        <th>Proof of Identity</th>
+
+
+
+                        <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@NextCol("docno")" asp-route-SortDirection="@SortDir("docno")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">ID Number @SortIcon("docno")</a></th>
+
+
+
+                    }
+
+
+
+                    else
+
+
+
+                    {
+
+
+
+                        <th>Engine No</th>
+
+
+
+                        <th>Chasis No</th>
+
+
+
+                        <th>Proof Of Address</th>
+
+
+
+                        <th>Document Number</th>
+
+
+
+                    }
+
+
+
+                    <th>Invoice ID</th>
+
+
+
+                    <th>Notes</th>
+
+
+
+                    @if (currentBranch != "RTO")
+
+
+
+                    {
+
+
+
+                        <th>Previous IMEI</th>
+
+
+
+                        <th>Hardware History</th>
+
+
+
+                    }
+
+
+
+                </tr>
+
+
+
+            </thead>
+
+
+
+            <tbody>
+
+
+
+                @if (Model.Devices.Count == 0)
+
+
+
+                {
+
+
+
+                    <tr>
+
+
+
+                        <td colspan="35" style="padding: 48px 24px; text-align: center;">
+
+
+
+                            <div style="max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+
+
+
+                                <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(15, 98, 254, 0.08); display: flex; align-items: center; justify-content: center; color: var(--blue-600); margin-bottom: 4px;">
+
+
+
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+
+
+                                        <circle cx="11" cy="11" r="8"></circle>
+
+
+
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+
+
+
+                                    </svg>
+
+
+
+                                </div>
+
+
+
+                                @if (!string.IsNullOrWhiteSpace(Model.Query))
+
+
+
+                                {
+
+
+
+                                    <h3 style="font-size: 1.05rem; font-weight: 600; margin: 0; color: var(--text-main);">No device found matching "@Model.Query"</h3>
+
+
+
+                                    <p style="font-size: 0.88rem; color: var(--muted); margin: 0;">This IMEI or keyword does not exist in the database.</p>
+
+
+
+                                    <a href="/@currentBranch/Devices?clear=true" class="button secondary" style="margin-top: 8px; font-size: 0.85rem; padding: 6px 16px; border-radius: 6px;">Clear Search</a>
+
+
+
+                                }
+
+
+
+                                else
+
+
+
+                                {
+
+
+
+                                    <h3 style="font-size: 1.05rem; font-weight: 600; margin: 0; color: var(--text-main);">No devices match this filter set</h3>
+
+
+
+                                    <p style="font-size: 0.88rem; color: var(--muted); margin: 0;">Try adjusting your selected filters to view fleet devices.</p>
+
+
+
+                                    <a href="/@currentBranch/Devices?clear=true" class="button secondary" style="margin-top: 8px; font-size: 0.85rem; padding: 6px 16px; border-radius: 6px;">Reset All Filters</a>
+
+
+
+                                }
+
+
+
+                            </div>
+
+
+
+                        </td>
+
+
+
+                    </tr>
+
+
+
+                }
+
+
+
+                else
+
+
+
+                {
+
+
+
+                    @foreach (var device in Model.Devices)
+
+
+
+                    {
+
+
+
+                        var lifecycle = device.LifecycleStatus.ToLowerInvariant();
+
+
+
+                        <tr class="batch-row @GetBatchClass(device.InvoiceId)">
+
+
+
+                                <td class="col-select" style="text-align: center;">
+
+
+
+                                    <input type="checkbox" class="row-select-checkbox" value="@device.Id" data-vehicle="@device.VehicleNo" data-vendor="@device.Vendor" data-imei="@device.Imei" onchange="onRowSelectionChange()" style="cursor: pointer; width: 16px; height: 16px;" />
+
+
+
+                                </td>
+
+
+
+                                @if (User.CanEditModule("Devices"))
+
+
+
+                                {
+
+
+
+                                    <td class="col-action" style="overflow: visible;">
+                                    <label class="popup">
+
+
+
+                                          <input type="checkbox">
+
+
+
+                                          <div class="burger" tabindex="0">
+
+
+
+                                            <span></span>
+
+
+
+                                            <span></span>
+
+
+
+                                            <span></span>
+
+
+
+                                          </div>
+
+
+
+                                          <nav class="popup-window">
+
+
+
+                                            <legend>Actions</legend>
+
+
+
+                                            <ul>
+
+
+
+                                              <li>
+
+
+
+                                                <a href="/@currentBranch/Transactions/Create?vehicleNo=@Uri.EscapeDataString(device.VehicleNo ?? "")&deviceId=@device.Id&imei=@Uri.EscapeDataString(device.Imei ?? "")" style="display: flex; align-items: center; gap: 8px;">
+                                                  <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                                                  <span>Record Transaction</span>
+                                                </a>
+                                              </li>
+                                              <hr>
+                                              <li>
+                                                <a asp-action="Edit" asp-route-id="@device.Id">
+
+
+
+                                                  <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg">
+
+
+
+                                                    <polygon points="16 3 21 8 8 21 3 21 3 16 16 3"></polygon>
+
+
+
+                                                  </svg>
+
+
+
+                                                  <span>Edit</span>
+
+
+
+                                                </a>
+
+
+
+                                              </li>
+
+
+
+                                              <hr>
+
+
+
+                                              <li>
+
+
+
+                                                <form asp-action="Delete" method="post" style="margin: 0; width: 100%;">
+
+
+
+                                                  <input type="hidden" name="id" value="@device.Id" />
+
+
+
+                                                  <button type="submit" onclick="return confirm('Remove this device?')">
+
+
+
+                                                    <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg">
+
+
+
+                                                      <line y2="18" x2="6" y1="6" x1="18"></line>
+
+
+
+                                                      <line y2="18" x2="18" y1="6" x1="6"></line>
+
+
+
+                                                    </svg>
+
+
+
+                                                    <span>Delete</span>
+
+
+
+                                                  </button>
+
+
+
+                                                </form>
+
+
+
+                                              </li>
+
+
+
+                                            </ul>
+
+
+
+                                          </nav>
+
+
+
+                                        </label>
+
+
+
+                                    </td>
+
+
+
+                                }
+
+
+
+                                else
+
+
+
+                                {
+
+
+
+                                    <td class="col-action"></td>
+
+
+
+                                }
+
+
+
+                            <td class="col-slno text-sm">@device.SlNo</td>
+
+
+
+                            <td class="col-vehicleno">
+                                @(string.IsNullOrWhiteSpace(device.VehicleNo) ? "—" : device.VehicleNo)
+                                @if (device.IsNotInUse)
+                                {
+                                    <span style="color: #ef4444; font-weight: 700; margin-left: 4px; font-size: 0.72rem;">(Not In Use)</span>
+                                }
+                            </td>
+
+
+
+                            <td class="col-paid" style="text-align: center; white-space: nowrap;">
+
+
+
+                                @{
+
+
+
+                                    var paidSet = ViewBag.PaidVehicles as HashSet<string> ?? new HashSet<string>();
+                                    var paidImeis = ViewBag.PaidImeis as HashSet<string> ?? new HashSet<string>();
+                                    bool isPaid;
+                                    if (string.Equals(device.Paid, "Yes", StringComparison.OrdinalIgnoreCase)) isPaid = true;
+                                    else if (string.Equals(device.Paid, "No", StringComparison.OrdinalIgnoreCase)) isPaid = false;
+                                    else {
+                                        var normImei = (device.Imei ?? "").Trim();
+                                        var norm = (device.VehicleNo ?? "").Replace(" ", "").Trim();
+                                        bool hasDigit = norm.Any(char.IsDigit);
+                                        bool isVendor = !string.IsNullOrWhiteSpace(device.Vendor) && norm.Equals(device.Vendor.Replace(" ", "").Trim(), StringComparison.OrdinalIgnoreCase);
+
+                                        isPaid = (!string.IsNullOrEmpty(normImei) && paidImeis.Contains(normImei))
+                                              || (!string.IsNullOrEmpty(norm) && hasDigit && !isVendor && paidSet.Contains(norm));
+                                    }
+
+
+
+                                }
+
+
+
+                                <span class="badge-paid-readonly @(isPaid ? "paid-yes" : "paid-no")">@(isPaid ? "Yes" : "No")</span>
+
+
+
+                            </td>
+
+
+
+                            <td><strong>@(string.IsNullOrWhiteSpace(device.Iccid) ? "—" : device.Iccid)</strong></td>
+
+
+
+                            <td>@(string.IsNullOrWhiteSpace(device.Imei) ? "—" : device.Imei)</td>
+
+
+
+                            @if (currentBranch == "RTO")
+
+
+
+                            {
+
+
+
+                                <td>@(string.IsNullOrWhiteSpace(device.DeviceSerialNo) ? "—" : device.DeviceSerialNo)</td>
+
+
+
+                            }
+
+
+
+                            <td>@(string.IsNullOrWhiteSpace(device.SimAirtel) ? "—" : device.SimAirtel)</td>
+
+
+
+                            <td>@(string.IsNullOrWhiteSpace(device.SimBsnl) ? "—" : device.SimBsnl)</td>
+
+
+
+                            <td><span class="badge @(device.LifecycleStatus.ToLowerInvariant())">@device.LifecycleStatus</span></td>
+
+
+
+                            @if (currentBranch == "RTO")
+
+
+
+                            {
+
+
+
+                                <td style="text-align: center; @(string.Equals(device.CdacCertificate, "YES", StringComparison.OrdinalIgnoreCase) ? "" : "background: rgba(239, 68, 68, 0.08);")">
+                                    @if (string.Equals(device.CdacCertificate, "YES", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge active" style="font-weight: 600; padding: 2px 8px; border-radius: 4px;">YES</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge dead cert-badge-no" style="background: #fee2e2; color: #991b1b; border: 1.5px solid #f87171; font-weight: 700; padding: 2px 8px; border-radius: 4px; box-shadow: 0 0 8px rgba(239, 68, 68, 0.25);">NO</span>
+                                    }
+                                </td>
+
+
+
+                                <td style="text-align: center; @(string.Equals(device.VldtCertificate, "YES", StringComparison.OrdinalIgnoreCase) ? "" : "background: rgba(239, 68, 68, 0.08);")">
+                                    @if (string.Equals(device.VldtCertificate, "YES", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge active" style="font-weight: 600; padding: 2px 8px; border-radius: 4px;">YES</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge dead cert-badge-no" style="background: #fee2e2; color: #991b1b; border: 1.5px solid #f87171; font-weight: 700; padding: 2px 8px; border-radius: 4px; box-shadow: 0 0 8px rgba(239, 68, 68, 0.25);">NO</span>
+                                    }
+                                </td>
+
+
+
+                                <td>@MygtsMvc.Services.SpreadsheetService.NormalizeType(device.Type)</td>
+
+
+
+                            }
+
+
+
+                            <td>@(string.IsNullOrWhiteSpace(DateValue.Short(device.LatestExpiryDate)) ? "—" : DateValue.Short(device.LatestExpiryDate))</td>
+
+
+
+                            @if (currentBranch == "RTO")
+
+
+
+                            {
+
+
+
+                                <td>@(string.IsNullOrWhiteSpace(DateValue.Short(device.RegistrationDate)) ? "—" : DateValue.Short(device.RegistrationDate))</td>
+
+
+
+                            }
+
+
+
+                            <td>@(string.IsNullOrWhiteSpace(device.Vendor) ? "—" : device.Vendor)</td>
+
+
+
+                            <td>@(string.IsNullOrWhiteSpace(device.Owner) ? "—" : device.Owner)</td>
+
+
+
+                            <td>@(string.IsNullOrWhiteSpace(device.CellNo) ? "—" : device.CellNo)</td>
+
+
+
+                            <td>@(string.IsNullOrWhiteSpace(DateValue.Short(device.ActivationDate)) ? "—" : DateValue.Short(device.ActivationDate))</td>
+
+
+
+                            <td>@(string.IsNullOrWhiteSpace(device.DeviceName) ? "—" : device.DeviceName)</td>
+
+
+
+                            <td>
+
+
+
+                                @if (!string.IsNullOrWhiteSpace(device.NetworkOperator))
+
+
+
+                                {
+                                    @if (device.NetworkOperator.Contains("BABU", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                            <span class="badge" style="font-size: 0.75rem; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">Taisys</span>
+                                            <span class="badge" style="font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; letter-spacing: 0.5px;">BABU</span>
+                                        </div>
+                                    }
+                                    else if (device.NetworkOperator.Contains("MYGTS", StringComparison.OrdinalIgnoreCase) || device.NetworkOperator.Equals("Taisys", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                            <span class="badge" style="font-size: 0.75rem; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">Taisys</span>
+                                            <span class="badge" style="font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; letter-spacing: 0.5px;">MYGTS</span>
+                                        </div>
+                                    }
+                                    else if (device.NetworkOperator.Equals("Sensorise", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge" style="font-size: 0.75rem; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">Sensorise</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge" style="font-size: 0.75rem; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">@device.NetworkOperator</span>
+                                    }
+                                }
+
+
+
+                            </td>
+
+
+
+                            @if (currentBranch == "RTO")
+
+
+
+                            {
+
+
+
+                                <td>@(string.IsNullOrWhiteSpace(device.EngineNo) ? "—" : device.EngineNo)</td>
+
+
+
+                                <td>@(string.IsNullOrWhiteSpace(device.ChasisNo) ? "—" : device.ChasisNo)</td>
+
+
+
+                                <td>@(string.IsNullOrWhiteSpace(device.VehicleMake) ? "—" : device.VehicleMake)</td>
+
+
+
+                                <td>@(string.IsNullOrWhiteSpace(device.VehicleModel) ? "—" : device.VehicleModel)</td>
+
+
+
+                                <td>@(string.IsNullOrWhiteSpace(device.Rto) ? "—" : device.Rto)</td>
+
+
+
+                                <td title="@device.Address" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help;">
+
+
+
+                                    @if (!string.IsNullOrWhiteSpace(device.Address))
+
+
+
+                                    {
+
+
+
+                                        <span title="@device.Address">@device.Address</span>
+
+
+
+                                    }
+
+
+
+                                    else
+
+
+
+                                    {
+
+
+
+                                        <span style="color: var(--muted); opacity: 0.5;">—</span>
+
+
+
+                                    }
+
+
+
+                                </td>
+
+
+
+                                <td>
+
+
+
+                                    @if (!string.IsNullOrWhiteSpace(device.ProofOfAddress))
+
+
+
+                                    {
+
+
+
+                                        <span class="badge neutral" style="font-weight: 600; padding: 2px 7px; border-radius: 4px;">@device.ProofOfAddress</span>
+
+
+
+                                    }
+
+
+
+                                    else
+
+
+
+                                    {
+
+
+
+                                        <span style="color: var(--muted); opacity: 0.5;">—</span>
+
+
+
+                                    }
+
+
+
+                                </td>
+
+
+
+                                <td>@(string.IsNullOrWhiteSpace(device.DocumentNumber) ? "—" : device.DocumentNumber)</td>
+
+
+
+                            }
+
+
+
+                            else
+
+
+
+                            {
+
+
+
+                                <td>@device.EngineNo</td>
+
+
+
+                                <td>@device.ChasisNo</td>
+
+
+
+                                <td>@device.ProofOfAddress</td>
+
+
+
+                                <td>@device.DocumentNumber</td>
+
+
+
+                            }
+
+
+
+                            <td>
+
+
+
+                                @if (!string.IsNullOrWhiteSpace(device.InvoiceId))
+
+
+
+                                {
+
+
+
+                                    <span class="batch-badge">
+
+
+
+                                        @device.InvoiceId
+
+
+
+                                        @if (MygtsMvc.Services.BatchColorHelper.RtoInvoiceToBatchMap.TryGetValue(device.InvoiceId, out var bAlias))
+
+
+
+                                        {
+
+
+
+                                            <span style="opacity: 0.75; font-size: 0.75rem; margin-left: 3px;">(@bAlias)</span>
+
+
+
+                                        }
+
+
+
+                                    </span>
+
+
+
+                                }
+
+
+
+                                else
+
+
+
+                                {
+
+
+
+                                    <span style="color: var(--muted); opacity: 0.5;">—</span>
+
+
+
+                                }
+
+
+
+                            </td>
+
+
+
+                            <td>@device.Notes</td>
+
+
+
+                            @if (currentBranch != "RTO")
+
+
+
+                            {
+
+
+
+                                <td>@device.PreviousImei</td>
+
+
+
+                                <td>@device.HardwareHistory</td>
+
+
+
+                            }
+
+
+
+                        </tr>
+
+
+
+                    }
+
+
+
+                }
+
+
+
+            </tbody>
+
+
+
+        </table>
+
+
+
+    </div>
+
+
+
+    
+
+
+
+    @if (Model.TotalItems > 0)
+
+
+
+    {
+
+
+
+        <div style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(0,0,0,0.05);">
+
+
+
+            <div style="font-size: 0.9rem; color: var(--muted);">
+
+
+
+                Showing @((Model.Page - 1) * Model.PageSize + 1) to @Math.Min(Model.Page * Model.PageSize, Model.TotalItems) of @Model.TotalItems entries
+
+
+
+            </div>
+
+
+
+        <div style="display: flex; gap: 4px; align-items: center;">
+
+
+
+            @{
+
+
+
+                var startPage = Math.Max(1, Model.Page - 2);
+
+
+
+                var endPage = Math.Min(Model.TotalPages, Model.Page + 2);
+
+
+
+                
+
+
+
+                if (startPage > 1) {
+
+
+
+                    <a class="button secondary" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection" asp-route-PageSize="@Model.PageSize" asp-route-Page="1" style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">1</a>
+
+
+
+                    if (startPage > 2) {
+
+
+
+                        <span style="padding: 4px 8px; color: var(--muted);">...</span>
+
+
+
+                    }
+
+
+
+                }
+
+
+
+                
+
+
+
+                for (int i = startPage; i <= endPage; i++)
+
+
+
+                {
+
+
+
+                    if (i == Model.Page) {
+
+
+
+                        <button class="button primary" disabled style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">@i</button>
+
+
+
+                    } else {
+
+
+
+                        <a class="button secondary" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection" asp-route-PageSize="@Model.PageSize" asp-route-Page="@i" style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">@i</a>
+
+
+
+                    }
+
+
+
+                }
+
+
+
+                
+
+
+
+                if (endPage < Model.TotalPages) {
+
+
+
+                    if (endPage < Model.TotalPages - 1) {
+
+
+
+                        <span style="padding: 4px 8px; color: var(--muted);">...</span>
+
+
+
+                    }
+
+
+
+                    <a class="button secondary" asp-action="Index" asp-route-Query="@Model.Query" asp-route-Vendor="@Model.Vendor" asp-route-Lifecycle="@Model.Lifecycle" asp-route-Stock="@Model.Stock" asp-route-SpecialFilter="@Model.SpecialFilter" asp-route-Paid="@Model.Paid" asp-route-NetworkOperator="@Model.NetworkOperator" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection" asp-route-PageSize="@Model.PageSize" asp-route-Page="@Model.TotalPages" style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">@Model.TotalPages</a>
+
+
+
+                }
+
+
+
+            }
+
+
+
+        </div>
+
+
+
+        </div>
+
+
+
+    }
+
+
+
+</section>
+
+
+
+
+
+
+
+<style>
+
+
+
+/* Freeze table header */
+
+
+
+.data-table th {
+
+
+
+    position: sticky;
+
+
+
+    top: 0;
+
+
+
+    z-index: 10;
+
+
+
+    background: #f8fafc;
+
+
+
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+
+
+
+}
+
+
+
+
+
+
+
+/* Frozen columns: Checkbox, Action, SLNo, Vehicle No */
+
+
+
+.col-select {
+
+
+
+    position: sticky;
+
+
+
+    left: 0;
+
+
+
+    width: 38px;
+
+
+
+    min-width: 38px;
+
+
+
+    max-width: 38px;
+
+
+
+    z-index: 5;
+
+
+
+    background-color: #ffffff !important;
+
+
+
+    border-right: 1px solid rgba(0,0,0,0.08);
+
+
+
+    text-align: center;
+
+
+
+}
+
+
+
+
+
+
+
+.col-action {
+
+
+
+    position: sticky;
+
+
+
+    left: 38px;
+
+
+
+    width: 50px;
+
+
+
+    min-width: 50px;
+
+
+
+    max-width: 50px;
+
+
+
+    z-index: 5;
+
+
+
+    background-color: #ffffff !important;
+
+
+
+    border-right: 1px solid rgba(0,0,0,0.08);
+
+
+
+}
+
+
+
+
+
+
+
+.col-slno {
+
+
+
+    position: sticky;
+
+
+
+    left: 88px;
+
+
+
+    width: 70px;
+
+
+
+    min-width: 70px;
+
+
+
+    max-width: 70px;
+
+
+
+    z-index: 5;
+
+
+
+    background-color: #ffffff !important;
+
+
+
+    border-right: 1px solid rgba(0,0,0,0.08);
+
+
+
+}
+
+
+
+
+
+
+
+.col-vehicleno {
+
+
+
+    position: sticky;
+
+
+
+    left: 158px;
+
+
+
+    width: 140px;
+
+
+
+    min-width: 140px;
+
+
+
+    max-width: 140px;
+
+
+
+    z-index: 5;
+
+
+
+    background-color: #ffffff !important;
+
+
+
+    border-right: 2px solid #cbd5e1 !important;
+
+
+
+    box-shadow: 4px 0 8px -2px rgba(0, 0, 0, 0.12) !important;
+
+
+
+}
+
+
+
+
+
+
+
+/* Ensure frozen headers stay above frozen column cells */
+
+
+
+.data-table th.col-select,
+
+
+
+.data-table th.col-action,
+
+
+
+.data-table th.col-slno,
+
+
+
+.data-table th.col-vehicleno {
+
+
+
+    z-index: 25 !important;
+
+
+
+    background-color: #f1f5f9 !important;
+
+
+
+}
+
+
+
+
+
+
+
+/* Elevate z-index when action popup is open so it overlaps rows below and right */
+
+
+
+.data-table td.col-action:has(.popup input:checked),
+
+
+
+.data-table td.col-action:focus-within,
+
+
+
+.data-table td.col-action:hover {
+
+
+
+    z-index: 35 !important;
+
+
+
+}
+
+
+
+
+
+
+
+/* Dark mode support - 100% OPAQUE backgrounds so NO scrolling content bleeds through */
+
+
+
+body:has(#theme:checked) .data-table th {
+
+
+
+    background-color: #0b0f19 !important;
+
+
+
+    color: #38bdf8 !important;
+
+
+
+    border-color: #1e293b !important;
+
+
+
+}
+
+
+
+
+
+
+
+body:has(#theme:checked) .data-table th.col-select,
+
+
+
+body:has(#theme:checked) .data-table th.col-action,
+
+
+
+body:has(#theme:checked) .data-table th.col-slno,
+
+
+
+body:has(#theme:checked) .data-table th.col-vehicleno {
+
+
+
+    background-color: #0b0f19 !important;
+
+
+
+    color: #38bdf8 !important;
+
+
+
+    border-right-color: #1e293b !important;
+
+
+
+}
+
+
+
+body:has(#theme:checked) .data-table th.col-vehicleno {
+
+
+
+    border-right: 2px solid #334155 !important;
+
+
+
+    box-shadow: 5px 0 10px -2px rgba(0, 0, 0, 0.6) !important;
+
+
+
+}
+
+
+
+
+
+
+
+body:has(#theme:checked) .data-table td.col-select,
+
+
+
+body:has(#theme:checked) .data-table td.col-action,
+
+
+
+body:has(#theme:checked) .data-table td.col-slno,
+
+
+
+body:has(#theme:checked) .data-table td.col-vehicleno {
+
+
+
+    background-color: #0f172a !important;
+
+
+
+    color: #f8fafc !important;
+
+
+
+    border-right: 1px solid #1e293b !important;
+
+
+
+}
+
+
+
+body:has(#theme:checked) .data-table td.col-vehicleno {
+
+
+
+    border-right: 2px solid #334155 !important;
+
+
+
+    box-shadow: 5px 0 10px -2px rgba(0, 0, 0, 0.6) !important;
+
+
+
+}
+
+
+
+
+
+
+
+/* Preserve subtle batch row tint over solid background without ANY transparency bleed */
+
+
+
+body:has(#theme:checked) .data-table tr.batch-row td.col-select,
+
+
+
+body:has(#theme:checked) .data-table tr.batch-row td.col-action,
+
+
+
+body:has(#theme:checked) .data-table tr.batch-row td.col-slno,
+
+
+
+body:has(#theme:checked) .data-table tr.batch-row td.col-vehicleno {
+
+
+
+    background-color: #0f172a !important;
+
+
+
+    background-image: linear-gradient(var(--batch-bg, rgba(255,255,255,0.06)), var(--batch-bg, rgba(255,255,255,0.06))) !important;
+
+
+
+}
+
+
+
+
+
+
+
+body:has(#theme:checked) .data-table tr:hover td.col-select,
+
+
+
+body:has(#theme:checked) .data-table tr:hover td.col-action,
+
+
+
+body:has(#theme:checked) .data-table tr:hover td.col-slno,
+
+
+
+body:has(#theme:checked) .data-table tr:hover td.col-vehicleno {
+
+
+
+    background-color: #1e293b !important;
+
+
+
+    background-image: none !important;
+
+
+
+}
+
+
+
+.data-table tr:hover td.col-select,
+.data-table tr:hover td.col-action,
+.data-table tr:hover td.col-slno,
+.data-table tr:hover td.col-vehicleno {
+    background-color: var(--soft, #f8fbff) !important;
+}
+
+body:has(#theme:checked) .data-table tr:hover td.col-select,
+body:has(#theme:checked) .data-table tr:hover td.col-action,
+body:has(#theme:checked) .data-table tr:hover td.col-slno,
+body:has(#theme:checked) .data-table tr:hover td.col-vehicleno {
+    background-color: #1e293b !important;
+}
+
+
+
+
+
+
+
+.popup {
+
+
+
+  --burger-line-width: 1.125em;
+
+
+
+  --burger-line-height: 0.125em;
+
+
+
+  --burger-offset: 0.625em;
+
+
+
+  --burger-bg: #fff;
+
+
+
+  --burger-color: #333;
+
+
+
+  --burger-line-border-radius: 0.1875em;
+
+
+
+  --burger-diameter: 2.125em;
+
+
+
+  --burger-btn-border-radius: calc(var(--burger-diameter) / 2);
+
+
+
+  --burger-line-transition: .3s;
+
+
+
+  --burger-transition: all .1s ease-in-out;
+
+
+
+  --burger-hover-scale: 1.1;
+
+
+
+  --burger-active-scale: .95;
+
+
+
+  --burger-enable-outline-color: var(--burger-bg);
+
+
+
+  --burger-enable-outline-width: 0.125em;
+
+
+
+  --burger-enable-outline-offset: var(--burger-enable-outline-width);
+
+
+
+  --nav-padding-x: 0.25em;
+
+
+
+  --nav-padding-y: 0.625em;
+
+
+
+  --nav-border-radius: 0.375em;
+
+
+
+  --nav-border-color: #ccc;
+
+
+
+  --nav-border-width: 0.0625em;
+
+
+
+  --nav-shadow-color: rgba(0, 0, 0, .2);
+
+
+
+  --nav-shadow-width: 0 1px 5px;
+
+
+
+  --nav-bg: #fff;
+
+
+
+  --nav-font-family: Menlo, Roboto Mono, monospace;
+
+
+
+  --nav-default-scale: .8;
+
+
+
+  --nav-active-scale: 1;
+
+
+
+  --nav-position-left: 0;
+
+
+
+  --nav-position-right: unset;
+
+
+
+  --nav-title-size: 0.625em;
+
+
+
+  --nav-title-color: #777;
+
+
+
+  --nav-title-padding-x: 1rem;
+
+
+
+  --nav-title-padding-y: 0.25em;
+
+
+
+  --nav-button-padding-x: 1rem;
+
+
+
+  --nav-button-padding-y: 0.375em;
+
+
+
+  --nav-button-border-radius: 0.375em;
+
+
+
+  --nav-button-font-size: 12px;
+
+
+
+  --nav-button-hover-bg: #6495ed;
+
+
+
+  --nav-button-hover-text-color: #fff;
+
+
+
+  --nav-button-distance: 0.875em;
+
+
+
+  --underline-border-width: 0.0625em;
+
+
+
+  --underline-border-color: #ccc;
+
+
+
+  --underline-margin-y: 0.3125em;
+
+
+
+}
+
+
+
+
+
+
+
+.popup { display: inline-block; text-rendering: optimizeLegibility; position: relative; }
+
+
+
+.popup input { display: none; }
+
+
+
+.burger { display: flex; position: relative; align-items: center; justify-content: center; background: var(--burger-bg); width: var(--burger-diameter); height: var(--burger-diameter); border-radius: var(--burger-btn-border-radius); border: none; cursor: pointer; overflow: hidden; transition: var(--burger-transition); outline: var(--burger-enable-outline-width) solid transparent; outline-offset: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06); border: 1px solid var(--line); }
+
+
+
+.burger span { height: var(--burger-line-height); width: var(--burger-line-width); background: var(--burger-color); border-radius: var(--burger-line-border-radius); position: absolute; transition: var(--burger-line-transition); }
+
+
+
+.burger span:nth-child(1) { top: var(--burger-offset); }
+
+
+
+.burger span:nth-child(2) { bottom: var(--burger-offset); }
+
+
+
+.burger span:nth-child(3) { top: 50%; transform: translateY(-50%); }
+
+
+
+
+
+
+
+.popup-window { transform: scale(var(--nav-default-scale)); visibility: hidden; opacity: 0; position: absolute; padding: 0; max-height: 0; overflow: hidden; background: var(--nav-bg); font-family: var(--nav-font-family); color: var(--nav-text-color); border-radius: var(--nav-border-radius); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); border: var(--nav-border-width) solid var(--nav-border-color); top: calc(var(--burger-diameter) + var(--burger-enable-outline-width) + var(--burger-enable-outline-offset)); left: 0; right: auto; transition: var(--burger-transition); z-index: 99999 !important; }
+
+
+
+.popup-window legend { padding: var(--nav-title-padding-y) var(--nav-title-padding-x); margin: 0; color: var(--nav-title-color); font-size: var(--nav-title-size); text-transform: uppercase; }
+
+
+
+.popup-window ul { margin: 0; padding: 0; list-style-type: none; }
+
+
+
+.popup-window ul a, .popup-window ul button { outline: none; width: 100%; border: none; background: none; display: flex; align-items: center; color: var(--burger-color); font-size: var(--nav-button-font-size); padding: var(--nav-button-padding-y) var(--nav-button-padding-x); white-space: nowrap; border-radius: var(--nav-button-border-radius); cursor: pointer; column-gap: var(--nav-button-distance); text-decoration: none; font-family: inherit; }
+
+
+
+.popup-window ul li:nth-child(1) svg { color: cornflowerblue; }
+
+
+
+.popup-window ul li:nth-child(3) svg { color: red; }
+
+
+
+.popup-window hr { margin: var(--underline-margin-y) 0; border: none; border-bottom: var(--underline-border-width) solid var(--underline-border-color); }
+
+
+
+.popup-window ul a:hover, .popup-window ul a:focus-visible, .popup-window ul a:hover svg, .popup-window ul a:focus-visible svg, .popup-window ul button:hover, .popup-window ul button:focus-visible, .popup-window ul button:hover svg, .popup-window ul button:focus-visible svg { color: var(--nav-button-hover-text-color); background: var(--nav-button-hover-bg); }
+
+
+
+.burger:hover { transform: scale(var(--burger-hover-scale)); }
+
+
+
+.burger:active { transform: scale(var(--burger-active-scale)); }
+
+
+
+.burger:focus:not(:hover) { outline-color: var(--burger-enable-outline-color); outline-offset: var(--burger-enable-outline-offset); }
+
+
+
+.popup input:checked+.burger span:nth-child(1) { top: 50%; transform: translateY(-50%) rotate(45deg); }
+
+
+
+.popup input:checked+.burger span:nth-child(2) { bottom: 50%; transform: translateY(50%) rotate(-45deg); }
+
+
+
+.popup input:checked+.burger span:nth-child(3) { transform: translateX(calc(var(--burger-diameter) * -1 - var(--burger-line-width))); }
+
+
+
+.popup input:checked~nav { transform: scale(var(--nav-active-scale)); visibility: visible; opacity: 1; padding: var(--nav-padding-y) var(--nav-padding-x); max-height: 400px; z-index: 99999 !important; }
+
+
+
+.data-table > tbody > tr:has(.popup input:checked),
+
+
+
+.data-table > tbody > tr > td:first-child:has(.popup input:checked) {
+
+
+
+    z-index: 50;
+
+
+
+    position: relative;
+
+
+
+}
+
+
+
+</style>
+
+
+
+
+
+
+
+<script>
+
+
+
+    document.addEventListener('click', function (e) {
+
+
+
+        const popups = document.querySelectorAll('.popup input[type="checkbox"]');
+
+
+
+        popups.forEach(function (cb) {
+
+
+
+            if (cb.checked && !cb.closest('.popup').contains(e.target)) {
+
+
+
+                cb.checked = false;
+
+
+
+            }
+
+
+
+        });
+
+
+
+    });
+
+
+
+</script>
+
+
+
+
+
+
+
+<!-- Hidden Bulk Split Navigation Form for Selected Rows -->
+
+
+
+<form id="bulkSplitSelectedForm" method="post" action="/@currentBranch/Transactions/BulkSplitFromSelection" style="display: none;">
+
+
+
+    @Html.AntiForgeryToken()
+
+
+
+    <input type="hidden" name="selectedIds" id="bulkSplitSelectedIds" value="" />
+
+
+
+    <input type="hidden" name="selectedVehicles" id="bulkSplitSelectedVehicles" value="" />
+
+
+
+</form>
+
+
+
+
+
+
+
+<!-- Hidden Download Form for Selected Rows -->
+
+
+
+<form id="selectedDownloadForm" method="post" action="/RTO/Devices/ExportAll" style="display: none;">
+    @Html.AntiForgeryToken()
+
+
+
+    <input type="hidden" name="format" id="selectedDownloadFormat" value="" />
+
+
+
+    <input type="hidden" name="selectedIds" id="selectedDownloadIds" value="" />
+
+
+
+    <input type="hidden" name="branch" value="@currentBranch" />
+
+
+
+</form>
+
+
+
+
+
+
+
+<!-- Floating Bar for Row Selection -->
+
+
+
+<div id="selectionBar" style="display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #f8fafc; padding: 10px 22px; border-radius: 9999px; box-shadow: 0 16px 40px rgba(0,0,0,0.5); z-index: 99999 !important; align-items: center; gap: 14px; border: 1px solid #334155;">
+
+
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+
+
+
+        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e;"></span>
+
+
+
+        <span style="font-size: 0.86rem; font-weight: 600;"><strong id="floatingSelectedCount" style="color: #38bdf8;">0</strong> / @Model.Devices.Count selected</span>
+
+
+
+    </div>
+
+
+
+    
+
+
+
+    <div style="height: 18px; width: 1px; background: #334155;"></div>
+
+
+
+
+
+
+
+    <div style="display: flex; gap: 8px; align-items: center;">
+
+
+
+        <button type="button" class="button small" onclick="toggleSelectAllRows()" style="background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.15); padding: 5px 12px; border-radius: 9999px; font-size: 0.78rem; font-weight: 500; cursor: pointer;">
+
+
+
+            Select All
+
+
+
+        </button>
+
+
+
+
+
+
+
+        @if (User.CanEditModule("Transactions"))
+        {
+            <button type="button" id="btnSingleTransaction" onclick="proceedToSingleTransaction()" style="background: linear-gradient(135deg, #0f62fe 0%, #0043ce 100%); color: #fff; border: 1px solid rgba(255,255,255,0.25); padding: 6px 16px; border-radius: 9999px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: none; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(15, 98, 254, 0.4); transition: all 0.2s ease;" title="Record transaction for this device">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <span>💳 Pay Vehicle (<span id="singleVehicleLabel"></span>)</span>
+            </button>
+
+            <button type="button" id="btnBulkPayment" onclick="proceedToBulkPayment()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; border: 1px solid rgba(255,255,255,0.25); padding: 6px 16px; border-radius: 9999px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); transition: all 0.2s ease;" title="Create bulk payment for selected vehicles">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                <span>💳 Bulk Payment (<span class="sel-count-badge">0</span>)</span>
+            </button>
+        }
+
+        @if (currentBranch == "RTO")
+
+
+
+        {
+
+
+
+            <button type="button" id="btnDownloadKycUpload" class="button small" onclick="downloadSelected('kyc_upload')" style="background: #2563eb; color: #fff; border: none; padding: 6px 14px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+
+
+
+                <span>↓ KYC Upload Form</span>
+
+
+
+            </button>
+
+
+
+            <button type="button" id="btnDownloadKycCl" class="button small" onclick="downloadSelected('kyc_cl')" style="background: #10b981; color: #fff; border: none; padding: 6px 14px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+
+
+
+                <span>↓ KYC Common Layer</span>
+
+
+
+            </button>
+
+
+
+        }
+
+
+
+        <button type="button" id="btnDownloadDefault" class="button small" onclick="downloadSelected('')" style="background: #475569; color: #fff; border: none; padding: 6px 14px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+
+
+
+            <span>↓ Download (<span class="sel-count-badge">0</span>)</span>
+
+
+
+        </button>
+
+
+
+
+
+
+
+        <button type="button" onclick="clearRowSelection()" style="background: transparent; color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 9999px; padding: 5px 12px; font-size: 0.78rem; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 500; margin-left: 4px;" title="Deselect all rows">
+
+
+
+            ✕ Clear
+
+
+
+        </button>
+
+
+
+    </div>
+
+
+
+</div>
+
+
+
+
+
+
+
+<script>
+
+
+
+    let currentTargetFormat = '';
+
+
+
+
+
+
+
+    function enableSelectionMode(targetFormat, keepMenuOpen) {
+
+
+
+        currentTargetFormat = targetFormat || '';
+
+
+
+        document.body.classList.add('selection-mode-active');
+
+
+
+        
+
+
+
+        if (!keepMenuOpen) {
+
+
+
+            // Automatically collapse any open export dropdown menus
+
+
+
+            document.querySelectorAll('.export-dropdown-panel').forEach(p => p.style.display = 'none');
+
+
+
+        }
+
+
+
+        
+
+
+
+        updateFloatingBarFormatHighlight(targetFormat);
+
+
+
+        
+
+
+
+        const bar = document.getElementById('selectionBar');
+
+
+
+        if (bar) bar.style.display = 'flex';
+
+
+
+    }
+
+
+
+
+
+
+
+    function exitSelectionMode() {
+
+
+
+        document.body.classList.remove('selection-mode-active');
+
+
+
+        clearRowSelection();
+
+
+
+        const bar = document.getElementById('selectionBar');
+
+
+
+        if (bar) bar.style.display = 'none';
+
+
+
+        currentTargetFormat = '';
+
+
+
+        document.querySelectorAll('.export-dropdown-panel').forEach(p => p.style.display = 'none');
+
+
+
+    }
+
+
+
+
+
+
+
+    function handleDownloadOptionClick(format) {
+
+
+
+        // Automatically collapse dropdown menu
+
+
+
+        document.querySelectorAll('.export-dropdown-panel').forEach(p => p.style.display = 'none');
+
+
+
+
+
+
+
+        const isSelectionActive = document.body.classList.contains('selection-mode-active');
+
+
+
+        const checked = Array.from(document.querySelectorAll('.row-select-checkbox:checked')).map(cb => cb.value);
+
+
+
+
+
+
+
+        if (!isSelectionActive) {
+
+
+
+            // First time selecting the download option: show checkboxes and bottom section
+
+
+
+            enableSelectionMode(format, false);
+
+
+
+        } else {
+
+
+
+            // Already in selection mode: if rows checked, download them!
+
+
+
+            if (checked.length > 0) {
+
+
+
+                downloadSelected(format);
+
+
+
+            } else {
+
+
+
+                updateFloatingBarFormatHighlight(format);
+
+
+
+            }
+
+
+
+        }
+
+
+
+    }
+
+
+
+
+
+
+
+    function updateFloatingBarFormatHighlight(format) {
+
+
+
+        const kycUploadBtn = document.getElementById('btnDownloadKycUpload');
+
+
+
+        const kycClBtn = document.getElementById('btnDownloadKycCl');
+
+
+
+        const defaultBtn = document.getElementById('btnDownloadDefault');
+
+
+
+
+
+
+
+        [kycUploadBtn, kycClBtn, defaultBtn].forEach(b => {
+
+
+
+            if (b) {
+
+
+
+                b.style.boxShadow = 'none';
+
+
+
+                b.style.outline = 'none';
+
+
+
+            }
+
+
+
+        });
+
+
+
+
+
+
+
+        if (format === 'kyc_upload' && kycUploadBtn) {
+
+
+
+            kycUploadBtn.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.45)';
+
+
+
+        } else if (format === 'kyc_cl' && kycClBtn) {
+
+
+
+            kycClBtn.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.45)';
+
+
+
+        } else if (format === '' && defaultBtn) {
+
+
+
+            defaultBtn.style.boxShadow = '0 0 0 3px rgba(148, 163, 184, 0.45)';
+
+
+
+        }
+
+
+
+    }
+
+
+
+
+
+
+
+    function toggleSelectAllRows(checked) {
+        const headerCb = document.getElementById('selectAllCheckbox');
+        if (typeof checked !== 'boolean') {
+            checked = headerCb ? headerCb.checked : true;
+        }
+        const allBoxes = document.querySelectorAll('.row-select-checkbox');
+        allBoxes.forEach(cb => {
+            cb.checked = checked;
+            const tr = cb.closest('tr');
+            if (tr) {
+                if (checked) tr.classList.add('row-selected');
+                else tr.classList.remove('row-selected');
+            }
+        });
+        if (headerCb) {
+            headerCb.checked = checked;
+            headerCb.indeterminate = false;
+        }
+        onRowSelectionChange();
+    }
+
+    
+    // Easy click on selection cell
+    document.addEventListener('click', function(e) {
+        const colSelect = e.target.closest('td.col-select');
+        if (colSelect && e.target.tagName !== 'INPUT') {
+            const cb = colSelect.querySelector('.row-select-checkbox');
+            if (cb) {
+                cb.checked = !cb.checked;
+                onRowSelectionChange();
+            }
+        }
+    });
+
+    function onRowSelectionChange() {
+        const allBoxes = document.querySelectorAll('.row-select-checkbox');
+        const checkedBoxes = Array.from(document.querySelectorAll('.row-select-checkbox:checked'));
+        const count = checkedBoxes.length;
+        const totalRows = allBoxes.length;
+
+        // update row highlighting
+        allBoxes.forEach(cb => {
+            const tr = cb.closest('tr');
+            if (tr) {
+                if (cb.checked) tr.classList.add('row-selected');
+                else tr.classList.remove('row-selected');
+            }
+        });
+
+        // update header checkbox
+        const selectAll = document.getElementById('selectAllCheckbox');
+        if (selectAll) {
+            selectAll.checked = count > 0 && count === totalRows;
+            selectAll.indeterminate = count > 0 && count < totalRows;
+        }
+
+        document.querySelectorAll('.sel-count-badge').forEach(b => b.textContent = count);
+        const countEl = document.getElementById('floatingSelectedCount');
+        if (countEl) countEl.textContent = count;
+
+        // Middle bottom floating selection dock
+        const bar = document.getElementById('selectionBar');
+        if (bar) {
+            if (count > 0 || document.body.classList.contains('selection-mode-active')) {
+                bar.style.display = 'flex';
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        // Action buttons inside middle bottom dock
+        const btnSingle = document.getElementById('btnSingleTransaction');
+        const btnBulk = document.getElementById('btnBulkPayment');
+        const singleVeh = document.getElementById('singleVehicleLabel');
+
+        if (count === 1) {
+            const cb = checkedBoxes[0];
+            const veh = (cb.dataset.vehicle || '').trim();
+            const imei = (cb.dataset.imei || '').trim();
+            const label = veh || imei || 'Device';
+            if (btnSingle) {
+                btnSingle.style.display = 'inline-flex';
+                if (singleVeh) singleVeh.textContent = label;
+            }
+            if (btnBulk) {
+                btnBulk.style.display = 'none';
+            }
+        } else if (count > 1) {
+            if (btnSingle) {
+                btnSingle.style.display = 'none';
+            }
+            if (btnBulk) {
+                btnBulk.style.display = 'inline-flex';
+            }
+        } else {
+            if (btnSingle) btnSingle.style.display = 'none';
+            if (btnBulk) btnBulk.style.display = 'none';
+        }
+    }
+
+    function proceedToSingleTransaction() {
+        const checkedBoxes = Array.from(document.querySelectorAll('.row-select-checkbox:checked'));
+        if (checkedBoxes.length === 0) return;
+        const cb = checkedBoxes[0];
+        const vehicle = (cb.dataset.vehicle || '').trim();
+        const deviceId = (cb.value || '').trim();
+        const imei = (cb.dataset.imei || '').trim();
+
+        const params = new URLSearchParams();
+        if (vehicle) params.append('vehicleNo', vehicle);
+        if (deviceId) params.append('deviceId', deviceId);
+        if (imei) params.append('imei', imei);
+
+        window.location.href = `/@currentBranch/Transactions/Create?${params.toString()}`;
+    }
+
+    function proceedToBulkPayment() {
+        const checkedBoxes = Array.from(document.querySelectorAll('.row-select-checkbox:checked'));
+        if (checkedBoxes.length === 0) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'No Vehicles Selected',
+                    text: 'Please select at least one vehicle using the checkboxes to create a bulk payment.',
+                    confirmButtonColor: '#2563eb'
+                });
+            } else {
+                alert('Please select at least one vehicle to create a bulk payment.');
+            }
+            return;
+        }
+
+        const selectedIds = checkedBoxes.map(cb => cb.value).filter(Boolean);
+        const selectedVehicles = checkedBoxes.map(cb => cb.dataset.vehicle || '').filter(Boolean);
+
+        const form = document.getElementById('bulkSplitSelectedForm');
+        document.getElementById('bulkSplitSelectedIds').value = selectedIds.join(',');
+        document.getElementById('bulkSplitSelectedVehicles').value = selectedVehicles.join(',');
+        form.submit();
+    }
+
+    function clearRowSelection() {
+        document.querySelectorAll('.row-select-checkbox').forEach(cb => {
+            cb.checked = false;
+            const tr = cb.closest('tr');
+            if (tr) tr.classList.remove('row-selected');
+        });
+        const selectAll = document.getElementById('selectAllCheckbox');
+        if (selectAll) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+        }
+        const bar = document.getElementById('selectionBar');
+        if (bar && !document.body.classList.contains('selection-mode-active')) {
+            bar.style.display = 'none';
+        }
+        const btnSingle = document.getElementById('btnSingleTransaction');
+        if (btnSingle) btnSingle.style.display = 'none';
+        const btnBulk = document.getElementById('btnBulkPayment');
+        if (btnBulk) btnBulk.style.display = 'none';
+        document.querySelectorAll('.sel-count-badge').forEach(b => b.textContent = '0');
+        const countEl = document.getElementById('floatingSelectedCount');
+        if (countEl) countEl.textContent = '0';
+    }
+
+    function downloadSelected(format) {
+
+
+
+        const checked = Array.from(document.querySelectorAll('.row-select-checkbox:checked')).map(cb => cb.value);
+
+
+
+        if (checked.length === 0) {
+
+
+
+            if (typeof Swal !== 'undefined') {
+
+
+
+                Swal.fire({
+
+
+
+                    icon: 'info',
+
+
+
+                    title: 'No Rows Selected',
+
+
+
+                    text: 'Please select at least one row using the checkboxes to download.',
+
+
+
+                    confirmButtonColor: '#2563eb'
+
+
+
+                });
+
+
+
+            } else {
+
+
+
+                alert('Please select at least one row using the checkboxes to download.');
+
+
+
+            }
+
+
+
+            return;
+
+
+
+        }
+
+
+
+        document.getElementById('selectedDownloadFormat').value = format;
+
+
+
+        document.getElementById('selectedDownloadIds').value = checked.join(',');
+
+
+
+        document.getElementById('selectedDownloadForm').submit();
+
+
+
+    }
+
+
+
+
+
+
+
+    async function toggleDevicePaid(deviceId, btn) {
+
+
+
+        if (!deviceId || btn.dataset.busy === 'true') return;
+
+
+
+        btn.dataset.busy = 'true';
+
+
+
+        btn.style.opacity = '0.5';
+
+
+
+        const isCurrentlyYes = btn.classList.contains('paid-yes');
+
+
+
+        const newStatus = isCurrentlyYes ? 'No' : 'Yes';
+
+
+
+        
+
+
+
+        try {
+
+
+
+            const branchMatch = (document.cookie.match(/mygts_branch=([^;]+)/) || [])[1];
+
+
+
+            const branch = branchMatch ? decodeURIComponent(branchMatch) : 'RTO';
+
+
+
+            const resp = await fetch(`/${branch}/Devices/TogglePaid`, {
+
+
+
+                method: 'POST',
+
+
+
+                headers: { 'Content-Type': 'application/json' },
+
+
+
+                body: JSON.stringify({ id: deviceId, paid: newStatus })
+
+
+
+            });
+
+
+
+            if (resp.ok) {
+
+
+
+                const data = await resp.json();
+
+
+
+                if (data.success) {
+
+
+
+                    if (data.paid === 'Yes') {
+
+
+
+                        btn.classList.remove('paid-no');
+
+
+
+                        btn.classList.add('paid-yes');
+
+
+
+                        btn.textContent = 'Yes';
+
+
+
+                    } else {
+
+
+
+                        btn.classList.remove('paid-yes');
+
+
+
+                        btn.classList.add('paid-no');
+
+
+
+                        btn.textContent = 'No';
+
+
+
+                    }
+
+
+
+                } else {
+
+
+
+                    alert(data.error || 'Failed to update Paid status.');
+
+
+
+                }
+
+
+
+            } else {
+
+
+
+                alert('Only executives or above can change the Paid status.');
+
+
+
+            }
+
+
+
+        } catch (e) {
+
+
+
+            console.error(e);
+
+
+
+            alert('Network error updating Paid status.');
+
+
+
+        } finally {
+
+
+
+            btn.dataset.busy = 'false';
+
+
+
+            btn.style.opacity = '1';
+
+
+
+        }
+
+
+
+    }
+
+
+
+</script>
+
+
+

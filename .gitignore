@@ -1,0 +1,40 @@
+## Build and runtime
+bin/
+obj/
+publish/
+
+## Visual Studio, VS Code & Cursor
+.vs/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+.cursor/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+## Database backups, locks & temp files
+*.bak
+*.bak*
+*.tmp
+*.log
+*.db-wal
+*.db-shm
+telemetry.log
+Data/backups/*
+
+## Spreadsheets & local exports
+*.xlsx
+*.xls
+*.csv
+
+## Python & scratch
+__pycache__/
+*.py[cod]
+*$py.class
+scratch/
+
+## OS generated
+.DS_Store
+Thumbs.db

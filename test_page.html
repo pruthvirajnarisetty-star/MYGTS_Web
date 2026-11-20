@@ -1,0 +1,3253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#001d6c" />
+    <title>Sign in &#xB7; MYGTS (RTO)</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-rto-32x32.png?v=2" />
+    <link rel="icon" type="image/x-icon" href="/favicon-rto.ico?v=2" />
+    <link rel="shortcut icon" href="/favicon-rto.ico?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-rto.png?v=2" />
+    <link rel="stylesheet" href="/css/site.css?v=15&amp;v=Yf0mivdMTvvGOsxAfqbnIRbeUJuBWF4Y4MHMfTcKry0" />
+    <script src="/lib/sweetalert2/sweetalert2.all.min.js?v=Tobw4i5HcbW4qsJMYTxmGAameLGvooTQPPatA9PiGgo" defer></script>
+    <style>
+        .notification-center {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        /* Custom Bell with one div */
+        .bell {
+            border: 2.17px solid var(--ink);
+            border-radius: 10px 10px 0 0;
+            width: 15px;
+            height: 17px;
+            background: transparent;
+            display: block;
+            position: relative;
+            top: -3px;
+        }
+        .bell::before,
+        .bell::after {
+            content: "";
+            background: var(--ink);
+            display: block;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 2.17px;
+        }
+        .bell::before {
+            top: 100%;
+            width: 20px;
+        }
+        .bell::after {
+            top: calc(100% + 4px);
+            width: 7px;
+        }
+        /* container main styling */
+        .notification {
+            background: transparent;
+            border: none;
+            padding: 8px 10px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: 300ms;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* notifications number with before */
+        .notification.has-alerts::before {
+            content: attr(data-count);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            min-width: 14px;
+            height: 14px;
+            padding: 0 3px;
+            border-radius: 50%;
+            background-color: #ef4444;
+            position: absolute;
+            right: 2px;
+            top: 2px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            line-height: 1;
+        }
+        /* container background hover effect */
+        .notification:hover {
+            background: rgba(170, 170, 170, 0.12);
+        }
+        /* container animations */
+        .notification:hover > .bell-container {
+            animation: bell-animation 650ms ease-out 0s 1 normal both;
+        }
+        /* bell ring and scale animation */
+        @keyframes bell-animation {
+            20% {
+                transform: rotate(15deg);
+            }
+            40% {
+                transform: rotate(-15deg);
+                scale: 1.1;
+            }
+            60% {
+                transform: rotate(10deg);
+                scale: 1.1;
+            }
+            80% {
+                transform: rotate(-10deg);
+            }
+            0%, 100% {
+                transform: rotate(0deg);
+            }
+        }
+        /* Solid Opaque Alert Drawer */
+        .notification-drawer {
+            display: none;
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            width: 420px;
+            max-width: calc(100vw - 24px);
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1;
+            border-radius: 14px;
+            box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.25), 0 8px 18px -4px rgba(0, 0, 0, 0.12);
+            z-index: 1100;
+            overflow: hidden;
+            animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        body:has(#theme:checked) .notification-drawer {
+            background: #1e293b !important;
+            border-color: #334155;
+            box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.6);
+        }
+        #notification-toggle:checked ~ .notification-drawer {
+            display: block;
+        }
+        .notification-header {
+            padding: 14px 18px 12px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        body:has(#theme:checked) .notification-header {
+            background: #0f172a;
+            border-bottom-color: #334155;
+        }
+        .notification-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            gap: 10px;
+        }
+        .notification-title-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            flex-shrink: 1;
+        }
+        .notification-title {
+            margin: 0;
+            font-size: 0.88rem;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-main);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .notification-header-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .notification-subtitle {
+            margin: 0;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--muted);
+            line-height: 1.35;
+            letter-spacing: 0.01em;
+            word-break: normal;
+        }
+        .alert-pill-count {
+            background: #fee2e2;
+            color: #b91c1c;
+            font-size: 0.68rem;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            white-space: nowrap !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+        body:has(#theme:checked) .alert-pill-count {
+            background: #451a1a;
+            color: #fca5a5;
+            border-color: rgba(239, 68, 68, 0.35);
+        }
+        .btn-clear-all {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.70rem;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap !important;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            line-height: 1.2;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .btn-clear-all:hover {
+            background: var(--surface-hover);
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+        body:has(#theme:checked) .btn-clear-all {
+            border-color: #334155;
+            color: #94a3b8;
+        }
+        body:has(#theme:checked) .btn-clear-all:hover {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border-color: #ef4444;
+        }
+        .notification-search-box {
+            padding: 8px 14px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+        }
+        body:has(#theme:checked) .notification-search-box {
+            background: #0f172a;
+            border-bottom-color: #334155;
+        }
+        .notification-search-box input {
+            background: #ffffff;
+            color: #0f172a;
+            border: 1px solid #cbd5e1;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .notification-search-box input:focus {
+            border-color: var(--primary, #0056b3);
+            box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.15);
+        }
+        body:has(#theme:checked) .notification-search-box input {
+            background: #1e293b;
+            color: #f8fafc;
+            border-color: #475569;
+        }
+        body:has(#theme:checked) .notification-search-box input:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+        }
+        .btn-dismiss-alert {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            font-size: 1.15rem;
+            line-height: 1;
+            padding: 0 4px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+        }
+        .btn-dismiss-alert:hover {
+            color: var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .notification-list {
+            max-height: 380px;
+            overflow-y: auto;
+            background: #ffffff;
+        }
+        body:has(#theme:checked) .notification-list {
+            background: #1e293b;
+        }
+        .notification-item {
+            padding: 12px 18px;
+            border-bottom: 1px solid #f1f5f9;
+            background: #ffffff;
+            transition: background 0.15s ease, opacity 0.2s ease, transform 0.2s ease;
+        }
+        body:has(#theme:checked) .notification-item {
+            background: #1e293b;
+            border-bottom-color: #334155;
+        }
+        .notification-item:hover {
+            background: #f8fafc;
+        }
+        body:has(#theme:checked) .notification-item:hover {
+            background: #253248;
+        }
+        .notification-item.urgent-today {
+            border-left: 4px solid #ef4444;
+            background: #fffafa;
+        }
+        body:has(#theme:checked) .notification-item.urgent-today {
+            background: #2c1c24;
+        }
+        .notification-item.urgent-tomorrow {
+            border-left: 4px solid #f97316;
+            background: #fffcf8;
+        }
+        body:has(#theme:checked) .notification-item.urgent-tomorrow {
+            background: #2b221d;
+        }
+        .notification-item.urgent-soon {
+            border-left: 4px solid #3b82f6;
+        }
+        .notification-item.urgent-overdue {
+            border-left: 4px solid #dc2626;
+            background: #fef2f2 !important;
+        }
+        body:has(#theme:checked) .notification-item.urgent-overdue {
+            background: #361618 !important;
+            border-left-color: #ef4444;
+        }
+        .urgent-overdue .expiry-tag {
+            background: #fee2e2 !important;
+            color: #991b1b !important;
+            font-weight: 800;
+        }
+        body:has(#theme:checked) .urgent-overdue .expiry-tag {
+            background: #7f1d1d !important;
+            color: #fecaca !important;
+        }
+        .notification-section-divider.urgent-divider {
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #991b1b;
+        }
+        body:has(#theme:checked) .notification-section-divider.urgent-divider {
+            background: #451a1a;
+            border-color: #7f1d1d;
+            color: #fca5a5;
+        }
+        .notification-section-divider.shift-divider {
+            background: #e0e7ff;
+            border-color: #c7d2fe;
+            color: #3730a3;
+        }
+        body:has(#theme:checked) .notification-section-divider.shift-divider {
+            background: #1e1e38;
+            border-color: #3730a3;
+            color: #c7d2fe;
+        }
+        .notification-section-divider.expiring-divider {
+            background: #fef3c7;
+            border-color: #fde68a;
+            color: #92400e;
+        }
+        body:has(#theme:checked) .notification-section-divider.expiring-divider {
+            background: #38240f;
+            border-color: #78350f;
+            color: #fde68a;
+        }
+        .notification-section-divider.followups-divider {
+            background: #ede9fe;
+            border-color: #ddd6fe;
+            color: #5b21b6;
+        }
+        body:has(#theme:checked) .notification-section-divider.followups-divider {
+            background: #25163a;
+            border-color: #5b21b6;
+            color: #ddd6fe;
+        }
+        .notification-section-divider.pending-recharge-divider {
+            background: #fef3c7;
+            border-color: #fde68a;
+            color: #b45309;
+        }
+        body:has(#theme:checked) .notification-section-divider.pending-recharge-divider {
+            background: #3b2506;
+            border-color: #78350f;
+            color: #fcd34d;
+        }
+        .notification-section-divider.unpaid-recharge-divider {
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #b91c1c;
+        }
+        body:has(#theme:checked) .notification-section-divider.unpaid-recharge-divider {
+            background: #3a1515;
+            border-color: #7f1d1d;
+            color: #fca5a5;
+        }
+        .notification-item.lifecycle-shift-item {
+            border-left: 4px solid #6366f1;
+            background: #f8fafc;
+        }
+        body:has(#theme:checked) .notification-item.lifecycle-shift-item {
+            background: #1a1e2e;
+            border-left-color: #818cf8;
+        }
+        .shift-badge {
+            font-size: 0.70rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .shift-badge.shift-suspension {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid rgba(217, 119, 6, 0.25);
+        }
+        body:has(#theme:checked) .shift-badge.shift-suspension {
+            background: #78350f;
+            color: #fef3c7;
+        }
+        .shift-badge.shift-terminated {
+            background: #ffedd5;
+            color: #c2410c;
+            border: 1px solid rgba(234, 88, 12, 0.25);
+        }
+        body:has(#theme:checked) .shift-badge.shift-terminated {
+            background: #7c2d12;
+            color: #fed7aa;
+        }
+        .shift-badge.shift-dead {
+            background: #f1f5f9;
+            color: #334155;
+            border: 1px solid rgba(71, 85, 105, 0.25);
+        }
+        body:has(#theme:checked) .shift-badge.shift-dead {
+            background: #1e293b;
+            color: #cbd5e1;
+        }
+        .button-filter-shift {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 28px;
+            padding: 0 10px;
+            font-size: 0.74rem;
+            font-weight: 600;
+            border-radius: 6px;
+            background: rgba(99, 102, 241, 0.12);
+            color: #4f46e5;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            text-decoration: none;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+        .button-filter-shift:hover {
+            background: #4f46e5;
+            color: #ffffff;
+        }
+        body:has(#theme:checked) .button-filter-shift {
+            color: #a5b4fc;
+            border-color: rgba(165, 180, 252, 0.3);
+        }
+        body:has(#theme:checked) .button-filter-shift:hover {
+            background: #6366f1;
+            color: #ffffff;
+        }
+        .expiry-tag {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: #f1f5f9;
+            color: var(--muted);
+        }
+        body:has(#theme:checked) .expiry-tag {
+            background: #334155;
+        }
+        .urgent-today .expiry-tag {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        .urgent-tomorrow .expiry-tag {
+            background: #ffedd5;
+            color: #c2410c;
+        }
+        .notification-section {
+            position: relative;
+        }
+        .notification-section-divider {
+            position: sticky;
+            top: 0;
+            z-index: 15;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 16px;
+            background: #f1f5f9;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #475569;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+        }
+        .notification-section-divider:focus-visible {
+            outline: 2px solid var(--primary, #3b82f6);
+            outline-offset: -2px;
+        }
+        .notification-section-divider:hover {
+            filter: brightness(0.96);
+        }
+        body:has(#theme:checked) .notification-section-divider:hover {
+            filter: brightness(1.2);
+        }
+        .notification-section-divider .section-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .notification-section-divider .section-chevron {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: rotate(-90deg);
+            flex-shrink: 0;
+            opacity: 0.75;
+        }
+        .notification-section-divider[aria-expanded="true"] .section-chevron {
+            transform: rotate(0deg);
+            opacity: 1;
+        }
+        body:has(#theme:checked) .notification-section-divider {
+            background: #0f172a;
+            border-color: #334155;
+            color: #94a3b8;
+        }
+        .notification-item.followup-item {
+            border-left: 4px solid #8b5cf6;
+            background: #faf5ff;
+        }
+        body:has(#theme:checked) .notification-item.followup-item {
+            background: #231d30;
+        }
+        .followup-tag {
+            background: #ede9fe !important;
+            color: #6d28d9 !important;
+        }
+        body:has(#theme:checked) .followup-tag {
+            background: #4c1d95 !important;
+            color: #ddd6fe !important;
+        }
+        .btn-complete-followup {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(139, 92, 246, 0.12);
+            color: #7c3aed;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            font-size: 0.74rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .btn-complete-followup:hover {
+            background: #7c3aed;
+            color: #ffffff;
+        }
+        body:has(#theme:checked) .btn-complete-followup {
+            color: #c4b5fd;
+            border-color: rgba(196, 181, 253, 0.3);
+        }
+        body:has(#theme:checked) .btn-complete-followup:hover {
+            background: #8b5cf6;
+            color: #ffffff;
+        }
+        .notification-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: nowrap;
+        }
+        .notification-actions .wa-picker {
+            display: inline-flex;
+            align-items: center;
+        }
+        .button-wa-alert,
+        .button-informed,
+        .button-renew {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            height: 28px;
+            min-height: 28px;
+            max-height: 28px;
+            padding: 0 9px;
+            border-radius: 6px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            text-decoration: none;
+            white-space: nowrap;
+            line-height: 1;
+            box-sizing: border-box;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            vertical-align: middle;
+        }
+        .wa-picker .button.ghost.small {
+            height: 28px !important;
+            min-height: 28px !important;
+            max-height: 28px !important;
+            padding: 0 9px !important;
+            font-size: 0.74rem !important;
+            font-weight: 700 !important;
+            border-radius: 6px !important;
+            white-space: nowrap !important;
+            line-height: 1 !important;
+            box-sizing: border-box !important;
+        }
+        .button-wa-alert {
+            background: rgba(37, 211, 102, 0.12);
+            color: #15803d !important;
+            border: 1px solid rgba(37, 211, 102, 0.35);
+        }
+        .button-wa-alert svg {
+            flex-shrink: 0;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .button-wa-alert:hover {
+            background: #25D366;
+            color: #ffffff !important;
+            border-color: #25D366;
+        }
+        .button-wa-alert:hover svg {
+            fill: #ffffff;
+        }
+        body:has(#theme:checked) .button-wa-alert {
+            background: rgba(37, 211, 102, 0.15);
+            color: #4ade80 !important;
+            border-color: rgba(74, 222, 128, 0.35);
+        }
+        body:has(#theme:checked) .button-wa-alert:hover {
+            background: #22c55e;
+            color: #ffffff !important;
+            border-color: #22c55e;
+        }
+        .button-wa {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #25D366;
+            color: #ffffff !important;
+            text-decoration: none;
+            font-size: 0.76rem;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 6px;
+            transition: background 0.15s ease;
+        }
+        .button-wa:hover {
+            background: #1ebc57;
+        }
+        .button-renew {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--blue-600) !important;
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+        .button-renew:hover {
+            background: rgba(59, 130, 246, 0.25);
+            color: var(--blue-700) !important;
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+        body:has(#theme:checked) .button-renew {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa !important;
+            border-color: rgba(96, 165, 250, 0.3);
+        }
+        body:has(#theme:checked) .button-renew:hover {
+            background: rgba(59, 130, 246, 0.3);
+            color: #93c5fd !important;
+            border-color: rgba(96, 165, 250, 0.5);
+        }
+        .button-informed {
+            background: rgba(245, 158, 11, 0.12);
+            color: #d97706 !important;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        .button-informed:hover {
+            background: #d97706;
+            color: #ffffff !important;
+            border-color: #d97706;
+        }
+        body:has(#theme:checked) .button-informed {
+            color: #fbbf24 !important;
+            border-color: rgba(251, 191, 36, 0.3);
+        }
+        body:has(#theme:checked) .button-informed:hover {
+            background: #f59e0b;
+            color: #1e293b !important;
+            border-color: #f59e0b;
+        }
+        .audience-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #e0e7ff;
+            color: #4338ca;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        body:has(#theme:checked) .audience-tag {
+            background: #312e81;
+            color: #c7d2fe;
+        }
+
+        /* Batch WhatsApp Modal */
+        .batch-wa-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 100000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .batch-wa-overlay.open {
+            display: flex;
+            animation: batchFadeIn 0.2s ease-out;
+        }
+        @keyframes batchFadeIn {
+            from { opacity: 0; transform: scale(0.97); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .batch-wa-modal {
+            background: var(--surface, #ffffff);
+            color: var(--text-main, #0f172a);
+            width: 100%;
+            max-width: 820px;
+            max-height: 90vh;
+            border-radius: 16px;
+            border: 1px solid var(--line, #e2e8f0);
+            box-shadow: 0 20px 48px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        body:has(#theme:checked) .batch-wa-modal {
+            background: #1e293b;
+            border-color: #334155;
+            color: #f8fafc;
+        }
+        .batch-wa-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--line, #e2e8f0);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, rgba(37, 211, 102, 0.08), rgba(14, 165, 233, 0.08));
+        }
+        body:has(#theme:checked) .batch-wa-header {
+            border-bottom-color: #334155;
+            background: linear-gradient(135deg, rgba(37, 211, 102, 0.12), rgba(14, 165, 233, 0.12));
+        }
+        .batch-wa-header h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-main);
+        }
+        body:has(#theme:checked) .batch-wa-header h3 {
+            color: #f8fafc;
+        }
+        .batch-wa-body {
+            padding: 20px 24px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .batch-wa-body {
+                grid-template-columns: 1fr;
+            }
+        }
+        .batch-wa-col {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .batch-vehicle-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--line, #e2e8f0);
+            background: var(--surface, #ffffff);
+            font-size: 0.85rem;
+            gap: 8px;
+        }
+        body:has(#theme:checked) .batch-vehicle-item {
+            background: #0f172a;
+            border-color: #334155;
+        }
+        .batch-vehicle-item label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            flex: 1;
+            margin: 0;
+        }
+        .batch-preview-textarea {
+            width: 100%;
+            height: 340px;
+            border-radius: 8px;
+            border: 1px solid var(--line, #cbd5e1);
+            background: #f8fafc;
+            color: #0f172a;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.8rem;
+            padding: 12px;
+            resize: none;
+            line-height: 1.45;
+        }
+        body:has(#theme:checked) .batch-preview-textarea {
+            background: #0f172a;
+            border-color: #334155;
+            color: #f1f5f9;
+        }
+        .batch-wa-footer {
+            padding: 14px 24px;
+            border-top: 1px solid var(--line, #e2e8f0);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--surface, #ffffff);
+        }
+        body:has(#theme:checked) .batch-wa-footer {
+            background: #1e293b;
+            border-top-color: #334155;
+        }
+        .notification-footer {
+            padding: 10px 16px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        body:has(#theme:checked) .notification-footer {
+            background: #0f172a;
+            border-top-color: #334155;
+        }
+        .btn-batch-whatsapp {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: #15803d;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap !important;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            line-height: 1.2;
+        }
+        .btn-batch-whatsapp:hover {
+            background: rgba(34, 197, 94, 0.22);
+            border-color: #16a34a;
+            color: #166534;
+        }
+        body:has(#theme:checked) .btn-batch-whatsapp {
+            color: #4ade80;
+            background: rgba(34, 197, 94, 0.15);
+            border-color: rgba(74, 222, 128, 0.35);
+        }
+        body:has(#theme:checked) .btn-batch-whatsapp:hover {
+            background: rgba(34, 197, 94, 0.25);
+            color: #86efac;
+        }
+        .link-view-all-reminders {
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: #0284c7;
+            text-decoration: none;
+            white-space: nowrap !important;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.15s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .link-view-all-reminders:hover {
+            color: #0369a1;
+            text-decoration: underline;
+        }
+        body:has(#theme:checked) .link-view-all-reminders {
+            color: #38bdf8;
+        }
+        body:has(#theme:checked) .link-view-all-reminders:hover {
+            color: #7dd3fc;
+        }
+
+        /* WhatsApp Picker Portal Dropdown */
+        .wa-portal-dropdown {
+            position: fixed;
+            z-index: 999999;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+            min-width: 240px;
+            overflow: hidden;
+            font-family: inherit;
+            animation: popIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        body:has(#theme:checked) .wa-portal-dropdown {
+            background: #1e293b;
+            border-color: #334155;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+        }
+        .wa-portal-header {
+            padding: 8px 12px 6px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748b;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        body:has(#theme:checked) .wa-portal-header {
+            border-bottom-color: #334155;
+            color: #94a3b8;
+        }
+        .wa-portal-item {
+            display: flex;
+            flex-direction: column;
+            padding: 9px 12px;
+            text-decoration: none;
+            color: #111827;
+            transition: background 0.15s;
+            background: none;
+            border: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        body:has(#theme:checked) .wa-portal-item {
+            color: #f1f5f9;
+        }
+        .wa-portal-item:hover {
+            background: #f1f5f9;
+        }
+        body:has(#theme:checked) .wa-portal-item:hover {
+            background: #334155;
+        }
+        .wa-portal-item + .wa-portal-item {
+            border-top: 1px solid #e2e8f0;
+        }
+        body:has(#theme:checked) .wa-portal-item + .wa-portal-item {
+            border-top-color: #334155;
+        }
+        .wa-portal-subtitle {
+            font-size: 0.73rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        body:has(#theme:checked) .wa-portal-subtitle {
+            color: #94a3b8;
+        }
+
+        /* WhatsApp Client Choice & Preference Modals */
+        .wa-choice-card {
+            border: 1.5px solid var(--line, #e2e8f0);
+            background: var(--surface, #ffffff);
+            transition: all 0.2s ease;
+        }
+        .wa-choice-card:hover {
+            border-color: #25D366 !important;
+            background: rgba(37, 211, 102, 0.08) !important;
+            transform: translateY(-1px);
+        }
+        body:has(#theme:checked) .wa-choice-card {
+            background: #0f172a;
+            border-color: #334155;
+        }
+        body:has(#theme:checked) .wa-choice-card:hover {
+            border-color: #25D366 !important;
+            background: rgba(37, 211, 102, 0.15) !important;
+        }
+        .wa-pref-radio-card {
+            border: 1.5px solid var(--line, #e2e8f0);
+            background: var(--surface, #ffffff);
+            transition: all 0.2s ease;
+        }
+        .wa-pref-radio-card:hover {
+            border-color: #25D366 !important;
+            background: rgba(37, 211, 102, 0.05) !important;
+        }
+        body:has(#theme:checked) .wa-pref-radio-card {
+            background: #0f172a;
+            border-color: #334155;
+        }
+        body:has(#theme:checked) .wa-pref-radio-card:hover {
+            border-color: #25D366 !important;
+            background: rgba(37, 211, 102, 0.12) !important;
+        }
+
+        /* User Profile Dropdown Menu */
+        .user-profile-dropdown {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        .user-menu-btn {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 4px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 0.86rem;
+            border: 1px solid transparent;
+        }
+        .user-menu-btn:hover {
+            background: var(--surface-hover);
+            border-color: var(--border);
+        }
+        .dropdown-chevron {
+            color: var(--muted);
+            transition: transform 0.2s ease;
+        }
+        .user-profile-dropdown .popup input:checked ~ .user-menu-btn .dropdown-chevron {
+            transform: rotate(180deg);
+        }
+        .user-dropdown-nav {
+            min-width: 175px !important;
+            padding: 6px !important;
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: 0 16px 36px -8px rgba(0,0,0,0.2) !important;
+        }
+        body:has(#theme:checked) .user-dropdown-nav {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        .user-dropdown-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.15s ease;
+        }
+        .user-dropdown-item:hover {
+            background: rgba(239, 68, 68, 0.08);
+            color: var(--danger);
+        }
+
+        /* Documents Sidebar Dropdown */
+        .nav-dropdown {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .nav-dropdown-btn {
+            width: 100%;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+            font-size: inherit;
+            font-weight: inherit;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 38px;
+            padding: 0 13px;
+            border-left: 3px solid transparent;
+            transition: all 0.15s ease;
+        }
+        .nav-dropdown-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .nav-dropdown-btn.active {
+            color: #fff;
+            background: rgba(8, 189, 250, 0.13);
+            border-left-color: var(--cyan);
+        }
+        .nav-dropdown.open .nav-dropdown-chevron {
+            transform: rotate(180deg);
+        }
+        .nav-dropdown-menu {
+            display: none;
+            flex-direction: column;
+            gap: 2px;
+            padding: 4px 0 6px 36px;
+        }
+        .nav-dropdown.open .nav-dropdown-menu {
+            display: flex;
+        }
+        .nav-sublink {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 32px;
+            padding: 0 10px;
+            border-radius: 6px;
+            color: rgba(255, 255, 255, 0.65);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+        .nav-sublink:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .nav-sublink.active {
+            color: var(--cyan, #08bdfa);
+            background: rgba(8, 189, 250, 0.18);
+            font-weight: 700;
+        }
+        .nav-sub-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.7;
+            flex-shrink: 0;
+        }
+        /* Collapsed Sidebar Flyout for Dropdown */
+        .sidebar.collapsed .nav-dropdown-chevron {
+            display: none !important;
+        }
+        .sidebar.collapsed .nav-dropdown-menu {
+            position: absolute;
+            left: 100%;
+            top: 0;
+            min-width: 170px;
+            background: #001d6c;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            margin-left: 8px;
+        }
+        .sidebar.collapsed .nav-dropdown:hover .nav-dropdown-menu {
+            display: flex;
+        }
+        .sidebar.collapsed .nav-dropdown .nav-sublink {
+            padding: 8px 12px;
+        }
+        /* Prevent window-level horizontal scrollbar globally */
+        html, body {
+            overflow-x: clip !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+        .sidebar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            bottom: 0 !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            width: 260px !important;
+            z-index: 1001 !important;
+            box-sizing: border-box !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+        }
+        .sidebar.collapsed,
+        .app-shell.collapsed-sidebar .sidebar {
+            width: 70px !important;
+            min-width: 70px !important;
+        }
+        .app-shell {
+            display: block !important;
+            padding-left: 260px !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            min-height: 100vh !important;
+            transition: padding-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .app-shell.collapsed-sidebar {
+            padding-left: 70px !important;
+        }
+        .app-main {
+            min-width: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            padding-top: 76px !important;
+        }
+        .app-shell,
+        .app-main {
+            overflow-x: clip !important;
+        }
+        .topbar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 260px !important;
+            right: 0 !important;
+            height: 76px !important;
+            min-height: 76px !important;
+            box-sizing: border-box !important;
+            z-index: 1000 !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+            transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .app-shell.collapsed-sidebar .topbar {
+            left: 70px !important;
+        }
+        body:has(#theme:checked) .topbar {
+            background-color: rgba(10, 10, 10, 0.95) !important;
+            border-bottom: 1px solid #1e293b !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+        }
+        @media (max-width: 780px) {
+            .app-shell,
+            .app-shell.collapsed-sidebar {
+                padding-left: 0 !important;
+            }
+            .topbar {
+                left: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body class="preload public-body branch-rto">
+
+<div class="public-shell" style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: url('/login_page_MYGTS.svg') center/cover no-repeat; padding: 20px; box-sizing: border-box;">
+    
+    <section class="public-form-panel" style="background: #ffffff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); padding: clamp(32px, 5vw, 48px); width: 100% !important; max-width: 480px !important; min-width: min(100%, 480px) !important; flex: 0 0 auto; box-sizing: border-box; min-height: auto;">
+        <div class="login-card" style="width: 100%; box-sizing: border-box;">
+            <a class="brand-lockup" style="color: #111; margin-bottom: 40px; justify-content: center; display: flex;" href="/Home/Index">
+                <img src="/images/logo.jpg" alt="MYGTS Logo" style="height: 40px; border-radius: 4px; margin-right: 12px;" />
+                <span><strong style="color: #111;">MYGTS</strong><small style="color: rgba(0,0,0,0.6);">Fleet intelligence</small></span>
+            </a>
+            
+            <h1 style="color: #111; text-align: center; margin-bottom: 8px; font-size: 2.2rem;">Welcome back.</h1>
+            <p class="lede" style="color: rgba(0,0,0,0.6); text-align: center; margin-bottom: 20px;">Sign in to your operating view.</p>
+
+            <!-- Database Connectivity Status Indicator (Only shown on error) -->
+
+            <!-- Session Expiry / Kicked Notice -->
+
+            <!-- Login Error Alerts -->
+
+            <form method="post" novalidate action="/">
+                <div class="field" style="margin-bottom: 20px;">
+                    <label class="form-label" style="color: #333; font-weight: 600; font-size: 0.88rem; margin-bottom: 6px; display: block;" for="Branch">Branch</label>
+                    <select class="select" data-testid="login-branch" style="background: #f8f9fa; border: 1px solid #dee2e6; color: #111; width: 100%; height: 42px; border-radius: 8px; padding: 0 12px; font-size: 0.95rem; font-weight: 600; cursor: pointer;" data-val="true" data-val-required="The Branch field is required." id="Branch" name="Branch">
+                        <option value="DMG">DMG</option>
+                        <option value="RTO" selected="selected">RTO</option>
+                        <option value="Expenditure">EXPENDITURE</option>
+                    </select>
+                </div>
+
+                <div class="field" style="margin-bottom: 20px;">
+                    <label class="form-label" style="color: #333;" for="Email">Username or Email</label>
+                    <input class="input user-email" autocomplete="username" placeholder="e.g. admin@mygts or user@company.com" data-testid="login-email" style="background: #f8f9fa; border: 1px solid #dee2e6; color: #111;" type="text" data-val="true" data-val-required="Please enter your username or email." id="Email" name="Email" value="" />
+                    <span style="color: #ff3333;" class="field-validation-valid" data-valmsg-for="Email" data-valmsg-replace="true"></span>
+                </div>
+                
+                <div class="field" style="margin-bottom: 20px;">
+                    <label class="form-label" style="color: #333;" for="Password">Password</label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input id="LoginPassword" class="input user-password" autocomplete="current-password" placeholder="e.g. your password" data-testid="login-password" style="background: #f8f9fa; border: 1px solid #dee2e6; color: #111; padding-right: 40px;" type="password" data-val="true" data-val-required="Please enter your password." name="Password" />
+                        <button type="button" onclick="toggleLoginPassword(this)" title="Show/Hide password" style="position: absolute; right: 8px; background: transparent; border: none; cursor: pointer; color: #666; padding: 4px; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </button>
+                    </div>
+                    <span style="color: #ff3333;" class="field-validation-valid" data-valmsg-for="Password" data-valmsg-replace="true"></span>
+                </div>
+
+                <button class="button" type="submit" style="width: 100%; background: #0056b3; color: #ffffff; font-weight: 600; margin-top: 8px;" data-testid="login-submit-button">
+                    Sign in to MYGTS <span aria-hidden="true">→</span>
+                </button>
+            <input name="__RequestVerificationToken" type="hidden" value="CfDJ8GjWw5sMjfpLqSpHlvOCa2yw1xesOFuVZfQqtnYAobIBCSrcRSpC6YczaEUkI82sxKAZ_ZLdux1I1zHdhgjPznZWl8Y50_Nl7lsD644RX1-voL3QTr0qJiGdB9-KPynxEntVYxZ64B9987YExJs1E-g" /></form>
+
+
+        </div>
+    </section>
+</div>
+
+
+<!-- Back to top button -->
+<!-- Global Batch WhatsApp Composer Modal -->
+<div b-9antoqvsf4 id="batchWaModalOverlay" class="batch-wa-overlay" onclick="handleBatchWaOverlayClick(event)">
+    <div b-9antoqvsf4 class="batch-wa-modal" onclick="event.stopPropagation()">
+        <div b-9antoqvsf4 class="batch-wa-header">
+            <h3 b-9antoqvsf4>
+                <span b-9antoqvsf4 style="color: #25D366; display: flex; align-items: center;">
+                    <svg b-9antoqvsf4 width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path b-9antoqvsf4 d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                </span>
+                Batch WhatsApp Renewal Composer
+            </h3>
+            <button b-9antoqvsf4 type="button" class="btn-dismiss-alert" onclick="closeBatchWhatsAppModal()" style="font-size: 1.5rem; line-height: 1;">&times;</button>
+        </div>
+        <div b-9antoqvsf4 class="batch-wa-body">
+            <!-- Left Column: Controls & Vehicles Queue -->
+            <div b-9antoqvsf4 class="batch-wa-col">
+                <div b-9antoqvsf4>
+                    <label b-9antoqvsf4 class="form-label" style="font-weight: 700; font-size: 0.82rem; margin-bottom: 4px; display: block;">Select Vendor</label>
+                    <select b-9antoqvsf4 id="batchVendorSelect" class="input" onchange="onBatchVendorSelectChanged()" style="width: 100%;">
+                        <option value="">-- Choose Vendor --</option>
+                    </select>
+                </div>
+
+                <div b-9antoqvsf4>
+                    <label b-9antoqvsf4 class="form-label" style="font-weight: 700; font-size: 0.82rem; margin-bottom: 4px; display: block;">Vendor WhatsApp Phone</label>
+                    <input b-9antoqvsf4 type="text" id="batchVendorPhone" class="input" placeholder="e.g. 9876543210" style="width: 100%;" />
+                </div>
+
+                <div b-9antoqvsf4>
+                    <div b-9antoqvsf4 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label b-9antoqvsf4 class="form-label" style="font-weight: 700; font-size: 0.82rem; margin: 0;">Expiring Vehicles Queue</label>
+                        <span b-9antoqvsf4 id="batchVehicleCountBadge" style="font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 12px; background: rgba(14, 165, 233, 0.15); color: #0ea5e9;">0 selected</span>
+                    </div>
+                    <div b-9antoqvsf4 id="batchVehicleList" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: rgba(0,0,0,0.02);">
+                        <div b-9antoqvsf4 style="padding: 14px; text-align: center; color: var(--muted); font-size: 0.8rem;">Select a vendor to auto-load expiring vehicles</div>
+                    </div>
+                </div>
+
+                <!-- Add Extra Vehicle Manual Input -->
+                <div b-9antoqvsf4 style="padding-top: 6px; border-top: 1px dashed var(--line);">
+                    <label b-9antoqvsf4 class="form-label" style="font-weight: 700; font-size: 0.8rem; margin-bottom: 4px; display: block;">+ Add Another Vehicle</label>
+                    <div b-9antoqvsf4 style="display: flex; gap: 6px;">
+                        <input b-9antoqvsf4 type="text" id="batchManualVehNo" class="input" placeholder="Vehicle No (e.g. KA25AB1234)" style="flex: 1; font-size: 0.8rem;" />
+                        <input b-9antoqvsf4 type="date" id="batchManualExpiry" class="input" style="width: 130px; font-size: 0.8rem;" />
+                        <button b-9antoqvsf4 type="button" class="button secondary small" onclick="addManualVehicleToBatch()" style="white-space: nowrap; font-size: 0.8rem;">Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Bilingual Preview -->
+            <div b-9antoqvsf4 class="batch-wa-col">
+                <div b-9antoqvsf4 style="display: flex; justify-content: space-between; align-items: center;">
+                    <label b-9antoqvsf4 class="form-label" style="font-weight: 700; font-size: 0.82rem; margin: 0;">Bilingual Message Preview (English &amp; ಕನ್ನಡ)</label>
+                    <button b-9antoqvsf4 type="button" class="button ghost small" onclick="copyBatchMessageText()" style="font-size: 0.75rem; color: var(--blue-600); font-weight: 600;">📋 Copy</button>
+                </div>
+                <textarea b-9antoqvsf4 id="batchMessagePreview" class="batch-preview-textarea" spellcheck="false" placeholder="Message preview will appear here..."></textarea>
+            </div>
+        </div>
+        <div b-9antoqvsf4 class="batch-wa-footer">
+            <button b-9antoqvsf4 type="button" class="button ghost" onclick="closeBatchWhatsAppModal()">Cancel</button>
+            <div b-9antoqvsf4 style="display: flex; gap: 8px;">
+                <button b-9antoqvsf4 type="button" class="button secondary" onclick="exportBatchVehiclesExcel()" style="color: #16a34a; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                    <svg b-9antoqvsf4 width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path b-9antoqvsf4 d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline b-9antoqvsf4 points="7 10 12 15 17 10"></polyline><line b-9antoqvsf4 x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Export Excel
+                </button>
+                <button b-9antoqvsf4 type="button" class="button secondary" onclick="copyBatchMessageText()">📋 Copy Text</button>
+                <button b-9antoqvsf4 type="button" class="button primary" onclick="sendBatchWhatsApp()" style="background: #25D366; border-color: #25D366; color: #fff; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                    <svg b-9antoqvsf4 width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path b-9antoqvsf4 d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                    Open in WhatsApp &rarr;
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- WhatsApp Redirection Choice Modal -->
+<div b-9antoqvsf4 id="waClientChoiceModalOverlay" class="batch-wa-overlay" onclick="handleWaChoiceOverlayClick(event)" style="display:none; z-index: 100000; align-items: center; justify-content: center; backdrop-filter: blur(4px); background: rgba(0,0,0,0.55);">
+    <div b-9antoqvsf4 class="batch-wa-modal" onclick="event.stopPropagation()" style="max-width: 480px; padding: 24px; border-radius: 14px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); border: 1px solid var(--border); background: var(--paper);">
+        <div b-9antoqvsf4 style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <div b-9antoqvsf4 style="display: flex; align-items: center; gap: 10px;">
+                <div b-9antoqvsf4 style="width: 38px; height: 38px; border-radius: 50%; background: rgba(37, 211, 102, 0.15); color: #25D366; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                    💬
+                </div>
+                <div b-9antoqvsf4>
+                    <h3 b-9antoqvsf4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-main);">Open WhatsApp</h3>
+                    <p b-9antoqvsf4 style="margin: 2px 0 0; font-size: 0.76rem; color: var(--muted);">Choose where you want to send this message</p>
+                </div>
+            </div>
+            <button b-9antoqvsf4 type="button" class="btn-dismiss-alert" onclick="closeWaChoiceModal()" style="font-size: 1.3rem; border: none; background: transparent; cursor: pointer; color: var(--muted);">&times;</button>
+        </div>
+
+        <div b-9antoqvsf4 style="display: flex; flex-direction: column; gap: 10px; margin: 18px 0;">
+            <button b-9antoqvsf4 type="button" class="wa-choice-card" onclick="selectWhatsAppClient('Web')" style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 10px; cursor: pointer; text-align: left;">
+                <div b-9antoqvsf4 style="font-size: 1.7rem;">🌐</div>
+                <div b-9antoqvsf4 style="flex: 1;">
+                    <strong b-9antoqvsf4 style="display: block; font-size: 0.92rem; color: var(--text-main);">WhatsApp Web</strong>
+                    <span b-9antoqvsf4 style="font-size: 0.75rem; color: var(--muted);">Opens in a new browser tab via web.whatsapp.com</span>
+                </div>
+                <svg b-9antoqvsf4 width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--muted);"><path b-9antoqvsf4 d="M9 18l6-6-6-6"/></svg>
+            </button>
+
+            <button b-9antoqvsf4 type="button" class="wa-choice-card" onclick="selectWhatsAppClient('App')" style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 10px; cursor: pointer; text-align: left;">
+                <div b-9antoqvsf4 style="font-size: 1.7rem;">💻</div>
+                <div b-9antoqvsf4 style="flex: 1;">
+                    <strong b-9antoqvsf4 style="display: block; font-size: 0.92rem; color: var(--text-main);">WhatsApp Desktop App</strong>
+                    <span b-9antoqvsf4 style="font-size: 0.75rem; color: var(--muted);">Opens the desktop or mobile application installed on your device</span>
+                </div>
+                <svg b-9antoqvsf4 width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--muted);"><path b-9antoqvsf4 d="M9 18l6-6-6-6"/></svg>
+            </button>
+        </div>
+
+        <div b-9antoqvsf4 style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: rgba(var(--primary-rgb), 0.05); border-radius: 8px; border: 1px solid var(--line); margin-bottom: 14px;">
+            <label b-9antoqvsf4 style="display: flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; margin: 0; font-size: 0.82rem; font-weight: 600; color: var(--text-main);">
+                <input b-9antoqvsf4 type="checkbox" id="waRememberChoiceCheckbox" style="width: 17px; height: 17px; accent-color: #25D366; cursor: pointer;" />
+                <span b-9antoqvsf4>Remember my choice</span>
+            </label>
+        </div>
+        <div b-9antoqvsf4 style="font-size: 0.72rem; color: var(--muted); text-align: center;">
+            You can change this choice anytime from your Profile menu or User Settings.
+        </div>
+    </div>
+</div>
+
+<!-- WhatsApp Preference Settings Modal -->
+<div b-9antoqvsf4 id="waUserPrefModalOverlay" class="batch-wa-overlay" onclick="handleWaUserPrefOverlayClick(event)" style="display:none; z-index: 100000; align-items: center; justify-content: center; backdrop-filter: blur(4px); background: rgba(0,0,0,0.55);">
+    <div b-9antoqvsf4 class="batch-wa-modal" onclick="event.stopPropagation()" style="max-width: 480px; padding: 24px; border-radius: 14px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); border: 1px solid var(--border); background: var(--paper);">
+        <div b-9antoqvsf4 style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <div b-9antoqvsf4 style="display: flex; align-items: center; gap: 10px;">
+                <div b-9antoqvsf4 style="width: 38px; height: 38px; border-radius: 50%; background: rgba(37, 211, 102, 0.15); color: #25D366; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                    ⚙️
+                </div>
+                <div b-9antoqvsf4>
+                    <h3 b-9antoqvsf4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-main);">WhatsApp Client Preference</h3>
+                    <p b-9antoqvsf4 style="margin: 2px 0 0; font-size: 0.76rem; color: var(--muted);">Default destination for WhatsApp links</p>
+                </div>
+            </div>
+            <button b-9antoqvsf4 type="button" class="btn-dismiss-alert" onclick="closeWaUserPrefModal()" style="font-size: 1.3rem; border: none; background: transparent; cursor: pointer; color: var(--muted);">&times;</button>
+        </div>
+
+        <div b-9antoqvsf4 style="display: flex; flex-direction: column; gap: 10px; margin: 18px 0;">
+            <label b-9antoqvsf4 class="wa-pref-radio-card" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 8px; cursor: pointer;">
+                <input b-9antoqvsf4 type="radio" name="profileWaPref" value="Ask" style="width: 17px; height: 17px; accent-color: #25D366;" />
+                <div b-9antoqvsf4>
+                    <strong b-9antoqvsf4 style="display: block; font-size: 0.88rem; color: var(--text-main);">Always Ask</strong>
+                    <span b-9antoqvsf4 style="font-size: 0.74rem; color: var(--muted);">Prompt me to choose between Web and App every time</span>
+                </div>
+            </label>
+
+            <label b-9antoqvsf4 class="wa-pref-radio-card" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 8px; cursor: pointer;">
+                <input b-9antoqvsf4 type="radio" name="profileWaPref" value="Web" style="width: 17px; height: 17px; accent-color: #25D366;" />
+                <div b-9antoqvsf4>
+                    <strong b-9antoqvsf4 style="display: block; font-size: 0.88rem; color: var(--text-main);">🌐 WhatsApp Web</strong>
+                    <span b-9antoqvsf4 style="font-size: 0.74rem; color: var(--muted);">Always open in browser via web.whatsapp.com</span>
+                </div>
+            </label>
+
+            <label b-9antoqvsf4 class="wa-pref-radio-card" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 8px; cursor: pointer;">
+                <input b-9antoqvsf4 type="radio" name="profileWaPref" value="App" style="width: 17px; height: 17px; accent-color: #25D366;" />
+                <div b-9antoqvsf4>
+                    <strong b-9antoqvsf4 style="display: block; font-size: 0.88rem; color: var(--text-main);">💻 WhatsApp Desktop App</strong>
+                    <span b-9antoqvsf4 style="font-size: 0.74rem; color: var(--muted);">Always launch the desktop/mobile application</span>
+                </div>
+            </label>
+        </div>
+
+        <div b-9antoqvsf4 style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); padding-top: 14px;">
+            <button b-9antoqvsf4 type="button" class="button secondary small" onclick="closeWaUserPrefModal()">Cancel</button>
+            <button b-9antoqvsf4 type="button" class="button btn-primary small" onclick="saveProfileWaPreference()" style="background: #25D366; border-color: #1eb956; color: #fff;">Save Preference</button>
+        </div>
+    </div>
+</div>
+
+<!-- Global Custom Dropdown Option Modal -->
+<div b-9antoqvsf4 id="customDropdownModalOverlay" class="custom-dropdown-overlay" style="display: none;" onclick="CustomDropdownManager.handleOverlayClick(event)">
+    <div b-9antoqvsf4 class="custom-dropdown-modal" onclick="event.stopPropagation()">
+        <div b-9antoqvsf4 class="custom-dropdown-modal-header">
+            <div b-9antoqvsf4 style="display: flex; align-items: center; gap: 10px;">
+                <div b-9antoqvsf4 class="custom-dropdown-icon-pill">
+                    <svg b-9antoqvsf4 width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line b-9antoqvsf4 x1="12" y1="5" x2="12" y2="19"></line>
+                        <line b-9antoqvsf4 x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </div>
+                <div b-9antoqvsf4>
+                    <h3 b-9antoqvsf4 id="customDropdownModalTitle" style="margin: 0; font-size: 1.05rem; font-weight: 700;">
+                        Add New Option
+                    </h3>
+                    <div b-9antoqvsf4 id="customDropdownModalSubtitle" style="font-size: 0.75rem; color: var(--muted, #64748b); margin-top: 2px;">
+                        Manage options for this field
+                    </div>
+                </div>
+            </div>
+            <button b-9antoqvsf4 type="button" class="btn-dismiss-alert" onclick="CustomDropdownManager.closeModal()" style="font-size: 1.5rem; line-height: 1; border: none; background: transparent; cursor: pointer;">&times;</button>
+        </div>
+
+        <div b-9antoqvsf4 class="custom-dropdown-modal-body">
+            <!-- Add Option Form -->
+            <form id="customDropdownAddForm" onsubmit="CustomDropdownManager.submitNewOption(event)">
+                <label b-9antoqvsf4 class="form-label" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; display: block;">
+                    New Option Name
+                </label>
+                <div b-9antoqvsf4 style="display: flex; gap: 8px;">
+                    <input b-9antoqvsf4 type="text" id="customDropdownNewInput" class="input" placeholder="Type new option name..." required style="flex: 1;" autocomplete="off" />
+                    <button b-9antoqvsf4 type="submit" id="customDropdownSubmitBtn" class="button primary" style="white-space: nowrap; font-weight: 600; padding: 0 16px;">
+                        + Add Option
+                    </button>
+                </div>
+                <div b-9antoqvsf4 id="customDropdownAlert" style="display: none; margin-top: 8px; font-size: 0.82rem; padding: 6px 12px; border-radius: 6px;"></div>
+            </form>
+
+            <!-- Existing Custom Options List -->
+            <div b-9antoqvsf4 style="margin-top: 20px;">
+                <div b-9antoqvsf4 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label b-9antoqvsf4 class="form-label" style="font-weight: 600; font-size: 0.82rem; margin: 0; color: var(--muted, #64748b);">
+                        Custom Added Options (This Branch)
+                    </label>
+                    <span b-9antoqvsf4 id="customDropdownCountBadge" style="font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); color: #2563eb;">0 custom</span>
+                </div>
+                <div b-9antoqvsf4 id="customDropdownExistingList" class="custom-dropdown-items-list">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Built-in Defaults preview -->
+            <div b-9antoqvsf4 id="customDropdownDefaultsContainer" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line, #e2e8f0);">
+                <span b-9antoqvsf4 style="font-size: 0.75rem; color: var(--muted, #64748b);">Built-in system defaults:</span>
+                <div b-9antoqvsf4 id="customDropdownDefaultsBadges" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
+                    <!-- Defaults chips -->
+                </div>
+            </div>
+        </div>
+
+        <div b-9antoqvsf4 class="custom-dropdown-modal-footer">
+            <button b-9antoqvsf4 type="button" class="button secondary" onclick="CustomDropdownManager.closeModal()" style="font-size: 0.85rem; padding: 6px 16px;">
+                Done
+            </button>
+        </div>
+    </div>
+</div>
+
+<button b-9antoqvsf4 id="backToTop" class="back-to-top" aria-label="Back to top">
+    <svg b-9antoqvsf4 xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path b-9antoqvsf4 fill-rule="evenodd" d="M8 12a.5.5 0 0 0 .5-.5V5.707l2.146 2.147a.5.5 0 0 0 .708-.708l-3-3a.5.5 0 0 0-.708 0l-3 3a.5.5 0 1 0 .708.708L7.5 5.707V11.5a.5.5 0 0 0 .5.5z"/></svg>
+</button>
+<script src="/js/site.js?v=12&amp;v=xnHMvBCdYrUTsgUd2qfDxdy2zBvZkSGWBfgVtt-odc0"></script>
+<script src="/js/dropdown-manager.js?v=fK1RPKFRLSprLRQJaFBljIsH1kCsnYaGMhVbn35kNNs"></script>
+
+    <script>
+        var loginForm = document.querySelector('form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', function () {
+                try { localStorage.setItem('mygts_last_activity', Date.now().toString()); } catch (_) {}
+            });
+        }
+
+        function toggleLoginPassword(btn) {
+            const input = document.getElementById('LoginPassword');
+            if (input) {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    btn.style.color = '#0056b3';
+                } else {
+                    input.type = 'password';
+                    btn.style.color = '#666';
+                }
+            }
+        }
+    </script>
+
+<script>
+    window.currentUserWhatsAppPref = "Ask";
+
+    function getEffectiveWaPref() {
+        const local = localStorage.getItem('mygts_whatsapp_pref');
+        if (local === 'Web' || local === 'App' || local === 'Ask') return local;
+        if (window.currentUserWhatsAppPref === 'Web' || window.currentUserWhatsAppPref === 'App') {
+            return window.currentUserWhatsAppPref;
+        }
+        return 'Ask';
+    }
+
+    function updateWaBadgeInNav(pref) {
+        const badge = document.getElementById('userWaPrefBadge');
+        if (badge) {
+            badge.textContent = pref === 'Web' ? 'Web' : (pref === 'App' ? 'App' : 'Ask');
+        }
+    }
+
+    function getWhatsAppUrls(rawUrl) {
+        if (!rawUrl) return { web: 'https://web.whatsapp.com/send', app: 'whatsapp://send' };
+        let clean = rawUrl.trim();
+        if (!clean || (!clean.startsWith('http') && !clean.startsWith('whatsapp:'))) {
+            return { web: 'https://web.whatsapp.com/send', app: 'whatsapp://send' };
+        }
+        let web = clean;
+        let app = clean;
+
+        if (clean.startsWith('whatsapp://')) {
+            app = clean;
+            web = clean.replace('whatsapp://send', 'https://web.whatsapp.com/send');
+        } else if (clean.includes('web.whatsapp.com/send')) {
+            web = clean;
+            app = clean.replace('https://web.whatsapp.com/send', 'whatsapp://send');
+        } else if (clean.includes('wa.me/')) {
+            const parts = clean.split('wa.me/');
+            if (parts.length > 1) {
+                const after = parts[1];
+                const qIdx = after.indexOf('?');
+                let phone = qIdx >= 0 ? after.substring(0, qIdx) : after;
+                let query = qIdx >= 0 ? after.substring(qIdx) : '';
+                phone = phone.replace(/\D/g, '');
+                if (phone) {
+                    web = `https://web.whatsapp.com/send?phone=${phone}${query ? '&' + query.substring(1) : ''}`;
+                    app = `whatsapp://send?phone=${phone}${query ? '&' + query.substring(1) : ''}`;
+                } else {
+                    web = `https://web.whatsapp.com/send${query}`;
+                    app = `whatsapp://send${query}`;
+                }
+            }
+        } else if (clean.includes('api.whatsapp.com/send')) {
+            web = clean.replace('https://api.whatsapp.com/send', 'https://web.whatsapp.com/send');
+            app = clean.replace('https://api.whatsapp.com/send', 'whatsapp://send');
+        }
+
+        return { web, app };
+    }
+
+    function launchWhatsAppApp(appUrl) {
+        if (!appUrl || !appUrl.startsWith('whatsapp:')) {
+            appUrl = 'whatsapp://send';
+        }
+        const a = document.createElement('a');
+        a.href = appUrl;
+        a.style.display = 'none';
+        a.dataset.waBypass = 'true';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { a.remove(); }, 500);
+    }
+
+    let pendingWaPayload = null;
+
+    function openWhatsAppMessage(target) {
+        let rawUrl = typeof target === 'string' ? target : (target ? target.url : '');
+        if (!rawUrl && target && target.text) {
+            const phone = (target.phone || '').replace(/\D/g, '');
+            const encText = encodeURIComponent(target.text);
+            rawUrl = phone ? `https://web.whatsapp.com/send?phone=${phone}&text=${encText}` : `https://web.whatsapp.com/send?text=${encText}`;
+        }
+        if (!rawUrl || (!rawUrl.startsWith('http') && !rawUrl.startsWith('whatsapp:'))) {
+            rawUrl = 'https://web.whatsapp.com/send';
+        }
+
+        const urls = getWhatsAppUrls(rawUrl);
+        const pref = getEffectiveWaPref();
+
+        if (pref === 'Web') {
+            window.open(urls.web, '_blank');
+            return;
+        }
+        if (pref === 'App') {
+            launchWhatsAppApp(urls.app);
+            return;
+        }
+
+        pendingWaPayload = urls;
+        const overlay = document.getElementById('waClientChoiceModalOverlay');
+        const chk = document.getElementById('waRememberChoiceCheckbox');
+        if (chk) chk.checked = false;
+        if (overlay) {
+            overlay.style.display = 'flex';
+            overlay.classList.add('open');
+        }
+    }
+
+    function selectWhatsAppClient(choice) {
+        const urls = pendingWaPayload;
+        closeWaChoiceModal();
+
+        const remember = document.getElementById('waRememberChoiceCheckbox')?.checked;
+        if (remember) {
+            setAndPersistWaPreference(choice);
+        }
+
+        if (urls) {
+            if (choice === 'Web') {
+                window.open(urls.web, '_blank');
+            } else {
+                launchWhatsAppApp(urls.app);
+            }
+        }
+        pendingWaPayload = null;
+    }
+
+    function closeWaChoiceModal() {
+        const overlay = document.getElementById('waClientChoiceModalOverlay');
+        if (overlay) {
+            overlay.classList.remove('open');
+            overlay.style.display = 'none';
+        }
+        pendingWaPayload = null;
+    }
+
+    function handleWaChoiceOverlayClick(e) {
+        if (e.target.id === 'waClientChoiceModalOverlay') {
+            closeWaChoiceModal();
+        }
+    }
+
+    function setAndPersistWaPreference(choice) {
+        window.currentUserWhatsAppPref = choice;
+        try { localStorage.setItem('mygts_whatsapp_pref', choice); } catch(e) {}
+        updateWaBadgeInNav(choice);
+
+        fetch('/Account/UpdateWhatsAppPreference', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+            },
+            body: JSON.stringify({ preference: choice })
+        }).catch(() => {});
+    }
+
+    function openWhatsAppPreferenceModal() {
+        const overlay = document.getElementById('waUserPrefModalOverlay');
+        const pref = getEffectiveWaPref();
+        const radios = document.querySelectorAll('input[name="profileWaPref"]');
+        radios.forEach(r => {
+            r.checked = (r.value === pref);
+        });
+        const userToggle = document.getElementById('user-profile-toggle');
+        if (userToggle) userToggle.checked = false;
+
+        if (overlay) {
+            overlay.style.display = 'flex';
+            overlay.classList.add('open');
+        }
+    }
+
+    function closeWaUserPrefModal() {
+        const overlay = document.getElementById('waUserPrefModalOverlay');
+        if (overlay) {
+            overlay.classList.remove('open');
+            overlay.style.display = 'none';
+        }
+    }
+
+    function handleWaUserPrefOverlayClick(e) {
+        if (e.target.id === 'waUserPrefModalOverlay') {
+            closeWaUserPrefModal();
+        }
+    }
+
+    function saveProfileWaPreference() {
+        const selected = document.querySelector('input[name="profileWaPref"]:checked')?.value || 'Ask';
+        setAndPersistWaPreference(selected);
+        closeWaUserPrefModal();
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                toast: true,
+                position: 'bottom-end',
+                icon: 'success',
+                title: selected === 'Ask' ? 'WhatsApp preference: Always Ask' : (selected === 'Web' ? 'Saved: Always open in WhatsApp Web' : 'Saved: Always open in WhatsApp Desktop App'),
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        updateWaBadgeInNav(getEffectiveWaPref());
+    });
+
+    // Global interceptor for all WhatsApp links
+    document.addEventListener('click', function(e) {
+        const a = e.target.closest('a.button-wa, a.button-wa-alert, a.btn-wa-action, a[href*="web.whatsapp.com"], a[href*="wa.me"], a[href*="whatsapp://"], a[href*="api.whatsapp.com"]');
+        if (a) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeWaPortal();
+            if (typeof closeWaPicker === 'function') closeWaPicker(a);
+
+            let href = (a.getAttribute('href') || a.href || '').trim();
+            if (!href || href === '#' || href === 'javascript:void(0)' || href === 'null' || href === 'undefined' || (!href.startsWith('http') && !href.startsWith('whatsapp:'))) {
+                href = 'https://web.whatsapp.com/send';
+            }
+            openWhatsAppMessage(href);
+        }
+    }, true);
+
+    function dismissLifecycleShift(vehicleNo, shiftType) {
+        try {
+            localStorage.setItem('dismissed_shift_' + vehicleNo + '_' + shiftType, '1');
+        } catch (e) {}
+        const item = document.getElementById('shift-item-' + vehicleNo + '-' + shiftType);
+        if (item) {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(20px)';
+            setTimeout(() => {
+                item.remove();
+                updateAlertBadgeCount();
+            }, 200);
+        }
+    }
+
+    let activeWaPortal = null;
+    let activeWaBtn = null;
+
+    function escapeWaAttr(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'")
+            .replace(/"/g, '&quot;')
+            .replace(/[\r\n]+/g, ' ');
+    }
+
+    function handleWaPortalClick(url, contactType, contactName, phone) {
+        closeWaPortal();
+        let targetUrl = (url || '').trim();
+        if (!targetUrl || targetUrl === 'null' || targetUrl === 'undefined' || targetUrl === '#' || (!targetUrl.startsWith('http') && !targetUrl.startsWith('whatsapp:'))) {
+            const clean = (phone || '').replace(/\D/g, '');
+            if (clean) {
+                const finalPhone = clean.length === 10 ? '91' + clean : clean;
+                targetUrl = `https://web.whatsapp.com/send?phone=${finalPhone}`;
+            } else {
+                targetUrl = `https://web.whatsapp.com/send`;
+            }
+        }
+        openWhatsAppMessage(targetUrl);
+    }
+
+    function openWaPickerPortal(btn, ownerUrl, vendorUrl, ownerName, cellNo, vendorName, vendorPhone) {
+        if (activeWaPortal && activeWaBtn === btn) {
+            closeWaPortal();
+            return;
+        }
+        closeWaPortal();
+
+        if (!ownerUrl && btn.dataset) {
+            ownerUrl = btn.dataset.ownerUrl || '';
+            vendorUrl = btn.dataset.vendorUrl || '';
+            ownerName = btn.dataset.ownerName || '';
+            cellNo = btn.dataset.cellNo || '';
+            vendorName = btn.dataset.vendorName || '';
+            vendorPhone = btn.dataset.vendorPhone || '';
+        }
+
+        const dropdown = document.createElement('div');
+        dropdown.id = 'wa-portal-dropdown';
+        dropdown.className = 'wa-portal-dropdown';
+
+        const vendorSub = vendorPhone ? vendorPhone : (vendorName ? 'Opens WhatsApp — select contact' : 'Opens WhatsApp');
+
+        dropdown.innerHTML = `
+            <div class="wa-portal-header">Send message to</div>
+            <button type="button" class="wa-portal-item" onclick="handleWaPortalClick('${escapeWaAttr(ownerUrl)}', 'Owner', '${escapeWaAttr(ownerName)}', '${escapeWaAttr(cellNo)}')">
+                <span style="font-weight:600; font-size:0.82rem; display:flex; align-items:center; gap:5px;">
+                    <span>👤</span> Owner${ownerName ? ' — ' + escapeWaHtml(ownerName) : ''}
+                </span>
+                <span class="wa-portal-subtitle">${escapeWaHtml(cellNo) || 'Opens WhatsApp — select contact'}</span>
+            </button>
+            <button type="button" class="wa-portal-item" onclick="handleWaPortalClick('${escapeWaAttr(vendorUrl)}', 'Vendor', '${escapeWaAttr(vendorName)}', '${escapeWaAttr(vendorPhone)}')">
+                <span style="font-weight:600; font-size:0.82rem; display:flex; align-items:center; gap:5px;">
+                    <span>🏪</span> Vendor${vendorName ? ' — ' + escapeWaHtml(vendorName) : ''}
+                </span>
+                <span class="wa-portal-subtitle">${escapeWaHtml(vendorSub)}</span>
+            </button>
+        `;
+
+        document.body.appendChild(dropdown);
+        activeWaPortal = dropdown;
+        activeWaBtn = btn;
+
+        // Position dropdown relative to the button
+        const rect = btn.getBoundingClientRect();
+        const dropdownHeight = dropdown.offsetHeight || 130;
+        const spaceBelow = window.innerHeight - rect.bottom;
+
+        if (spaceBelow >= dropdownHeight + 10 || rect.top < dropdownHeight) {
+            dropdown.style.top = (rect.bottom + 6) + 'px';
+        } else {
+            dropdown.style.top = Math.max(10, rect.top - dropdownHeight - 6) + 'px';
+        }
+
+        const dropdownWidth = dropdown.offsetWidth || 240;
+        if (rect.left + dropdownWidth <= window.innerWidth - 10) {
+            dropdown.style.left = Math.max(10, rect.left) + 'px';
+        } else {
+            dropdown.style.right = Math.max(10, window.innerWidth - rect.right) + 'px';
+        }
+    }
+
+    function closeWaPortal() {
+        if (activeWaPortal) {
+            activeWaPortal.remove();
+            activeWaPortal = null;
+            activeWaBtn = null;
+        }
+    }
+
+    function escapeWaHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function toggleWaPicker(btn) {
+        const dropdown = btn.nextElementSibling;
+        if (!dropdown) return;
+        const isOpen = dropdown.style.display !== 'none';
+        document.querySelectorAll('.wa-picker-dropdown').forEach(d => d.style.display = 'none');
+        if (!isOpen) dropdown.style.display = 'block';
+    }
+
+    function closeWaPicker(link) {
+        const dropdown = link.closest('.wa-picker-dropdown');
+        if (dropdown) dropdown.style.display = 'none';
+    }
+
+    document.addEventListener('click', function(e) {
+        if (activeWaPortal) {
+            if (!activeWaPortal.contains(e.target) && !activeWaBtn?.contains(e.target)) {
+                closeWaPortal();
+            }
+        }
+        if (!e.target.closest('.wa-picker')) {
+            document.querySelectorAll('.wa-picker-dropdown').forEach(d => d.style.display = 'none');
+        }
+    });
+
+    window.addEventListener('resize', closeWaPortal);
+    window.addEventListener('scroll', closeWaPortal, true);
+
+    function dismissNotification(vehicleNo) {
+        const item = document.getElementById('alert-item-' + vehicleNo) || document.getElementById('urgent-dev-' + vehicleNo);
+        if (item) {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(20px)';
+            setTimeout(() => {
+                item.remove();
+                updateAlertBadgeCount();
+            }, 200);
+        }
+    }
+
+    function markVehicleInformed(vehicleNo) {
+        const selector = `#alert-item-${CSS.escape(vehicleNo)}, #urgent-dev-${CSS.escape(vehicleNo)}, #profile-exp-${CSS.escape(vehicleNo)}`;
+        document.querySelectorAll(selector).forEach(item => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(20px)';
+            setTimeout(() => {
+                item.remove();
+                updateAlertBadgeCount();
+            }, 200);
+        });
+        const formData = new FormData();
+        formData.append('vehicleNo', vehicleNo);
+        fetch('/Alerts/MarkInformed', {
+            method: 'POST',
+            body: formData
+        }).then(res => {
+            if (res.ok) {
+                pollAlertsNow();
+            }
+        }).catch(() => {});
+    }
+
+    // --- Batch WhatsApp Functions ---
+    let batchVendorsCache = [];
+    let batchCurrentVehicles = [];
+    let isFetchingBatchVendors = false;
+
+    function getBatchBranch() {
+        const p = (window.location.pathname || '').toLowerCase();
+        if (p.startsWith('/rto')) return 'RTO';
+        if (p.startsWith('/dmg')) return 'DMG';
+        const match = document.cookie.match(/(?:^|;\s*)mygts_branch=([^;]+)/);
+        if (match && match[1]) {
+            const b = decodeURIComponent(match[1]).toUpperCase();
+            if (b === 'RTO') return 'RTO';
+            if (b === 'DMG') return 'DMG';
+        }
+        return 'DMG';
+    }
+
+    function populateBatchVendorDropdown(initialVendor) {
+        const select = document.getElementById('batchVendorSelect');
+        if (!select) return;
+        let optionsHtml = '<option value="">-- Choose Vendor --</option>';
+        let foundInitial = false;
+
+        if (Array.isArray(batchVendorsCache) && batchVendorsCache.length > 0) {
+            batchVendorsCache.forEach(v => {
+                if (!v || !v.vendor) return;
+                const vName = String(v.vendor).trim();
+                const isSelected = Boolean(initialVendor && vName.toLowerCase() === String(initialVendor).trim().toLowerCase());
+                if (isSelected) foundInitial = true;
+                const dueBadge = (v.expiringCount && v.expiringCount > 0) ? ` (${v.expiringCount} due)` : ((v.totalCount && v.totalCount > 0) ? ` (${v.totalCount} veh)` : '');
+                optionsHtml += `<option value="${escapeWaHtml(vName)}" data-phone="${escapeWaHtml(v.phone || '')}" ${isSelected ? 'selected' : ''}>${escapeWaHtml(vName)}${dueBadge}</option>`;
+            });
+        }
+
+        if (initialVendor && !foundInitial) {
+            optionsHtml += `<option value="${escapeWaHtml(initialVendor)}" data-phone="" selected>${escapeWaHtml(initialVendor)}</option>`;
+        }
+        select.innerHTML = optionsHtml;
+
+        const opt = select.options[select.selectedIndex];
+        const phoneInput = document.getElementById('batchVendorPhone');
+        if (phoneInput) {
+            if (opt && opt.dataset.phone) {
+                phoneInput.value = opt.dataset.phone;
+            } else if (!opt || !opt.value) {
+                phoneInput.value = '';
+            }
+        }
+    }
+
+    function fetchBatchVendors(initialVendor, callback) {
+        if (isFetchingBatchVendors) return;
+        isFetchingBatchVendors = true;
+        const branch = getBatchBranch();
+        const urls = [
+            `/${branch}/Alerts/GetExpiringVendorsSummary`,
+            `/Alerts/GetExpiringVendorsSummary?branch=${branch}`
+        ];
+
+        function tryFetch(idx) {
+            if (idx >= urls.length) {
+                isFetchingBatchVendors = false;
+                if (callback) callback();
+                return;
+            }
+            fetch(urls[idx], { headers: { 'Accept': 'application/json' } })
+                .then(r => {
+                    if (!r.ok) throw new Error('Status ' + r.status);
+                    const ct = r.headers.get('content-type') || '';
+                    if (!ct.includes('application/json')) throw new Error('Not JSON');
+                    return r.json();
+                })
+                .then(data => {
+                    isFetchingBatchVendors = false;
+                    if (Array.isArray(data) && data.length > 0) {
+                        batchVendorsCache = data;
+                        populateBatchVendorDropdown(initialVendor);
+                    }
+                    if (callback) callback();
+                })
+                .catch(() => {
+                    tryFetch(idx + 1);
+                });
+        }
+        tryFetch(0);
+    }
+
+    function openBatchWhatsAppModal(initialVendor) {
+        const overlay = document.getElementById('batchWaModalOverlay');
+        if (!overlay) return;
+        overlay.classList.add('open');
+
+        const select = document.getElementById('batchVendorSelect');
+
+        if (batchVendorsCache && batchVendorsCache.length > 0) {
+            populateBatchVendorDropdown(initialVendor);
+            if (initialVendor) {
+                loadBatchVehiclesForVendor(initialVendor);
+            } else if (select && select.value) {
+                loadBatchVehiclesForVendor(select.value);
+            } else {
+                batchCurrentVehicles = [];
+                renderBatchVehicleQueue();
+                updateBatchMessagePreview();
+            }
+        } else {
+            if (select) {
+                select.innerHTML = '<option value="">Loading vendors...</option>';
+            }
+            fetchBatchVendors(initialVendor, () => {
+                const sel = document.getElementById('batchVendorSelect');
+                if (initialVendor) {
+                    loadBatchVehiclesForVendor(initialVendor);
+                } else if (sel && sel.value) {
+                    loadBatchVehiclesForVendor(sel.value);
+                } else {
+                    batchCurrentVehicles = [];
+                    renderBatchVehicleQueue();
+                    updateBatchMessagePreview();
+                }
+            });
+        }
+    }
+
+    // Preload vendors when DOM is ready so modal dropdown is pre-populated
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => { setTimeout(() => fetchBatchVendors(), 400); });
+    } else {
+        setTimeout(() => fetchBatchVendors(), 400);
+    }
+
+    function closeBatchWhatsAppModal() {
+        const overlay = document.getElementById('batchWaModalOverlay');
+        if (overlay) overlay.classList.remove('open');
+    }
+
+    function handleBatchWaOverlayClick(e) {
+        if (e.target.id === 'batchWaModalOverlay') {
+            closeBatchWhatsAppModal();
+        }
+    }
+
+    function onBatchVendorSelectChanged() {
+        const select = document.getElementById('batchVendorSelect');
+        const selectedVendor = select ? select.value : '';
+        const phoneInput = document.getElementById('batchVendorPhone');
+        if (!selectedVendor) {
+            batchCurrentVehicles = [];
+            if (phoneInput) phoneInput.value = '';
+            renderBatchVehicleQueue();
+            updateBatchMessagePreview();
+            return;
+        }
+
+        const opt = select.options[select.selectedIndex];
+        if (phoneInput && opt && opt.dataset.phone) {
+            phoneInput.value = opt.dataset.phone;
+        } else if (phoneInput) {
+            phoneInput.value = '';
+        }
+
+        loadBatchVehiclesForVendor(selectedVendor);
+    }
+
+    function loadBatchVehiclesForVendor(vendorName) {
+        if (!vendorName) return;
+        const phoneInput = document.getElementById('batchVendorPhone');
+        const branch = getBatchBranch();
+        const urls = [
+            `/${branch}/Alerts/GetVendorExpiringVehicles?vendor=${encodeURIComponent(vendorName)}`,
+            `/Alerts/GetVendorExpiringVehicles?vendor=${encodeURIComponent(vendorName)}&branch=${branch}`
+        ];
+
+        function tryFetch(idx) {
+            if (idx >= urls.length) {
+                batchCurrentVehicles = [];
+                renderBatchVehicleQueue();
+                updateBatchMessagePreview();
+                return;
+            }
+            fetch(urls[idx], { headers: { 'Accept': 'application/json' } })
+                .then(r => {
+                    if (!r.ok) throw new Error('Status ' + r.status);
+                    return r.json();
+                })
+                .then(data => {
+                    const list = (data && data.devices) ? data.devices : (Array.isArray(data) ? data : []);
+                    if (data && data.phone && phoneInput) {
+                        phoneInput.value = data.phone;
+                        const sel = document.getElementById('batchVendorSelect');
+                        if (sel && sel.selectedIndex >= 0) {
+                            sel.options[sel.selectedIndex].dataset.phone = data.phone;
+                        }
+                    }
+                    batchCurrentVehicles = list.map(v => {
+                        let tag = v.expiryDate || 'N/A';
+                        let tagClass = '';
+                        if (v.daysLeft !== undefined && v.daysLeft < 0) {
+                            tag = `${v.expiryDate || ''} (Expired ${Math.abs(v.daysLeft)}d ago)`;
+                            tagClass = 'urgent-today';
+                        } else if (v.daysLeft === 0) {
+                            tag = `${v.expiryDate || ''} (Expires Today)`;
+                            tagClass = 'urgent-today';
+                        }
+                        return {
+                            vehicleNo: v.vehicleNo,
+                            expiryDate: v.expiryDate,
+                            displayTag: tag,
+                            tagClass: tagClass,
+                            status: v.status || 'Active',
+                            selected: true
+                        };
+                    });
+                    renderBatchVehicleQueue();
+                    updateBatchMessagePreview();
+                })
+                .catch(() => tryFetch(idx + 1));
+        }
+        tryFetch(0);
+    }
+
+    function renderBatchVehicleQueue() {
+        const listEl = document.getElementById('batchVehicleList');
+        const countBadge = document.getElementById('batchVehicleCountBadge');
+        if (!listEl) return;
+
+        if (batchCurrentVehicles.length === 0) {
+            listEl.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--muted); font-size: 0.8rem;">No vehicles due for renewal found for this vendor. Use "+ Add Another Vehicle" below.</div>';
+            if (countBadge) countBadge.textContent = '0 selected';
+            return;
+        }
+
+        const selectedCount = batchCurrentVehicles.filter(v => v.selected).length;
+        if (countBadge) countBadge.textContent = `${selectedCount} / ${batchCurrentVehicles.length} selected`;
+
+        let html = '';
+        batchCurrentVehicles.forEach((v, idx) => {
+            html += `
+            <div class="batch-vehicle-item">
+                <label>
+                    <input type="checkbox" ${v.selected ? 'checked' : ''} onchange="toggleBatchVehicle(${idx}, this.checked)" />
+                    <strong style="color: var(--text-main); font-size: 0.85rem;">${escapeWaHtml(v.vehicleNo)}</strong>
+                    <span class="expiry-tag ${v.tagClass || ''}" style="font-size: 0.7rem;">${escapeWaHtml(v.displayTag || v.expiryDate || 'N/A')}</span>
+                </label>
+                <button type="button" class="btn-dismiss-alert" onclick="removeBatchVehicle(${idx})" title="Remove vehicle from message" style="font-size: 1rem;">&times;</button>
+            </div>`;
+        });
+        listEl.innerHTML = html;
+    }
+
+    function toggleBatchVehicle(idx, isChecked) {
+        if (batchCurrentVehicles[idx]) {
+            batchCurrentVehicles[idx].selected = isChecked;
+            renderBatchVehicleQueue();
+            updateBatchMessagePreview();
+        }
+    }
+
+    function removeBatchVehicle(idx) {
+        batchCurrentVehicles.splice(idx, 1);
+        renderBatchVehicleQueue();
+        updateBatchMessagePreview();
+    }
+
+    function addManualVehicleToBatch() {
+        const vehInput = document.getElementById('batchManualVehNo');
+        const expInput = document.getElementById('batchManualExpiry');
+        const veh = (vehInput?.value || '').trim().toUpperCase();
+        const exp = (expInput?.value || '').trim();
+
+        if (!veh) {
+            alert('Please enter a vehicle number.');
+            return;
+        }
+
+        let formattedDate = exp;
+        if (exp) {
+            const d = new Date(exp);
+            if (!isNaN(d.getTime())) {
+                const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                formattedDate = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+            }
+        } else {
+            formattedDate = 'Immediate';
+        }
+
+        batchCurrentVehicles.push({
+            vehicleNo: veh,
+            expiryDate: formattedDate,
+            selected: true
+        });
+
+        if (vehInput) vehInput.value = '';
+        if (expInput) expInput.value = '';
+        renderBatchVehicleQueue();
+        updateBatchMessagePreview();
+    }
+
+    function updateBatchMessagePreview() {
+        const previewEl = document.getElementById('batchMessagePreview');
+        if (!previewEl) return;
+
+        const select = document.getElementById('batchVendorSelect');
+        const vendorName = (select?.value || 'Valued Partner').trim();
+        const selectedVehicles = batchCurrentVehicles.filter(v => v.selected);
+        const count = selectedVehicles.length;
+
+        if (count === 0) {
+            previewEl.value = 'Please select at least 1 vehicle to generate message preview.';
+            return;
+        }
+
+        let enList = '';
+        let knList = '';
+        selectedVehicles.forEach((v, i) => {
+            enList += `${i + 1}. *${v.vehicleNo}* — Expiry: *${v.expiryDate}*\n`;
+            knList += `${i + 1}. *${v.vehicleNo}* — ಮುಕ್ತಾಯ ದಿನಾಂಕ: *${v.expiryDate}*\n`;
+        });
+
+        const msg = `*MYGTS SERVICES*\n\u200B\nDear ${vendorName},\n\u200B\nThe following (${count}) vehicles under your account are due for *One State One GPS* recharge renewal:\n\u200B\n${enList}\u200B\nKindly ensure renewals are completed before the expiry dates to avoid GPS tracking interruption.\n\u200B\nThank you,\n*MYGTS SERVICES*\n\u200B\n--------------------------------\n\u200B\n*ಮೈ ಜಿಟಿಎಸ್ ಸರ್ವಿಸಸ್ (MYGTS SERVICES)*\n\u200B\nಪ್ರಿಯ ${vendorName},\n\u200B\nನಿಮ್ಮ ಖಾತೆಯಡಿ ಇರುವ ಈ ಕೆಳಗಿನ (${count}) ವಾಹನಗಳ ಒಂದು ರಾಜ್ಯ ಒಂದು ಜಿಪಿಎಸ್ (One State One GPS) ರಿಚಾರ್ಜ್ ಶೀಘ್ರದಲ್ಲೇ ಮುಕ್ತಾಯಗೊಳ್ಳಲಿದೆ:\n\u200B\n${knList}\u200B\nಜಿಪಿಎಸ್ ಟ್ರ್ಯಾಕಿಂಗ್ ಸೇವೆಗಳಲ್ಲಿ ಯಾವುದೇ ಅಡಚಣೆಯನ್ನು ತಪ್ಪಿಸಲು ದಯವಿಟ್ಟು ಮುಕ್ತಾಯದ ದಿನಾಂಕದ ಮೊದಲು ರಿಚಾರ್ಜ್ ಅನ್ನು ನವೀಕರಿಸಿ (Renew).\n\u200B\nಧನ್ಯವಾದಗಳು,\n*ಮೈ ಜಿಟಿಎಸ್ ಸರ್ವಿಸಸ್ (MYGTS SERVICES)*`;
+
+        previewEl.value = msg;
+    }
+
+    function copyBatchMessageText() {
+        const previewEl = document.getElementById('batchMessagePreview');
+        if (!previewEl || !previewEl.value) return;
+        navigator.clipboard.writeText(previewEl.value).then(() => {
+            alert('Bilingual WhatsApp message copied to clipboard!');
+        }).catch(() => {
+            previewEl.select();
+            document.execCommand('copy');
+            alert('Bilingual WhatsApp message copied to clipboard!');
+        });
+    }
+
+    function sendBatchWhatsApp() {
+        const previewEl = document.getElementById('batchMessagePreview');
+        const msg = previewEl?.value || '';
+        if (!msg || batchCurrentVehicles.filter(v => v.selected).length === 0) {
+            alert('Please select at least 1 vehicle before sending.');
+            return;
+        }
+        const rawPhone = (document.getElementById('batchVendorPhone')?.value || '').trim();
+        let cleanPhone = rawPhone.replace(/\D/g, '');
+        if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+
+        const url = cleanPhone
+            ? `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
+            : `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+        openWhatsAppMessage(url);
+    }
+
+    function exportBatchVehiclesExcel() {
+        const select = document.getElementById('batchVendorSelect');
+        const vendor = select ? select.value : '';
+        if (!vendor) {
+            alert('Please select a vendor first to export expiring vehicles.');
+            return;
+        }
+        window.location.href = `/Vendors/ExportExpiring?id=${encodeURIComponent(vendor)}`;
+    }
+
+    function dismissFollowupAlert(id) {
+        const item = document.getElementById('followup-item-' + id);
+        if (item) {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(20px)';
+            setTimeout(() => {
+                item.remove();
+                updateAlertBadgeCount();
+            }, 200);
+        }
+    }
+
+    function completeFollowupAlert(id) {
+        const item = document.getElementById('followup-item-' + id);
+        if (item) {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(20px)';
+            setTimeout(() => {
+                item.remove();
+                updateAlertBadgeCount();
+            }, 200);
+        }
+        fetch('/Alerts/CompleteFollowup?id=' + encodeURIComponent(id), { method: 'POST' })
+            .then(res => {
+                if (res.ok) pollAlertsNow();
+            })
+            .catch(() => {});
+    }
+
+    function clearAllNotifications() {
+        const list = document.querySelector('.notification-list');
+        if (list) {
+            list.innerHTML = `
+                <div style="padding: 28px 16px; text-align: center; color: var(--muted); font-size: 0.85rem;">
+                    <div style="font-size: 1.8rem; margin-bottom: 6px;">✨</div>
+                    <strong style="color: var(--text-main);">All notifications cleared</strong>
+                    <div style="font-size: 0.75rem; margin-top: 2px;">You're all caught up!</div>
+                </div>`;
+        }
+        const bell = document.querySelector('.notification');
+        if (bell) {
+            bell.classList.remove('has-alerts');
+            bell.removeAttribute('data-count');
+        }
+        const pill = document.getElementById('headerAlertCount');
+        if (pill) pill.remove();
+    }
+
+    function dismissRechargeAlert(id) {
+        const item = document.getElementById('recharge-item-' + id);
+        if (item) {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(20px)';
+            setTimeout(() => {
+                item.remove();
+                updateAlertBadgeCount();
+            }, 200);
+        }
+    }
+
+    function updateAlertBadgeCount() {
+        const remaining = document.querySelectorAll('.notification-item').length;
+        const bell = document.querySelector('.notification');
+        const pill = document.getElementById('headerAlertCount');
+        if (remaining > 0) {
+            if (bell) {
+                bell.setAttribute('data-count', remaining);
+                bell.classList.add('has-alerts');
+            }
+            if (pill) pill.textContent = remaining + ' DUE';
+        } else {
+            if (bell) {
+                bell.removeAttribute('data-count');
+                bell.classList.remove('has-alerts');
+            }
+            if (pill) pill.remove();
+            const list = document.querySelector('.notification-list');
+            if (list) {
+                list.innerHTML = `
+                    <div style="padding: 28px 16px; text-align: center; color: var(--muted); font-size: 0.85rem;">
+                        <div style="font-size: 1.8rem; margin-bottom: 6px;">✨</div>
+                        <strong style="color: var(--text-main);">All notifications cleared</strong>
+                        <div style="font-size: 0.75rem; margin-top: 2px;">You're all caught up!</div>
+                    </div>`;
+            }
+        }
+        ['overdue', 'shifts', 'expiring', 'followups', 'pending-recharges', 'unpaid-recharges'].forEach(sec => {
+            const body = document.getElementById('section-body-' + sec);
+            const headerTitle = document.querySelector(`.notification-section-divider[data-section="${sec}"] .section-title`);
+            if (body && headerTitle) {
+                const count = body.querySelectorAll('.notification-item').length;
+                if (count === 0) {
+                    const secContainer = body.closest('.notification-section');
+                    if (secContainer) secContainer.style.display = 'none';
+                } else {
+                    headerTitle.innerHTML = headerTitle.innerHTML.replace(/\(\d+\)/, `(${count})`);
+                }
+            }
+        });
+    }
+
+    // Collapsible accordion state for alert sections (collapsed by default)
+    window._alertSectionStates = window._alertSectionStates || {
+        overdue: false,
+        shifts: false,
+        expiring: false,
+        followups: false,
+        'pending-recharges': false,
+        'unpaid-recharges': false
+    };
+
+    function toggleAlertSection(sectionId, headerEl) {
+        const cleanId = String(sectionId || '').replace(/^(section-body-|sec-)/, '');
+        const body = document.getElementById('section-body-' + cleanId) 
+                  || document.getElementById('sec-' + cleanId) 
+                  || document.getElementById(sectionId);
+        const header = headerEl 
+                    || document.querySelector(`.notification-section-divider[data-section="${cleanId}"]`) 
+                    || (body ? body.closest('.notification-section')?.querySelector('.notification-section-divider') : null);
+        if (!body) return;
+        const isClosed = (body.style.display === 'none' || window.getComputedStyle(body).display === 'none');
+        body.style.display = isClosed ? 'block' : 'none';
+        if (header) {
+            header.setAttribute('aria-expanded', isClosed ? 'true' : 'false');
+        }
+        window._alertSectionStates = window._alertSectionStates || {};
+        window._alertSectionStates[cleanId] = isClosed;
+    }
+
+    function onSectionHeaderKeydown(e, sectionId) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleAlertSection(sectionId, e.currentTarget);
+        }
+    }
+
+    function filterAlerts(query) {
+        const q = (query || '').trim().toLowerCase();
+        const clearBtn = document.getElementById('alertSearchClear');
+        if (clearBtn) clearBtn.style.display = q ? 'block' : 'none';
+
+        const list = document.querySelector('.notification-list');
+        if (!list) return;
+
+        let noMatchEl = document.getElementById('alertNoMatchNotice');
+
+        if (!q) {
+            list.querySelectorAll('.notification-section').forEach(sec => {
+                sec.style.display = '';
+                const secId = sec.getAttribute('data-section-id');
+                const body = sec.querySelector('.notification-section-body');
+                const isOpen = window._alertSectionStates && window._alertSectionStates[secId];
+                if (body) body.style.display = isOpen ? 'block' : 'none';
+                const divider = sec.querySelector('.notification-section-divider');
+                if (divider) divider.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+            list.querySelectorAll('.notification-item').forEach(item => {
+                item.style.display = '';
+            });
+            if (noMatchEl) noMatchEl.style.display = 'none';
+            return;
+        }
+
+        let totalMatches = 0;
+        const sections = list.querySelectorAll('.notification-section');
+
+        sections.forEach(sec => {
+            const items = sec.querySelectorAll('.notification-item');
+            let secMatchCount = 0;
+
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(q)) {
+                    item.style.display = '';
+                    secMatchCount++;
+                    totalMatches++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            const body = sec.querySelector('.notification-section-body');
+            const divider = sec.querySelector('.notification-section-divider');
+
+            if (secMatchCount > 0) {
+                sec.style.display = '';
+                if (body) body.style.display = 'block';
+                if (divider) divider.setAttribute('aria-expanded', 'true');
+            } else {
+                sec.style.display = 'none';
+            }
+        });
+
+        if (totalMatches === 0) {
+            if (!noMatchEl) {
+                noMatchEl = document.createElement('div');
+                noMatchEl.id = 'alertNoMatchNotice';
+                noMatchEl.style.cssText = 'padding: 24px 16px; text-align: center; color: var(--muted); font-size: 0.85rem;';
+                list.appendChild(noMatchEl);
+            }
+            noMatchEl.innerHTML = `
+                <div style="font-size: 1.5rem; margin-bottom: 4px;">🔍</div>
+                <strong style="color: var(--text-main);">No matching alerts</strong>
+                <div style="font-size: 0.75rem; margin-top: 4px;">No alerts match &ldquo;${escapeWaHtml(q)}&rdquo;</div>
+            `;
+            noMatchEl.style.display = 'block';
+        } else if (noMatchEl) {
+            noMatchEl.style.display = 'none';
+        }
+    }
+
+    function clearAlertSearch() {
+        const input = document.getElementById('alertSearchInput');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+        filterAlerts('');
+    }
+
+    // Live Alert Synchronization Feed across all users
+    let lastAlertDataJson = '';
+    let isPollingAlerts = false;
+
+    function pollAlertsNow() {
+        if (isPollingAlerts) return;
+        isPollingAlerts = true;
+        fetch('/Alerts/Feed')
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+                isPollingAlerts = false;
+                if (!data) return;
+                const jsonStr = JSON.stringify(data);
+                if (jsonStr === lastAlertDataJson) return;
+                lastAlertDataJson = jsonStr;
+                renderLiveAlerts(data);
+            })
+            .catch(() => { isPollingAlerts = false; });
+    }
+
+    function renderLiveAlerts(data) {
+        const bell = document.querySelector('.notification');
+        const count = data.count || 0;
+
+        if (bell) {
+            if (count > 0) {
+                bell.setAttribute('data-count', count);
+                bell.classList.add('has-alerts');
+                bell.title = count + " alert(s) active";
+            } else {
+                bell.removeAttribute('data-count');
+                bell.classList.remove('has-alerts');
+                bell.title = "No active alerts";
+            }
+        }
+
+        const titleWrap = document.querySelector('.notification-title-wrap');
+        let pill = document.getElementById('headerAlertCount');
+        if (count > 0) {
+            if (!pill && titleWrap) {
+                pill = document.createElement('span');
+                pill.className = 'alert-pill-count';
+                pill.id = 'headerAlertCount';
+                titleWrap.appendChild(pill);
+            }
+            if (pill) pill.textContent = count + ' DUE';
+        } else if (pill) {
+            pill.remove();
+        }
+
+        const subtitleEl = document.querySelector('.notification-subtitle');
+        if (subtitleEl) {
+            if (data.isExecutive) {
+                if (data.followupsCount > 0) {
+                    subtitleEl.textContent = `${(data.overdueCount || 0)} overdue, ${data.devicesCount} expiring, ${data.followupsCount} follow-up(s)`;
+                } else if (data.overdueCount > 0) {
+                    subtitleEl.textContent = `${data.overdueCount} overdue, ${data.devicesCount} expiring in ${data.branch}`;
+                } else if (count > 0) {
+                    subtitleEl.textContent = `${count} alert(s) in ${data.branch}`;
+                } else {
+                    subtitleEl.textContent = 'All devices and follow-ups are up to date';
+                }
+            } else {
+                subtitleEl.textContent = data.followupsCount > 0
+                    ? `${data.followupsCount} alert(s) addressed to you`
+                    : 'No alerts addressed to you';
+            }
+        }
+
+        const list = document.querySelector('.notification-list');
+        if (!list) return;
+
+        const activeShifts = (data.lifecycleShifts || []).filter(s => {
+            try {
+                return !localStorage.getItem('dismissed_shift_' + s.vehicleNo + '_' + s.shiftType);
+            } catch (e) { return true; }
+        });
+
+        const overdueList = data.overdueDevices || [];
+        const expiringList = data.devices || [];
+        const followupsList = data.followups || [];
+        const pendingRcList = data.pendingRecharges || [];
+        const unpaidRcList = data.unpaidRecharges || [];
+
+        if (count === 0 && overdueList.length === 0 && activeShifts.length === 0 && followupsList.length === 0 && pendingRcList.length === 0 && unpaidRcList.length === 0) {
+            list.innerHTML = `
+                <div style="padding: 24px 16px; text-align: center; color: var(--muted); font-size: 0.85rem;">
+                    <div style="font-size: 1.8rem; margin-bottom: 6px;">🎉</div>
+                    <strong style="color: var(--text-main);">No alerts or overdue devices</strong>
+                    <div style="font-size: 0.75rem; margin-top: 2px;">Subscriptions and follow-ups across ${escapeWaHtml(data.branch)} branch are in good standing.</div>
+                </div>`;
+            return;
+        }
+
+        let html = '';
+
+        const isOpenOverdue = !!window._alertSectionStates['overdue'];
+        if (overdueList.length > 0) {
+            html += `
+            <div class="notification-section" data-section-id="overdue">
+                <div class="notification-section-divider urgent-divider" data-section="overdue" onclick="toggleAlertSection('overdue', this)" onkeydown="onSectionHeaderKeydown(event, 'overdue')" role="button" aria-expanded="${isOpenOverdue}" tabindex="0">
+                    <span class="section-title">🚨 Overdue &amp; Expired (${overdueList.length})</span>
+                    <span class="section-chevron">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </span>
+                </div>
+                <div class="notification-section-body" id="section-body-overdue" style="display: ${isOpenOverdue ? 'block' : 'none'};">`;
+
+            overdueList.forEach(dev => {
+                html += `
+                <div class="notification-item urgent-overdue" id="alert-item-${escapeWaHtml(dev.vehicleNo)}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span>${escapeWaHtml(dev.vehicleNo)}</span>
+                                <span class="expiry-tag">${escapeWaHtml(dev.urgencyLabel)}</span>
+                            </div>
+                            <div style="font-size: 0.78rem; color: var(--muted); margin-top: 3px;">
+                                ${escapeWaHtml(dev.owner || 'No Owner Assigned')}
+                                ${dev.cellNo ? ` &bull; ${escapeWaHtml(dev.cellNo)}` : ''}
+                                ${dev.vendor ? ` &bull; ${escapeWaHtml(dev.vendor)}` : ''}
+                            </div>
+                        </div>
+                        <button type="button" class="btn-dismiss-alert" onclick="dismissNotification('${escapeWaHtml(dev.vehicleNo)}')" title="Dismiss notification">&times;</button>
+                    </div>
+                    <div class="notification-actions">
+                        <div class="wa-picker" style="position: relative; display: inline-flex;">
+                            <button type="button" class="button-wa-alert"
+                                data-owner-url="${escapeWaHtml(dev.waOwnerUrl)}"
+                                data-vendor-url="${escapeWaHtml(dev.waVendorUrl)}"
+                                data-owner-name="${escapeWaHtml(dev.owner)}"
+                                data-cell-no="${escapeWaHtml(dev.cellNo)}"
+                                data-vendor-name="${escapeWaHtml(dev.vendor)}"
+                                data-vendor-phone="${escapeWaHtml(dev.vendorPhone)}"
+                                onclick="openWaPickerPortal(this)" title="Send WhatsApp message">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                                WhatsApp ▾
+                            </button>
+                        </div>
+                        <button type="button" class="button-informed" onclick="markVehicleInformed('${escapeWaHtml(dev.vehicleNo)}')" title="Snooze alert until tomorrow">
+                            Informed
+                        </button>
+                        <a href="/Transactions/Create?VehicleNo=${encodeURIComponent(dev.vehicleNo)}" class="button-renew">
+                            Collect / Renew
+                        </a>
+                    </div>
+                </div>`;
+            });
+
+            html += `
+                </div>
+            </div>`;
+        }
+
+        const isOpenShifts = !!window._alertSectionStates['shifts'];
+        if (activeShifts.length > 0) {
+            html += `
+            <div class="notification-section" data-section-id="shifts">
+                <div class="notification-section-divider shift-divider" data-section="shifts" onclick="toggleAlertSection('shifts', this)" onkeydown="onSectionHeaderKeydown(event, 'shifts')" role="button" aria-expanded="${isOpenShifts}" tabindex="0">
+                    <span class="section-title">⚡ Recent Lifecycle Shifts (${activeShifts.length})</span>
+                    <span class="section-chevron">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </span>
+                </div>
+                <div class="notification-section-body" id="section-body-shifts" style="display: ${isOpenShifts ? 'block' : 'none'};">`;
+
+            activeShifts.forEach(s => {
+                html += `
+                <div class="notification-item lifecycle-shift-item" id="shift-item-${escapeWaHtml(s.vehicleNo)}-${escapeWaHtml(s.shiftType)}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span>${escapeWaHtml(s.vehicleNo)}</span>
+                                <span class="shift-badge shift-${escapeWaHtml(s.shiftType.toLowerCase())}">⚡ ${escapeWaHtml(s.fromStatus)} &rarr; ${escapeWaHtml(s.toStatus)}</span>
+                            </div>
+                            <div style="font-size: 0.77rem; color: var(--muted); margin-top: 3px;">
+                                ${escapeWaHtml(s.description)} &bull; Expired: ${escapeWaHtml(s.expiryStr)} (${s.daysPast}d ago)
+                            </div>
+                            ${(s.owner || s.vendor) ? `
+                            <div style="font-size: 0.73rem; color: var(--muted); margin-top: 2px;">
+                                ${escapeWaHtml(s.owner || '')} ${s.vendor ? `(${escapeWaHtml(s.vendor)})` : ''}
+                            </div>` : ''}
+                        </div>
+                        <button type="button" class="btn-dismiss-alert" onclick="dismissLifecycleShift('${escapeWaHtml(s.vehicleNo)}', '${escapeWaHtml(s.shiftType)}')" title="Dismiss notification">&times;</button>
+                    </div>
+                    <div class="notification-actions" style="margin-top: 8px;">
+                        <a href="${escapeWaHtml(s.filterUrl)}" class="button-filter-shift">
+                            View ${escapeWaHtml(s.toStatus)} Devices &rarr;
+                        </a>
+                        ${s.shiftType === 'Suspension' ? `
+                        <a href="/Transactions/Create?VehicleNo=${encodeURIComponent(s.vehicleNo)}" class="button-renew">
+                            Collect / Renew
+                        </a>` : ''}
+                    </div>
+                </div>`;
+            });
+
+            html += `
+                </div>
+            </div>`;
+        }
+
+        const isOpenExpiring = !!window._alertSectionStates['expiring'];
+        if (expiringList.length > 0) {
+            html += `
+            <div class="notification-section" data-section-id="expiring">
+                <div class="notification-section-divider expiring-divider" data-section="expiring" onclick="toggleAlertSection('expiring', this)" onkeydown="onSectionHeaderKeydown(event, 'expiring')" role="button" aria-expanded="${isOpenExpiring}" tabindex="0">
+                    <span class="section-title">⏰ Expiring This Week (${expiringList.length})</span>
+                    <span class="section-chevron">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </span>
+                </div>
+                <div class="notification-section-body" id="section-body-expiring" style="display: ${isOpenExpiring ? 'block' : 'none'};">`;
+
+            expiringList.forEach(dev => {
+                html += `
+                <div class="notification-item ${dev.urgencyClass}" id="alert-item-${escapeWaHtml(dev.vehicleNo)}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span>${escapeWaHtml(dev.vehicleNo)}</span>
+                                <span class="expiry-tag">${escapeWaHtml(dev.urgencyLabel)}</span>
+                            </div>
+                            <div style="font-size: 0.78rem; color: var(--muted); margin-top: 3px;">
+                                ${escapeWaHtml(dev.owner || 'No Owner Assigned')}
+                                ${dev.cellNo ? ` &bull; ${escapeWaHtml(dev.cellNo)}` : ''}
+                                ${dev.vendor ? ` &bull; ${escapeWaHtml(dev.vendor)}` : ''}
+                            </div>
+                        </div>
+                        <button type="button" class="btn-dismiss-alert" onclick="dismissNotification('${escapeWaHtml(dev.vehicleNo)}')" title="Dismiss notification">&times;</button>
+                    </div>
+                    <div class="notification-actions">
+                        <div class="wa-picker" style="position: relative; display: inline-flex;">
+                            <button type="button" class="button-wa-alert"
+                                data-owner-url="${escapeWaHtml(dev.waOwnerUrl)}"
+                                data-vendor-url="${escapeWaHtml(dev.waVendorUrl)}"
+                                data-owner-name="${escapeWaHtml(dev.owner)}"
+                                data-cell-no="${escapeWaHtml(dev.cellNo)}"
+                                data-vendor-name="${escapeWaHtml(dev.vendor)}"
+                                data-vendor-phone="${escapeWaHtml(dev.vendorPhone)}"
+                                onclick="openWaPickerPortal(this)" title="Send WhatsApp message">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                                WhatsApp ▾
+                            </button>
+                        </div>
+                        <button type="button" class="button-informed" onclick="markVehicleInformed('${escapeWaHtml(dev.vehicleNo)}')" title="Snooze alert until tomorrow">
+                            Informed
+                        </button>
+                        <a href="/Transactions/Create?VehicleNo=${encodeURIComponent(dev.vehicleNo)}" class="button-renew">
+                            Collect / Renew
+                        </a>
+                    </div>
+                </div>`;
+            });
+
+            html += `
+                </div>
+            </div>`;
+        }
+
+        const isOpenFollowups = !!window._alertSectionStates['followups'];
+        if (followupsList.length > 0) {
+            html += `
+            <div class="notification-section" data-section-id="followups">
+                <div class="notification-section-divider followups-divider" data-section="followups" onclick="toggleAlertSection('followups', this)" onkeydown="onSectionHeaderKeydown(event, 'followups')" role="button" aria-expanded="${isOpenFollowups}" tabindex="0">
+                    <span class="section-title">📋 Pending Follow-ups (${followupsList.length})</span>
+                    <span class="section-chevron">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </span>
+                </div>
+                <div class="notification-section-body" id="section-body-followups" style="display: ${isOpenFollowups ? 'block' : 'none'};">`;
+
+            followupsList.forEach(f => {
+                html += `
+                <div class="notification-item followup-item ${f.urgencyClass}" id="followup-item-${escapeWaHtml(f.id)}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span>📋 ${escapeWaHtml(f.title)}</span>
+                                <span class="expiry-tag followup-tag">${escapeWaHtml(f.dueLabel)}</span>
+                                ${f.targetAudience && f.targetAudience !== '@all' ? `<span class="audience-tag" title="Target Audience: ${escapeWaHtml(f.targetAudience)}">👁️ ${escapeWaHtml(f.targetAudience)}</span>` : ''}
+                            </div>
+                            ${f.details ? `<div style="font-size: 0.76rem; color: var(--muted); margin-top: 3px; word-break: break-word;">${escapeWaHtml(f.details)}</div>` : ''}
+                            <div style="font-size: 0.72rem; color: var(--muted); margin-top: 3px;">Due: ${escapeWaHtml(f.dueDate)}</div>
+                        </div>
+                        <button type="button" class="btn-dismiss-alert" onclick="dismissFollowupAlert('${escapeWaHtml(f.id)}')" title="Dismiss notification">&times;</button>
+                    </div>
+                    <div class="notification-actions" style="margin-top: 8px;">
+                        ${data.canEditReminders ? `
+                        <button type="button" class="btn-complete-followup" onclick="completeFollowupAlert('${escapeWaHtml(f.id)}')">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right: 4px;"><polyline points="20 6 9 17 4 12"/></svg>
+                            Mark Done
+                        </button>` : ''}
+                        ${data.canViewReminders ? `
+                        <a href="/Reminders" class="button-renew" style="font-size: 0.74rem; padding: 4px 9px;">
+                            View Reminders &rarr;
+                        </a>` : ''}
+                    </div>
+                </div>`;
+            });
+
+            html += `
+                </div>
+            </div>`;
+        }
+
+        const isOpenPendingRc = !!window._alertSectionStates['pending-recharges'];
+        if (pendingRcList.length > 0) {
+            html += `
+            <div class="notification-section" data-section-id="pending-recharges">
+                <div class="notification-section-divider pending-recharge-divider" data-section="pending-recharges" onclick="toggleAlertSection('pending-recharges', this)" onkeydown="onSectionHeaderKeydown(event, 'pending-recharges')" role="button" aria-expanded="${isOpenPendingRc}" tabindex="0">
+                    <span class="section-title">⚡ Pending Recharges (${pendingRcList.length})</span>
+                    <span class="section-chevron">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </span>
+                </div>
+                <div class="notification-section-body" id="section-body-pending-recharges" style="display: ${isOpenPendingRc ? 'block' : 'none'};">`;
+
+            pendingRcList.forEach(rc => {
+                const title = rc.vehicleNo || rc.imei || rc.iccid || 'Device';
+                html += `
+                <div class="notification-item urgent-today" id="recharge-item-${escapeWaHtml(rc.id)}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span>⚡ ${escapeWaHtml(title)}</span>
+                                <span class="expiry-tag" style="background: #fef3c7; color: #b45309; border-color: #fcd34d;">PENDING ACTIVATION</span>
+                                ${rc.networkOperator ? `<span class="badge" style="font-size: 0.7rem; background: #e0f2fe; color: #0369a1;">${escapeWaHtml(rc.networkOperator)}</span>` : ''}
+                            </div>
+                            <div style="font-size: 0.78rem; color: var(--muted); margin-top: 3px;">
+                                ${escapeWaHtml(rc.vendor || 'Vendor')} &bull; Scheduled: ${escapeWaHtml(rc.rechargeDate || 'Immediate')}
+                            </div>
+                        </div>
+                        <button type="button" class="btn-dismiss-alert" onclick="dismissRechargeAlert('${escapeWaHtml(rc.id)}')" title="Dismiss notification">&times;</button>
+                    </div>
+                    <div class="notification-actions" style="margin-top: 8px;">
+                        <a href="/Recharges" class="button-renew" style="background: #d97706; border-color: #b45309;">
+                            Process in Recharges &rarr;
+                        </a>
+                    </div>
+                </div>`;
+            });
+
+            html += `
+                </div>
+            </div>`;
+        }
+
+        const isOpenUnpaidRc = !!window._alertSectionStates['unpaid-recharges'];
+        if (unpaidRcList.length > 0) {
+            html += `
+            <div class="notification-section" data-section-id="unpaid-recharges">
+                <div class="notification-section-divider unpaid-recharge-divider" data-section="unpaid-recharges" onclick="toggleAlertSection('unpaid-recharges', this)" onkeydown="onSectionHeaderKeydown(event, 'unpaid-recharges')" role="button" aria-expanded="${isOpenUnpaidRc}" tabindex="0">
+                    <span class="section-title">💳 Unpaid Recharges (${unpaidRcList.length})</span>
+                    <span class="section-chevron">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </span>
+                </div>
+                <div class="notification-section-body" id="section-body-unpaid-recharges" style="display: ${isOpenUnpaidRc ? 'block' : 'none'};">`;
+
+            unpaidRcList.forEach(rc => {
+                const title = rc.vehicleNo || rc.imei || rc.iccid || 'Device';
+                html += `
+                <div class="notification-item urgent-overdue" id="recharge-item-${escapeWaHtml(rc.id)}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span>💳 ${escapeWaHtml(title)}</span>
+                                <span class="expiry-tag" style="background: #fee2e2; color: #dc2626; border-color: #fca5a5;">PAYMENT DUE</span>
+                                ${rc.networkOperator ? `<span class="badge" style="font-size: 0.7rem; background: #e0f2fe; color: #0369a1;">${escapeWaHtml(rc.networkOperator)}</span>` : ''}
+                            </div>
+                            <div style="font-size: 0.78rem; color: var(--muted); margin-top: 3px;">
+                                ${escapeWaHtml(rc.vendor || 'Vendor')} &bull; Processed: ${escapeWaHtml(rc.rechargeDate || '')}
+                            </div>
+                        </div>
+                        <button type="button" class="btn-dismiss-alert" onclick="dismissRechargeAlert('${escapeWaHtml(rc.id)}')" title="Dismiss notification">&times;</button>
+                    </div>
+                    <div class="notification-actions" style="margin-top: 8px;">
+                        <div class="wa-picker" style="position: relative; display: inline-flex;">
+                            <button type="button" class="button-wa-alert"
+                                data-owner-url="${escapeWaHtml(rc.waOwnerUrl || '')}"
+                                data-vendor-url="${escapeWaHtml(rc.waVendorUrl || '')}"
+                                data-owner-name="${escapeWaHtml(rc.owner || '')}"
+                                data-cell-no="${escapeWaHtml(rc.cellNo || '')}"
+                                data-vendor-name="${escapeWaHtml(rc.vendor || '')}"
+                                data-vendor-phone="${escapeWaHtml(rc.vendorPhone || '')}"
+                                onclick="openWaPickerPortal(this)" title="Send WhatsApp message">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                                WhatsApp ▾
+                            </button>
+                        </div>
+                        ${rc.vehicleNo ? `
+                        <a href="/Transactions/Create?VehicleNo=${encodeURIComponent(rc.vehicleNo)}&PaymentFor=None" class="button-renew">
+                            Collect Payment
+                        </a>` : ''}
+                        <a href="/Recharges" class="btn-micro-archive" style="font-size: 0.74rem; text-decoration: none; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-main);">
+                            View in Recharges &rarr;
+                        </a>
+                    </div>
+                </div>`;
+            });
+
+            html += `
+                </div>
+            </div>`;
+        }
+
+        list.innerHTML = html;
+
+        const alertSearchInp = document.getElementById('alertSearchInput');
+        if (alertSearchInp && alertSearchInp.value.trim()) {
+            filterAlerts(alertSearchInp.value);
+        }
+    }
+
+    // Periodic live synchronization every 8 seconds
+    setInterval(pollAlertsNow, 8000);
+    window.addEventListener('focus', pollAlertsNow);
+    const notifToggle = document.getElementById('notification-toggle');
+    if (notifToggle) {
+        notifToggle.addEventListener('change', function() {
+            if (this.checked) {
+                pollAlertsNow();
+                setTimeout(() => {
+                    const searchInp = document.getElementById('alertSearchInput');
+                    if (searchInp) searchInp.focus();
+                }, 50);
+            }
+        });
+    }
+
+    // Remove preload class after page renders to re-enable transitions
+    document.addEventListener("DOMContentLoaded", function() {
+        setTimeout(() => document.body.classList.remove('preload'), 50);
+        
+        // Back to top logic
+        const backToTop = document.getElementById("backToTop");
+        if (backToTop) {
+            window.addEventListener("scroll", () => {
+                if (window.scrollY > 300) {
+                    backToTop.classList.add("visible");
+                } else {
+                    backToTop.classList.remove("visible");
+                }
+            });
+            backToTop.addEventListener("click", () => {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            });
+        }
+
+        // Notification drawer & User dropdown click-outside auto-close
+        document.addEventListener('click', function(e) {
+            const notifCenter = document.querySelector('.notification-center');
+            const notifToggle = document.getElementById('notification-toggle');
+            if (notifToggle && notifToggle.checked && notifCenter && !notifCenter.contains(e.target)) {
+                notifToggle.checked = false;
+            }
+
+            const userDropdown = document.querySelector('.user-profile-dropdown');
+            const userToggle = document.getElementById('user-profile-toggle');
+            if (userToggle && userToggle.checked && userDropdown && !userDropdown.contains(e.target)) {
+                userToggle.checked = false;
+            }
+        });
+        // ── Data-security: block browser shortcuts that could expose sensitive data ──
+        (function () {
+            // Shortcuts to block: key => label shown in toast
+            const BLOCKED = {
+                's':       { ctrl: true,  shift: false, label: 'Save Page (Ctrl+S)'        },
+                'p':       { ctrl: true,  shift: false, label: 'Print (Ctrl+P)'             },
+                'u':       { ctrl: true,  shift: false, label: 'View Source (Ctrl+U)'       },
+                'F12':     { ctrl: false, shift: false, label: 'DevTools (F12)'             },
+                'i':       { ctrl: true,  shift: true,  label: 'DevTools (Ctrl+Shift+I)'   },
+                'j':       { ctrl: true,  shift: true,  label: 'Console (Ctrl+Shift+J)'    },
+                'c':       { ctrl: true,  shift: true,  label: 'Inspect (Ctrl+Shift+C)'    },
+            };
+
+            // Toast element (created once, reused)
+            let _toast = null;
+            let _toastTimer = null;
+            function showSecurityToast(label) {
+                if (!_toast) {
+                    _toast = document.createElement('div');
+                    _toast.style.cssText = [
+                        'position:fixed', 'bottom:24px', 'left:50%', 'transform:translateX(-50%) translateY(12px)',
+                        'background:#1e293b', 'color:#f1f5f9', 'font-size:13px', 'font-family:inherit',
+                        'padding:10px 20px', 'border-radius:8px', 'box-shadow:0 4px 20px rgba(0,0,0,0.35)',
+                        'z-index:99999', 'pointer-events:none', 'opacity:0',
+                        'transition:opacity 0.2s ease, transform 0.2s ease',
+                        'display:flex', 'align-items:center', 'gap:10px', 'white-space:nowrap'
+                    ].join(';');
+                    document.body.appendChild(_toast);
+                }
+                _toast.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+                               + '<span><strong>' + label + '</strong> is disabled for data security.</span>';
+                _toast.style.opacity  = '1';
+                _toast.style.transform = 'translateX(-50%) translateY(0)';
+                clearTimeout(_toastTimer);
+                _toastTimer = setTimeout(function () {
+                    _toast.style.opacity  = '0';
+                    _toast.style.transform = 'translateX(-50%) translateY(12px)';
+                }, 2500);
+            }
+
+            document.addEventListener('keydown', function (e) {
+                var key = e.key;
+                for (var k in BLOCKED) {
+                    var rule = BLOCKED[k];
+                    var keyMatch   = (key === k) || (key.toLowerCase() === k.toLowerCase());
+                    var ctrlMatch  = rule.ctrl  ? (e.ctrlKey || e.metaKey) : true;
+                    var shiftMatch = rule.shift ? e.shiftKey : (rule.shift === false ? !e.shiftKey || rule.ctrl === false : true);
+
+                    // Simplified exact match
+                    var ctrl  = e.ctrlKey || e.metaKey;
+                    var shift = e.shiftKey;
+                    var match = false;
+
+                    if (k === 'F12')  match = key === 'F12';
+                    else if (rule.shift) match = ctrl && shift && key.toLowerCase() === k;
+                    else               match = ctrl && !shift && key.toLowerCase() === k;
+
+                    if (match) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showSecurityToast(rule.label);
+                        return false;
+                    }
+                }
+            }, true); // capture phase so we intercept before browser acts
+        })();
+
+        // Floating / Frozen Bottom Horizontal Scrollbar for Wide Data Tables
+        (function setupFloatingHorizontalScrollbar() {
+            var bar = document.getElementById('floatingHScrollBar');
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = 'floatingHScrollBar';
+                bar.className = 'floating-hscrollbar';
+                bar.setAttribute('aria-hidden', 'true');
+                bar.innerHTML = '<div id="floatingHScrollInner" class="floating-hscrollbar-inner"></div>';
+                document.body.appendChild(bar);
+            }
+            var inner = bar.firstElementChild;
+
+            var activeTarget = null;
+            var isSyncingToTarget = false;
+            var isSyncingToBar = false;
+
+            bar.addEventListener('scroll', function () {
+                if (!activeTarget || isSyncingToBar) return;
+                isSyncingToTarget = true;
+                activeTarget.scrollLeft = bar.scrollLeft;
+                requestAnimationFrame(function () {
+                    isSyncingToTarget = false;
+                });
+            }, { passive: true });
+
+            function onTargetScroll(e) {
+                if (e.target !== activeTarget || isSyncingToTarget) return;
+                isSyncingToBar = true;
+                bar.scrollLeft = activeTarget.scrollLeft;
+                requestAnimationFrame(function () {
+                    isSyncingToBar = false;
+                });
+            }
+
+            function updateScrollbar() {
+                var candidates = document.querySelectorAll('.table-wrap, [style*="overflow-x"], .vendors-table-card > div, .dsh-table-container > div');
+                var bestTarget = null;
+                var maxVisibleHeight = 0;
+                var vh = window.innerHeight;
+                var vw = window.innerWidth;
+
+                for (var i = 0; i < candidates.length; i++) {
+                    var el = candidates[i];
+                    if (el.offsetWidth === 0 || el.offsetHeight === 0) continue;
+                    if (el.scrollWidth <= el.clientWidth + 2) continue;
+
+                    var rect = el.getBoundingClientRect();
+                    // Must be in viewport vertically
+                    if (rect.bottom <= 40 || rect.top >= vh) continue;
+
+                    // Natural scrollbar of table is below viewport fold
+                    if (rect.bottom <= vh) continue;
+                    if (rect.top >= vh - 20) continue;
+
+                    var visibleTop = Math.max(0, rect.top);
+                    var visibleBottom = Math.min(vh, rect.bottom);
+                    var visibleHeight = visibleBottom - visibleTop;
+
+                    if (visibleHeight > maxVisibleHeight) {
+                        maxVisibleHeight = visibleHeight;
+                        bestTarget = el;
+                    }
+                }
+
+                if (bestTarget) {
+                    if (activeTarget !== bestTarget) {
+                        if (activeTarget) {
+                            activeTarget.removeEventListener('scroll', onTargetScroll);
+                        }
+                        activeTarget = bestTarget;
+                        activeTarget.addEventListener('scroll', onTargetScroll, { passive: true });
+                    }
+
+                    var rect = activeTarget.getBoundingClientRect();
+                    var sidebar = document.querySelector('.sidebar');
+                    var sidebarRight = sidebar ? sidebar.getBoundingClientRect().right : 0;
+                    var leftPos = Math.max(rect.left, sidebarRight, 0);
+                    var rightPos = Math.min(rect.right, vw);
+                    var width = Math.max(0, rightPos - leftPos);
+
+                    bar.style.left = leftPos + 'px';
+                    bar.style.width = width + 'px';
+                    inner.style.width = activeTarget.scrollWidth + 'px';
+
+                    if (!isSyncingToTarget) {
+                        bar.scrollLeft = activeTarget.scrollLeft;
+                    }
+                    bar.classList.add('visible');
+                } else {
+                    if (activeTarget) {
+                        activeTarget.removeEventListener('scroll', onTargetScroll);
+                        activeTarget = null;
+                    }
+                    bar.classList.remove('visible');
+                }
+            }
+
+            var ticking = false;
+            function requestUpdate() {
+                if (!ticking) {
+                    requestAnimationFrame(function () {
+                        updateScrollbar();
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            }
+
+            window.addEventListener('scroll', requestUpdate, { passive: true });
+            window.addEventListener('resize', requestUpdate, { passive: true });
+
+            // Removed body mutation observer to prevent constant reflows
+
+            setInterval(requestUpdate, 1000);
+            requestUpdate();
+        })();
+
+    }); // end DOMContentLoaded
+</script>
+
+    <script src="/js/instant-page.js?v=RZjA3pKErLO3DYvnTecNWYWsiGm29eJMVyqB6wc0dgI" defer></script>
+</body>
+</html>
+

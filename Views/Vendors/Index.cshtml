@@ -1,0 +1,1566 @@
+@model List<MygtsMvc.Models.VendorRecord>
+@{
+    ViewData["Title"] = "Vendors";
+    var branch = ViewBag.Branch as string ?? "DMG";
+    var deviceCountMap = ViewBag.DeviceCountMap as Dictionary<string, int> ?? new();
+    var withPhone = Model.Count(v => !string.IsNullOrWhiteSpace(v.Phone));
+    var withoutPhone = Model.Count - withPhone;
+}
+
+<style>
+    :root {
+        --surface: var(--paper, #ffffff);
+        --surface-hover: #f8fafc;
+    }
+    body:has(#theme:checked) {
+        --surface: #1e293b;
+        --surface-hover: #334155;
+    }
+
+    .vendors-container {
+        padding-bottom: 60px;
+    }
+    .vendors-header-stats {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+        margin-bottom: 20px;
+    }
+    .v-stat-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-main);
+    }
+    .v-stat-pill strong {
+        color: var(--cyan);
+        font-size: 0.95rem;
+    }
+
+    /* Leaderboard */
+    .leaderboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .leaderboard-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        transition: transform 0.2s, box-shadow 0.2s;
+        text-decoration: none;
+        color: var(--text-main);
+    }
+    .leaderboard-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    }
+    .lb-rank {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #fff;
+        flex-shrink: 0;
+    }
+    .lb-rank-1 { background: linear-gradient(135deg, #fbbf24, #d97706); }
+    .lb-rank-2 { background: linear-gradient(135deg, #94a3b8, #475569); }
+    .lb-rank-3 { background: linear-gradient(135deg, #d97706, #92400e); }
+    
+    .lb-info {
+        flex: 1;
+    }
+    .lb-name {
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 2px;
+    }
+    .lb-count {
+        font-size: 0.82rem;
+        color: var(--muted);
+        font-weight: 600;
+    }
+
+
+    .vendors-toolbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+    .vendors-toolbar-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        flex-wrap: wrap;
+    }
+    .vendors-search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 240px;
+        max-width: 360px;
+    }
+    .vendors-search-wrap input {
+        width: 100%;
+        padding: 8px 12px 8px 36px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--text-main);
+        font-size: 0.85rem;
+    }
+    .vendors-search-wrap input:focus {
+        outline: none;
+        border-color: var(--cyan);
+        box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.15);
+    }
+    .vendors-search-icon {
+        position: absolute;
+        left: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted);
+        pointer-events: none;
+    }
+
+    /* Toolbar Sort & Quick Filter Styles */
+    .vendors-sort-select-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+    }
+    .vendors-sort-select-wrap label {
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+    }
+    .vendors-sort-select-wrap select {
+        background: transparent;
+        border: none;
+        color: var(--text-main);
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        outline: none;
+    }
+    .vendor-quick-filters {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .v-quick-btn {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        color: var(--muted);
+        padding: 5px 12px;
+        border-radius: 16px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .v-quick-btn:hover {
+        background: var(--surface-hover);
+        color: var(--text-main);
+        border-color: var(--cyan);
+    }
+    .v-quick-btn.active {
+        background: rgba(14, 165, 233, 0.12);
+        color: #0284c7;
+        border-color: rgba(14, 165, 233, 0.4);
+        font-weight: 700;
+    }
+
+    /* Column Filter Dropdown */
+    .col-filter-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    .btn-col-filter {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        padding: 4px 8px;
+        border-radius: 6px;
+        color: var(--muted);
+        font-size: 0.74rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-transform: none;
+        letter-spacing: normal;
+        font-weight: 600;
+    }
+    .btn-col-filter:hover, .btn-col-filter.active {
+        background: rgba(14, 165, 233, 0.08);
+        border-color: var(--cyan);
+        color: #0284c7;
+    }
+    .filter-indicator-tag {
+        background: #0284c7;
+        color: white;
+        padding: 1px 6px;
+        border-radius: 10px;
+        font-size: 0.68rem;
+        font-weight: 700;
+    }
+    .col-filter-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        min-width: 240px;
+        z-index: 60;
+        padding: 6px;
+        text-align: left;
+    }
+    .col-filter-menu.show {
+        display: block;
+    }
+    .col-filter-header {
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        padding: 6px 10px 4px 10px;
+    }
+    .col-filter-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 10px;
+        border: none;
+        background: transparent;
+        border-radius: 6px;
+        color: var(--text-main);
+        font-size: 0.8rem;
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.15s;
+    }
+    .col-filter-item:hover {
+        background: var(--surface-hover);
+    }
+    .col-filter-item.selected {
+        background: rgba(14, 165, 233, 0.12);
+        color: #0284c7;
+        font-weight: 700;
+    }
+    .col-filter-divider {
+        height: 1px;
+        background: var(--line);
+        margin: 4px 0;
+    }
+
+    /* Table styling */
+    .vendors-table-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.03);
+    }
+    .vendors-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 0.86rem;
+    }
+    .vendors-table th {
+        background: var(--surface-hover, rgba(0,0,0,0.02));
+        padding: 12px 14px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
+    }
+    .vendors-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: middle;
+        color: var(--text-main);
+    }
+    .vendors-table tbody tr {
+        transition: background-color 0.15s;
+    }
+    .vendors-table tbody tr:hover {
+        background: rgba(14, 165, 233, 0.03);
+    }
+    .vendors-table tbody tr.is-editing {
+        background: rgba(14, 165, 233, 0.08) !important;
+        box-shadow: inset 3px 0 0 var(--cyan);
+    }
+
+    /* Vendor name cell */
+    .vendor-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .vendor-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #0284c7, #2563eb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+        color: #fff;
+        flex-shrink: 0;
+    }
+    .vendor-title-text {
+        font-weight: 700;
+        color: var(--text-main);
+        font-size: 0.88rem;
+    }
+    .device-count-tag {
+        display: inline-block;
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: 10px;
+        background: rgba(14, 165, 233, 0.12);
+        color: #0284c7;
+        margin-left: 6px;
+    }
+
+    /* Read-only vs Editing display */
+    .val-text {
+        display: block;
+        word-break: break-word;
+    }
+    .val-empty {
+        color: var(--muted);
+        font-style: italic;
+        font-size: 0.8rem;
+    }
+    .val-input {
+        display: none;
+        width: 100%;
+        padding: 6px 9px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        color: var(--text-main);
+        font-size: 0.83rem;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+    .val-input:focus {
+        outline: none;
+        border-color: var(--cyan);
+        background: var(--surface);
+    }
+    .is-editing .val-text {
+        display: none !important;
+    }
+    .is-editing .val-input {
+        display: block !important;
+    }
+
+    /* WhatsApp quick button */
+    .btn-wa-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: 6px;
+        background: rgba(37, 211, 102, 0.12);
+        color: #25D366;
+        border: 1px solid rgba(37, 211, 102, 0.25);
+        font-size: 0.76rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+    .btn-wa-action:hover {
+        background: #25D366;
+        color: white;
+    }
+    .btn-wa-disabled {
+        opacity: 0.35;
+        pointer-events: none;
+        background: transparent;
+        border-color: var(--line);
+        color: var(--muted);
+    }
+
+    /* Dropdown action menu */
+    .vendor-action-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    .btn-vendor-actions {
+        background: transparent;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 5px 10px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-main);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-vendor-actions:hover {
+        background: var(--surface-hover);
+        border-color: var(--cyan);
+    }
+    .vendor-dropdown-menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 4px);
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+        min-width: 140px;
+        z-index: 50;
+        padding: 4px;
+        overflow: hidden;
+    }
+    .vendor-dropdown-menu.show {
+        display: block;
+    }
+    .vendor-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 7px 10px;
+        background: transparent;
+        border: none;
+        border-radius: 5px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-main);
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.15s;
+    }
+    .vendor-dropdown-item:hover {
+        background: var(--surface-hover);
+    }
+    .vendor-dropdown-item.text-danger:hover {
+        background: rgba(239, 68, 68, 0.08);
+        color: var(--danger);
+    }
+
+    /* Edit mode action buttons */
+    .edit-actions-wrap {
+        display: none;
+        gap: 6px;
+        align-items: center;
+    }
+    .is-editing .vendor-action-dropdown {
+        display: none !important;
+    }
+    .is-editing .edit-actions-wrap {
+        display: inline-flex !important;
+    }
+    .btn-save-row {
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 5px 11px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: opacity 0.15s;
+    }
+    .btn-save-row:hover { opacity: 0.9; }
+    .btn-cancel-row {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 5px 9px;
+        font-size: 0.78rem;
+        cursor: pointer;
+    }
+    .btn-cancel-row:hover {
+        background: var(--surface-hover);
+        color: var(--text-main);
+    }
+
+    /* Add vendor modal */
+    .vendor-modal-backdrop {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        animation: vm-fade-in 0.2s ease-out;
+        overflow-y: auto;
+    }
+    .vendor-modal-card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        width: 100%;
+        max-width: 580px;
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+        animation: vm-scale-up 0.22s ease-out;
+        margin: auto;
+    }
+    #addVendorForm {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+    @@keyframes vm-fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    @@keyframes vm-scale-up {
+        from { transform: scale(0.95); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+    .vendor-modal-header {
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-shrink: 0;
+        background: var(--paper);
+    }
+    .vendor-modal-close {
+        background: transparent;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--muted);
+        line-height: 1;
+        padding: 0 4px;
+        border-radius: 6px;
+    }
+    .vendor-modal-close:hover {
+        color: var(--text-main);
+    }
+    .vendor-modal-body {
+        padding: 22px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+    .vendor-modal-footer {
+        padding: 14px 22px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-shrink: 0;
+        background: var(--paper);
+    }
+    .extra-phone-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    .btn-remove-phone {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        width: 36px;
+        height: 38px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        transition: background 0.15s;
+    }
+    .btn-remove-phone:hover {
+        background: rgba(239, 68, 68, 0.2);
+    }
+    .vp-btn-text {
+        background: transparent;
+        border: none;
+        color: #0284c7;
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 4px 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border-radius: 4px;
+    }
+    .vp-btn-text:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="vendors-container">
+    <div class="page-heading">
+        <div>
+            <div class="eyebrow">Contacts &bull; @branch Branch</div>
+            <h1>Vendors</h1>
+            <p>Directory of vendors collected from your fleet devices. Rows are strictly read-only; use the row dropdown menu to edit contact details.</p>
+        </div>
+        @if (User.CanEditModule("Vendors"))
+        {
+            <div class="page-heading-actions">
+                <button type="button" class="button btn-primary" onclick="openAddVendorModal()" id="btnAddVendor">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add Vendor
+                </button>
+            </div>
+        }
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="vendors-header-stats">
+        <div class="v-stat-pill">
+            <span>Total Vendors:</span>
+            <strong id="statTotal">@Model.Count</strong>
+        </div>
+        <div class="v-stat-pill">
+            <span>With Phone:</span>
+            <strong style="color: #10b981;" id="statWithPhone">@withPhone</strong>
+        </div>
+        <div class="v-stat-pill">
+            <span>Pending Phone:</span>
+            <strong style="color: #f59e0b;" id="statWithoutPhone">@withoutPhone</strong>
+        </div>
+    </div>
+
+    <!-- Leaderboard -->
+    @{ var leaderboard = ViewBag.Leaderboard as List<KeyValuePair<string, int>>; }
+    @if (leaderboard != null && leaderboard.Count > 0)
+    {
+        <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 12px; color: var(--text-main);">🏆 Top Fleet Vendors</div>
+        <div class="leaderboard-grid">
+            @for (var i = 0; i < leaderboard.Count; i++)
+            {
+                var vendorName = leaderboard[i].Key;
+                // find the ID to link
+                var vRecord = Model.FirstOrDefault(v => v.Name.Equals(vendorName, StringComparison.OrdinalIgnoreCase));
+                var vId = vRecord?.Id ?? "";
+                
+                <a href="/Vendors/Profile/@vId" class="leaderboard-card">
+                    <div class="lb-rank lb-rank-@(i + 1)">
+                        @(i == 0 ? "1st" : i == 1 ? "2nd" : "3rd")
+                    </div>
+                    <div class="lb-info">
+                        <div class="lb-name">@vendorName</div>
+                        <div class="lb-count">@leaderboard[i].Value devices</div>
+                    </div>
+                    <div style="color: var(--cyan);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+
+    <!-- Add Vendor Modal Dialog -->
+    @if (User.CanEditModule("Vendors"))
+    {
+        <div id="addVendorModal" class="vendor-modal-backdrop" style="display: none;" onclick="if(event.target === this) closeAddVendorModal()">
+            <div class="vendor-modal-card">
+                <div class="vendor-modal-header">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700;">Add New Vendor</h3>
+                        <p style="margin: 4px 0 0; font-size: 0.85rem; color: var(--muted);">Add a vendor to @branch branch directory</p>
+                    </div>
+                    <button type="button" class="vendor-modal-close" onclick="closeAddVendorModal()">&times;</button>
+                </div>
+                <form asp-action="AddVendor" method="post" id="addVendorForm" onsubmit="prepareAddVendorSubmit()">
+                    <input type="hidden" name="extraPhones" id="modalExtraPhonesJson" value="" />
+                    <div class="vendor-modal-body">
+                        <!-- Vendor Name -->
+                        <div class="field">
+                            <label for="modalVendorName" class="form-label" style="font-weight: 700;">Vendor Name *</label>
+                            <input id="modalVendorName" name="name" class="input" placeholder="e.g. Govesh, Anil Blackbuck..." required autocomplete="off" oninput="updateModalPrefixPreview()" />
+                            <span style="font-size: 0.72rem; color: var(--muted); margin-top: 2px; display: block;">Unique name for this vendor in @branch.</span>
+                        </div>
+
+                        <!-- Custom Batch Prefix -->
+                        <div class="field">
+                            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                                <label for="modalBatchPrefix" class="form-label" style="margin: 0; font-weight: 700;">Custom Batch Prefix (3-4 characters)</label>
+                                <span id="modalPrefixPreview" style="font-size: 0.75rem; font-family: monospace; font-weight: 700; color: #0284c7; background: rgba(14,165,233,0.12); padding: 2px 8px; border-radius: 4px;">
+                                    Preview: VEN - 26092026
+                                </span>
+                            </div>
+                            <input id="modalBatchPrefix" name="batchPrefix" class="input" maxlength="6" style="text-transform: uppercase; font-family: monospace; font-weight: 700; letter-spacing: 0.08em;" placeholder="e.g. ABB, AMT, GOV, RRL" oninput="updateModalPrefixPreview()" />
+                            <span style="font-size: 0.72rem; color: var(--muted); margin-top: 2px; display: block;">Used when auto-generating Bulk Split Batch IDs (format: <code>PREFIX - ddmmyyyy</code>). Leave blank to auto-generate.</span>
+                        </div>
+
+                        <!-- 2-column phone inputs -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                            <div class="field">
+                                <label for="modalVendorPhone" class="form-label" style="font-weight: 700;">Primary Phone</label>
+                                <input id="modalVendorPhone" name="phone" class="input" placeholder="Primary phone number..." oninput="syncModalWhatsAppIfSame()" />
+                            </div>
+                            <div class="field">
+                                <label for="modalVendorAltPhone" class="form-label" style="font-weight: 700;">Alternate Phone</label>
+                                <input id="modalVendorAltPhone" name="altPhone" class="input" placeholder="Alternate phone (optional)..." />
+                            </div>
+                        </div>
+
+                        <!-- Additional Phone Numbers -->
+                        <div class="field" style="margin-top: 2px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <label class="form-label" style="margin-bottom: 0; font-weight: 700;">Additional Phone Numbers</label>
+                                <button type="button" class="vp-btn-text" onclick="addModalExtraPhoneField()">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                    Add Phone Number
+                                </button>
+                            </div>
+                            <div id="modalExtraPhonesContainer" style="display: flex; flex-direction: column; gap: 8px;">
+                                <!-- dynamically injected extra phones -->
+                            </div>
+                        </div>
+
+                        <!-- WhatsApp Configuration -->
+                        <div class="field" style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 10px; padding: 12px 14px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-size: 0.82rem; font-weight: 700; color: #15803d; display: inline-flex; align-items: center; gap: 6px;">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                                    WhatsApp Number
+                                </span>
+                                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--text-main); user-select: none;">
+                                    <input type="checkbox" name="whatsAppSameAsPhone" id="modalWaSameAsPhone" value="true" checked onchange="toggleModalWhatsAppSameAsPhone()" />
+                                    Same as regular / primary phone
+                                </label>
+                            </div>
+                            <div id="modalWaCustomWrap" style="display: none;">
+                                <input id="modalWhatsAppNumber" name="whatsAppNumber" class="input" placeholder="Dedicated WhatsApp number (e.g. 9876543210)" />
+                                <span style="font-size: 0.72rem; color: #15803d; margin-top: 3px; display: block;">Specify if the vendor receives WhatsApp alerts on a different contact number.</span>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="field">
+                            <label for="modalVendorNotes" class="form-label" style="font-weight: 700;">Notes (Optional)</label>
+                            <textarea id="modalVendorNotes" name="notes" class="input" rows="2" placeholder="Contact person, address, remarks..."></textarea>
+                        </div>
+                    </div>
+                    <div class="vendor-modal-footer">
+                        <button type="button" class="button secondary" onclick="closeAddVendorModal()">Cancel</button>
+                        <button type="submit" class="button btn-primary" id="btnSubmitAddVendor">Add Vendor</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+
+    <!-- Toolbar: Search Bar, Filter / Sort, & Quick Pills -->
+    <div class="vendors-toolbar">
+        <div class="vendors-toolbar-left">
+            <div class="vendors-search-wrap">
+                <svg class="vendors-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="vendorSearchInput" placeholder="Filter by vendor name, mobile, notes..." oninput="filterVendorsTable()" />
+            </div>
+
+            <!-- Dropdown for vendors list -->
+            <div class="vendors-sort-select-wrap">
+                <label for="vendorListDropdown">Vendor:</label>
+                <select id="vendorListDropdown" onchange="onVendorDropdownFilter(this.value)">
+                    <option value="">-- All Vendors (@Model.Count) --</option>
+                    @foreach (var v in Model.OrderBy(x => x.Name))
+                    {
+                        <option value="@v.Name">@v.Name</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Sort selector in toolbar -->
+            <div class="vendors-sort-select-wrap">
+                <label for="vendorSortSelect">Order:</label>
+                <select id="vendorSortSelect" onchange="applySort(this.value)">
+                    <option value="" selected="@(string.IsNullOrEmpty(ViewBag.CurrentSort as string))">Name: A to Z</option>
+                    <option value="count_desc" selected="@(ViewBag.CurrentSort as string == "count_desc")">Devices: High to Low (Desc)</option>
+                    <option value="count_asc" selected="@(ViewBag.CurrentSort as string == "count_asc")">Devices: Low to High (Asc)</option>
+                    <option value="name_desc" selected="@(ViewBag.CurrentSort as string == "name_desc")">Name: Z to A</option>
+                </select>
+            </div>
+
+            <!-- Quick Filter status pills -->
+            <div class="vendor-quick-filters">
+                <button type="button" class="v-quick-btn active" data-filter="all" onclick="setQuickFilter('all', this)">All</button>
+                <button type="button" class="v-quick-btn" data-filter="has-devices" onclick="setQuickFilter('has-devices', this)">With Devices</button>
+                <button type="button" class="v-quick-btn" data-filter="has-phone" onclick="setQuickFilter('has-phone', this)">With Phone</button>
+                <button type="button" class="v-quick-btn" data-filter="no-phone" onclick="setQuickFilter('no-phone', this)">Pending Phone</button>
+            </div>
+        </div>
+
+        <div style="font-size: 0.8rem; color: var(--muted); white-space: nowrap;" id="tableFilterCount">
+            Showing all @Model.Count vendors
+        </div>
+    </div>
+
+    <!-- Vendors Table -->
+    @if (!Model.Any())
+    {
+        <div class="card" style="padding: 48px; text-align: center; color: var(--muted);">
+            <div style="font-size: 2.2rem; margin-bottom: 8px;">🏪</div>
+            <strong style="color: var(--text-main); font-size: 1.05rem;">No vendors found in @branch</strong>
+            <div style="font-size: 0.85rem; margin-top: 4px;">Vendors are automatically collected from your fleet device records.</div>
+        </div>
+    }
+    else
+    {
+        <div class="vendors-table-card">
+            <div class="table-wrap" style="overflow-x: auto;">
+                <table class="vendors-table" id="vendorsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 44px; text-align: center;">#</th>
+                            <th style="min-width: 250px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                    <span style="font-weight: 700;">Vendor Name</span>
+                                    
+                                    <!-- Filter dropdown in Vendor column -->
+                                    <div class="col-filter-dropdown">
+                                        <button type="button" class="btn-col-filter @(!string.IsNullOrEmpty(ViewBag.CurrentSort as string) ? "active" : "")" id="btnColFilter" onclick="toggleColumnFilter(event)" title="Sort and filter vendor column">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                                            <span>Filter</span>
+                                            @if (ViewBag.CurrentSort as string == "count_desc")
+                                            {
+                                                <span class="filter-indicator-tag">Devices ↓</span>
+                                            }
+                                            else if (ViewBag.CurrentSort as string == "count_asc")
+                                            {
+                                                <span class="filter-indicator-tag">Devices ↑</span>
+                                            }
+                                            else if (ViewBag.CurrentSort as string == "name_desc")
+                                            {
+                                                <span class="filter-indicator-tag">Z → A</span>
+                                            }
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                        </button>
+                                        <div class="col-filter-menu" id="colFilterMenu">
+                                            <div class="col-filter-header">Order by Devices</div>
+                                            <button type="button" class="col-filter-item @(ViewBag.CurrentSort as string == "count_desc" ? "selected" : "")" onclick="applySort('count_desc')">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                                <span>Devices: <strong>High to Low</strong> (Desc)</span>
+                                            </button>
+                                            <button type="button" class="col-filter-item @(ViewBag.CurrentSort as string == "count_asc" ? "selected" : "")" onclick="applySort('count_asc')">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                                                <span>Devices: <strong>Low to High</strong> (Asc)</span>
+                                            </button>
+                                            
+                                            <div class="col-filter-header" style="margin-top: 6px;">Order by Name</div>
+                                            <button type="button" class="col-filter-item @(string.IsNullOrEmpty(ViewBag.CurrentSort as string) ? "selected" : "")" onclick="applySort('')">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                                <span>Name: <strong>A to Z</strong> (Default)</span>
+                                            </button>
+                                            <button type="button" class="col-filter-item @(ViewBag.CurrentSort as string == "name_desc" ? "selected" : "")" onclick="applySort('name_desc')">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                                                <span>Name: <strong>Z to A</strong></span>
+                                            </button>
+
+                                            <div class="col-filter-divider"></div>
+                                            <button type="button" class="col-filter-item" onclick="applySort('')" style="color: var(--muted); font-size: 0.78rem;">
+                                                ↺ Reset sorting
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
+                            <th style="min-width: 150px;">Mobile Number</th>
+                            <th style="min-width: 150px;">Alt Number</th>
+                            <th style="min-width: 220px;">Notes</th>
+                            <th style="width: 110px; text-align: center;">WhatsApp</th>
+                            <th style="width: 110px; text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ var rowIdx = 0; }
+                        @foreach (var v in Model)
+                        {
+                            rowIdx++;
+                            var initial = string.IsNullOrWhiteSpace(v.Name) ? "?" : v.Name[0].ToString().ToUpper();
+                            var deviceCount = deviceCountMap.TryGetValue(v.Name, out var cnt) ? cnt : 0;
+                            var cleanPhone = new string((v.Phone ?? "").Where(char.IsDigit).ToArray());
+                            if (cleanPhone.Length == 10) cleanPhone = "91" + cleanPhone;
+                            var waUrl = !string.IsNullOrWhiteSpace(cleanPhone)
+                                ? $"https://web.whatsapp.com/send?phone={cleanPhone}"
+                                : "";
+
+                            <tr id="row-@v.Id" data-vendor-id="@v.Id" data-search="@(v.Name.ToLower()) @(v.Phone?.ToLower()) @(v.AltPhone?.ToLower()) @(v.Notes?.ToLower())" data-name="@v.Name" data-count="@deviceCount" data-has-phone="@(!string.IsNullOrWhiteSpace(v.Phone) ? "1" : "0")">
+                                <!-- Sl No -->
+                                <td style="text-align: center; color: var(--muted); font-size: 0.78rem;" class="row-num">
+                                    @rowIdx
+                                </td>
+
+                                <!-- Vendor Name -->
+                                <td>
+                                    <div class="vendor-name-cell">
+                                        <div class="vendor-avatar">@initial</div>
+                                        <div>
+                                            <a href="/Vendors/Profile/@v.Id" class="vendor-title-text" style="text-decoration: none; display: block; transition: color 0.15s;">
+                                                @v.Name
+                                            </a>
+                                            @if (deviceCount > 0)
+                                            {
+                                                <span class="device-count-tag" title="@deviceCount device(s) linked in fleet">@deviceCount dev</span>
+                                            }
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Phone -->
+                                <td>
+                                    <span class="val-text @(string.IsNullOrWhiteSpace(v.Phone) ? "val-empty" : "")" id="view-phone-@v.Id">
+                                        @(string.IsNullOrWhiteSpace(v.Phone) ? "—" : v.Phone)
+                                    </span>
+                                    <input type="tel" class="val-input" id="input-phone-@v.Id" value="@v.Phone" placeholder="10-digit mobile..." />
+                                </td>
+
+                                <!-- Alt Phone -->
+                                <td>
+                                    <span class="val-text @(string.IsNullOrWhiteSpace(v.AltPhone) ? "val-empty" : "")" id="view-alt-@v.Id">
+                                        @(string.IsNullOrWhiteSpace(v.AltPhone) ? "—" : v.AltPhone)
+                                    </span>
+                                    <input type="tel" class="val-input" id="input-alt-@v.Id" value="@v.AltPhone" placeholder="Alt mobile..." />
+                                </td>
+
+                                <!-- Notes -->
+                                <td>
+                                    <span class="val-text @(string.IsNullOrWhiteSpace(v.Notes) ? "val-empty" : "")" id="view-notes-@v.Id">
+                                        @(string.IsNullOrWhiteSpace(v.Notes) ? "—" : v.Notes)
+                                    </span>
+                                    <input type="text" class="val-input" id="input-notes-@v.Id" value="@v.Notes" placeholder="Notes about vendor..." />
+                                </td>
+
+                                <!-- WhatsApp Button -->
+                                <td style="text-align: center;">
+                                    <a href="@waUrl" target="_blank" id="wa-btn-@v.Id" class="btn-wa-action @(string.IsNullOrWhiteSpace(waUrl) ? "btn-wa-disabled" : "")" title="@(string.IsNullOrWhiteSpace(waUrl) ? "Add mobile number to enable WhatsApp" : "Open WhatsApp chat")">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                                        Chat
+                                    </a>
+                                </td>
+
+                                <!-- Actions Dropdown / Edit Controls -->
+                                <td style="text-align: right;">
+                                    @if (User.CanEditModule("Vendors"))
+                                    {
+                                        <!-- Actions Dropdown (Default Read-Only State) -->
+                                        <div class="vendor-action-dropdown">
+                                            <button type="button" class="btn-vendor-actions" onclick="toggleRowDropdown(event, '@v.Id')" title="Vendor actions">
+                                                <span>Actions</span>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                            </button>
+                                            <div class="vendor-dropdown-menu" id="menu-@v.Id">
+                                                <button type="button" class="vendor-dropdown-item" onclick="startEditRow('@v.Id')">
+                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                                    Edit
+                                                </button>
+                                                <button type="button" class="vendor-dropdown-item text-danger" onclick="deleteVendorRow('@v.Id', '@v.Name')">
+                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Edit Mode Controls (Shown only during Edit) -->
+                                        <div class="edit-actions-wrap" id="edit-controls-@v.Id">
+                                            <button type="button" class="btn-save-row" onclick="saveRowVendor('@v.Id')" id="save-btn-@v.Id" title="Save changes">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                                Save
+                                            </button>
+                                            <button type="button" class="btn-cancel-row" onclick="cancelEditRow('@v.Id')" title="Cancel editing">
+                                                &times;
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span style="font-size: 0.75rem; color: var(--muted);">View only</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<script>
+    // Original values cache for cancel action
+    const originalValues = {};
+
+    function openAddVendorModal() {
+        const modal = document.getElementById('addVendorModal');
+        if (modal) {
+            // Prevent background page from scrolling
+            document.body.style.overflow = 'hidden';
+
+            // Reset dynamic phones
+            const container = document.getElementById('modalExtraPhonesContainer');
+            if (container) container.innerHTML = '';
+            
+            // Reset WhatsApp checkbox
+            const waCheckbox = document.getElementById('modalWaSameAsPhone');
+            if (waCheckbox) waCheckbox.checked = true;
+            toggleModalWhatsAppSameAsPhone();
+
+            modal.style.display = 'flex';
+            const inp = document.getElementById('modalVendorName');
+            if (inp) {
+                inp.focus();
+                inp.select();
+            }
+            updateModalPrefixPreview();
+        }
+    }
+
+    function closeAddVendorModal() {
+        const modal = document.getElementById('addVendorModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    }
+
+    function toggleAddVendorCard() {
+        openAddVendorModal();
+    }
+
+    function addModalExtraPhoneField(value = '') {
+        const container = document.getElementById('modalExtraPhonesContainer');
+        if (!container) return;
+        const row = document.createElement('div');
+        row.className = 'extra-phone-row';
+        row.innerHTML = `
+            <input type="text" class="input modal-extra-phone-input" placeholder="Additional phone number" value="${value ? String(value).replace(/"/g, '&quot;') : ''}" />
+            <button type="button" class="btn-remove-phone" onclick="this.closest('.extra-phone-row').remove()" title="Remove this phone">&times;</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function toggleModalWhatsAppSameAsPhone() {
+        const isSame = document.getElementById('modalWaSameAsPhone')?.checked ?? true;
+        const group = document.getElementById('modalWaCustomWrap');
+        if (!group) return;
+        if (isSame) {
+            group.style.display = 'none';
+        } else {
+            group.style.display = 'block';
+            const waInput = document.getElementById('modalWhatsAppNumber');
+            if (waInput && !waInput.value) {
+                waInput.value = document.getElementById('modalVendorPhone')?.value || '';
+            }
+        }
+    }
+
+    function syncModalWhatsAppIfSame() {
+        // Kept for consistency if needed in future
+    }
+
+    function computeAutoPrefix(name) {
+        if (!name || !name.trim()) return "VEN";
+        const parts = name.trim().split(/\s+/).filter(p => p.length > 0);
+        if (parts.length >= 3) {
+            return (parts[0][0] + parts[1][0] + parts[2][0]).toUpperCase();
+        }
+        if (parts.length === 2) {
+            const first = parts[0];
+            const second = parts[1];
+            if (first.length >= 3 && second.length >= 2) {
+                return (first.substring(0, 2) + second[0]).toUpperCase();
+            }
+            if (first.length >= 3) {
+                return first.substring(0, 3).toUpperCase();
+            }
+            return (first + second).substring(0, 3).toUpperCase();
+        }
+        return parts[0].substring(0, 3).toUpperCase();
+    }
+
+    function updateModalPrefixPreview() {
+        const nameVal = document.getElementById('modalVendorName')?.value || '';
+        const customVal = document.getElementById('modalBatchPrefix')?.value || '';
+        const effective = customVal.trim() ? customVal.trim().toUpperCase() : computeAutoPrefix(nameVal);
+        
+        const now = new Date();
+        const dd = String(now.getDate()).padStart(2, '0');
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const yyyy = now.getFullYear();
+        const dateStr = `${dd}${mm}${yyyy}`;
+
+        const badge = document.getElementById('modalPrefixPreview');
+        if (badge) {
+            badge.textContent = `Preview: ${effective} - ${dateStr}`;
+        }
+    }
+
+    function prepareAddVendorSubmit() {
+        // Collect extra phone inputs into JSON array
+        const extraInputs = document.querySelectorAll('#modalExtraPhonesContainer .modal-extra-phone-input');
+        const list = [];
+        extraInputs.forEach(inp => {
+            const v = inp.value.trim();
+            if (v) list.push(v);
+        });
+        const jsonInput = document.getElementById('modalExtraPhonesJson');
+        if (jsonInput) {
+            jsonInput.value = JSON.stringify(list);
+        }
+
+        const btn = document.getElementById('btnSubmitAddVendor');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Adding...';
+        }
+    }
+
+    function toggleRowDropdown(e, id) {
+        e.stopPropagation();
+        const menu = document.getElementById('menu-' + id);
+        if (!menu) return;
+
+        // Close any other open dropdowns
+        document.querySelectorAll('.vendor-dropdown-menu.show').forEach(m => {
+            if (m !== menu) m.classList.remove('show');
+        });
+
+        menu.classList.toggle('show');
+    }
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.vendor-dropdown-menu.show').forEach(m => m.classList.remove('show'));
+    });
+
+    function startEditRow(id) {
+        // Close dropdown
+        const menu = document.getElementById('menu-' + id);
+        if (menu) menu.classList.remove('show');
+
+        const row = document.getElementById('row-' + id);
+        if (!row) return;
+
+        // Save current input values in case user cancels
+        const phoneInput = document.getElementById('input-phone-' + id);
+        const altInput = document.getElementById('input-alt-' + id);
+        const notesInput = document.getElementById('input-notes-' + id);
+
+        originalValues[id] = {
+            phone: phoneInput ? phoneInput.value : '',
+            altPhone: altInput ? altInput.value : '',
+            notes: notesInput ? notesInput.value : ''
+        };
+
+        row.classList.add('is-editing');
+        if (phoneInput) phoneInput.focus();
+    }
+
+    function cancelEditRow(id) {
+        const row = document.getElementById('row-' + id);
+        if (!row) return;
+
+        // Restore original values
+        if (originalValues[id]) {
+            const phoneInput = document.getElementById('input-phone-' + id);
+            const altInput = document.getElementById('input-alt-' + id);
+            const notesInput = document.getElementById('input-notes-' + id);
+
+            if (phoneInput) phoneInput.value = originalValues[id].phone;
+            if (altInput) altInput.value = originalValues[id].altPhone;
+            if (notesInput) notesInput.value = originalValues[id].notes;
+        }
+
+        row.classList.remove('is-editing');
+    }
+
+    function saveRowVendor(id) {
+        const row = document.getElementById('row-' + id);
+        const saveBtn = document.getElementById('save-btn-' + id);
+        const phoneInput = document.getElementById('input-phone-' + id);
+        const altInput = document.getElementById('input-alt-' + id);
+        const notesInput = document.getElementById('input-notes-' + id);
+
+        const phoneVal = phoneInput ? phoneInput.value.trim() : '';
+        const altVal = altInput ? altInput.value.trim() : '';
+        const notesVal = notesInput ? notesInput.value.trim() : '';
+
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = 'Saving...';
+        }
+
+        const formData = new URLSearchParams();
+        formData.append('id', id);
+        formData.append('phone', phoneVal);
+        formData.append('altPhone', altVal);
+        formData.append('notes', notesVal);
+
+        fetch('/Vendors/SavePhone', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData.toString()
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Save';
+            }
+
+            if (data.success) {
+                // Update text displays
+                const viewPhone = document.getElementById('view-phone-' + id);
+                if (viewPhone) {
+                    viewPhone.textContent = data.phone || '—';
+                    viewPhone.className = 'val-text ' + (data.phone ? '' : 'val-empty');
+                }
+
+                const viewAlt = document.getElementById('view-alt-' + id);
+                if (viewAlt) {
+                    viewAlt.textContent = data.altPhone || '—';
+                    viewAlt.className = 'val-text ' + (data.altPhone ? '' : 'val-empty');
+                }
+
+                const viewNotes = document.getElementById('view-notes-' + id);
+                if (viewNotes) {
+                    viewNotes.textContent = data.notes || '—';
+                    viewNotes.className = 'val-text ' + (data.notes ? '' : 'val-empty');
+                }
+
+                // Update WhatsApp button
+                const waBtn = document.getElementById('wa-btn-' + id);
+                if (waBtn) {
+                    if (data.waUrl) {
+                        waBtn.href = data.waUrl;
+                        waBtn.classList.remove('btn-wa-disabled');
+                        waBtn.title = 'Open WhatsApp chat';
+                    } else {
+                        waBtn.href = '';
+                        waBtn.classList.add('btn-wa-disabled');
+                        waBtn.title = 'Add mobile number to enable WhatsApp';
+                    }
+                }
+
+                // Update search metadata
+                if (row) {
+                    const searchData = `${data.name || ''} ${data.phone || ''} ${data.altPhone || ''} ${data.notes || ''}`.toLowerCase();
+                    row.setAttribute('data-search', searchData);
+                    row.setAttribute('data-has-phone', phoneVal ? '1' : '0');
+                }
+
+                // Update stats counter
+                updateVendorStats();
+
+                // Revert to read-only
+                row.classList.remove('is-editing');
+
+                // Toast notification
+                showVendorToast('Updated ' + (data.name || 'vendor') + ' successfully');
+            } else {
+                alert('Could not save vendor changes.');
+            }
+        })
+        .catch(() => {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = 'Save';
+            }
+            alert('Failed to connect to server.');
+        });
+    }
+
+    function deleteVendorRow(id, name) {
+        const menu = document.getElementById('menu-' + id);
+        if (menu) menu.classList.remove('show');
+
+        if (!confirm(`Are you sure you want to delete vendor "${name}"?`)) return;
+
+        const formData = new URLSearchParams();
+        formData.append('id', id);
+
+        fetch('/Vendors/Delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData.toString()
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const row = document.getElementById('row-' + id);
+                if (row) {
+                    row.style.opacity = '0';
+                    row.style.transform = 'scale(0.95)';
+                    row.style.transition = 'all 0.2s';
+                    setTimeout(() => {
+                        row.remove();
+                        renumberRows();
+                        updateVendorStats();
+                    }, 200);
+                }
+                showVendorToast(`Vendor "${name}" deleted`);
+            } else {
+                alert('Could not delete vendor.');
+            }
+        })
+        .catch(() => alert('Failed to connect to server.'));
+    }
+
+    function renumberRows() {
+        let idx = 1;
+        document.querySelectorAll('#vendorsTable tbody tr:not([style*="display: none"])').forEach(r => {
+            const numCell = r.querySelector('.row-num');
+            if (numCell) numCell.textContent = idx++;
+        });
+    }
+
+    function updateVendorStats() {
+        let total = 0;
+        let withPhone = 0;
+        document.querySelectorAll('#vendorsTable tbody tr').forEach(r => {
+            total++;
+            const phoneInput = r.querySelector('[id^="input-phone-"]');
+            if (phoneInput && phoneInput.value.trim() !== '') {
+                withPhone++;
+            }
+        });
+        const statTotal = document.getElementById('statTotal');
+        const statWithPhone = document.getElementById('statWithPhone');
+        const statWithoutPhone = document.getElementById('statWithoutPhone');
+
+        if (statTotal) statTotal.textContent = total;
+        if (statWithPhone) statWithPhone.textContent = withPhone;
+        if (statWithoutPhone) statWithoutPhone.textContent = total - withPhone;
+    }
+
+    let currentSort = '@(ViewBag.CurrentSort as string ?? "")';
+    let currentQuickFilter = 'all';
+
+    function toggleColumnFilter(e) {
+        e.stopPropagation();
+        const menu = document.getElementById('colFilterMenu');
+        if (!menu) return;
+        menu.classList.toggle('show');
+    }
+
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('colFilterMenu');
+        if (menu && !menu.contains(e.target)) {
+            menu.classList.remove('show');
+        }
+    });
+
+    function setQuickFilter(type, btn) {
+        currentQuickFilter = type;
+        document.querySelectorAll('.v-quick-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        filterVendorsTable();
+    }
+
+    function applySort(order) {
+        currentSort = order;
+
+        // Update column filter menu item selection
+        document.querySelectorAll('.col-filter-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+
+        // Update column filter button UI
+        const btnColFilter = document.getElementById('btnColFilter');
+        if (btnColFilter) {
+            let indicator = btnColFilter.querySelector('.filter-indicator-tag');
+            if (indicator) indicator.remove();
+
+            if (order) {
+                btnColFilter.classList.add('active');
+                let tagText = '';
+                if (order === 'count_desc') tagText = 'Devices ↓';
+                else if (order === 'count_asc') tagText = 'Devices ↑';
+                else if (order === 'name_desc') tagText = 'Z → A';
+
+                if (tagText) {
+                    const tag = document.createElement('span');
+                    tag.className = 'filter-indicator-tag';
+                    tag.textContent = tagText;
+                    btnColFilter.insertBefore(tag, btnColFilter.lastElementChild);
+                }
+            } else {
+                btnColFilter.classList.remove('active');
+            }
+        }
+
+        // Close menu
+        const menu = document.getElementById('colFilterMenu');
+        if (menu) menu.classList.remove('show');
+
+        // Update toolbar select
+        const sel = document.getElementById('vendorSortSelect');
+        if (sel) sel.value = order;
+
+        // Instant DOM sort
+        const tbody = document.querySelector('#vendorsTable tbody');
+        if (tbody) {
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort((a, b) => {
+                if (order === 'count_desc' || order === 'count_asc') {
+                    const countA = parseInt(a.getAttribute('data-count') || '0', 10);
+                    const countB = parseInt(b.getAttribute('data-count') || '0', 10);
+                    if (countA !== countB) {
+                        return order === 'count_desc' ? countB - countA : countA - countB;
+                    }
+                    const nameA = (a.getAttribute('data-name') || '').toLowerCase();
+                    const nameB = (b.getAttribute('data-name') || '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                } else if (order === 'name_desc') {
+                    const nameA = (a.getAttribute('data-name') || '').toLowerCase();
+                    const nameB = (b.getAttribute('data-name') || '').toLowerCase();
+                    return nameB.localeCompare(nameA);
+                } else {
+                    const nameA = (a.getAttribute('data-name') || '').toLowerCase();
+                    const nameB = (b.getAttribute('data-name') || '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                }
+            });
+            rows.forEach(r => tbody.appendChild(r));
+        }
+
+        // Update URL state
+        const url = new URL(window.location.href);
+        if (order) {
+            url.searchParams.set('sortOrder', order);
+        } else {
+            url.searchParams.delete('sortOrder');
+        }
+        window.history.replaceState({}, '', url.toString());
+
+        filterVendorsTable();
+    }
+
+    function filterVendorsTable() {
+        const query = (document.getElementById('vendorSearchInput')?.value || '').trim().toLowerCase();
+        const rows = document.querySelectorAll('#vendorsTable tbody tr');
+        let visibleCount = 0;
+
+        rows.forEach(r => {
+            const searchData = r.getAttribute('data-search') || '';
+            const matchQuery = !query || searchData.includes(query);
+
+            let matchQuick = true;
+            if (currentQuickFilter === 'has-devices') {
+                const cnt = parseInt(r.getAttribute('data-count') || '0', 10);
+                matchQuick = cnt > 0;
+            } else if (currentQuickFilter === 'has-phone') {
+                matchQuick = r.getAttribute('data-has-phone') === '1';
+            } else if (currentQuickFilter === 'no-phone') {
+                matchQuick = r.getAttribute('data-has-phone') === '0';
+            }
+
+            if (matchQuery && matchQuick) {
+                r.style.display = '';
+                visibleCount++;
+            } else {
+                r.style.display = 'none';
+            }
+        });
+
+        const countEl = document.getElementById('tableFilterCount');
+        if (countEl) {
+            countEl.textContent = (query || currentQuickFilter !== 'all')
+                ? `Showing ${visibleCount} of ${rows.length} vendors`
+                : `Showing all ${rows.length} vendors`;
+        }
+        renumberRows();
+    }
+
+    function onVendorDropdownFilter(vendorName) {
+        const input = document.getElementById('vendorSearchInput');
+        if (input) {
+            input.value = vendorName;
+            filterVendorsTable();
+        }
+    }
+
+    function showVendorToast(message) {
+        let toast = document.getElementById('vendorToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'vendorToast';
+            toast.style.cssText = 'position: fixed; bottom: 24px; right: 24px; background: #1e293b; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.25); z-index: 99999; display: flex; align-items: center; gap: 8px; transition: all 0.2s; opacity: 0; transform: translateY(10px); pointer-events: none;';
+            document.body.appendChild(toast);
+        }
+        toast.innerHTML = `<span style="color: #10b981; font-size: 1.1rem;">✓</span> <span>${message}</span>`;
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(10px)';
+        }, 2600);
+    }
+</script>

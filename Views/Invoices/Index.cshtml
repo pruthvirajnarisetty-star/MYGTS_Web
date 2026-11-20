@@ -1,0 +1,461 @@
+@model InvoiceListViewModel
+@{
+    ViewData["Title"] = "Invoices";
+    var currentBranch = Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Procurement / tax-ready register</div>
+        <h1>Invoices</h1>
+        <p>Maintain device purchase records and make loaded unit economics available to the dashboard.</p>
+    </div>
+    <div class="page-heading-actions">
+        <a class="button secondary" asp-action="DownloadSampleInvoice" asp-route-branch="@currentBranch" title="Download sample invoices Excel template (.xlsx)">📥 Sample sheet</a>
+        @if (User.CanEditModule("Invoices"))
+        {
+            <a class="button secondary" asp-action="Import" title="Import invoices and device rosters from an Excel file">↑ Import invoices</a>
+            <a class="button secondary" asp-action="ExportAll" asp-route-query="@Model.Query" data-testid="invoices-export">↓ Export invoices</a>
+            <a class="button btn-primary" asp-action="Create" data-testid="invoice-add">+ Add invoice</a>
+        }
+        else
+        {
+            <a class="button secondary" asp-action="ExportAll" asp-route-query="@Model.Query" data-testid="invoices-export">↓ Export invoices</a>
+        }
+    </div>
+</div>
+
+<div class="kpi-grid" style="grid-template-columns: repeat(4,minmax(0,1fr)); margin-bottom: 14px;">
+    <div class="kpi-card cyan">
+        <div class="kpi-label">Invoice value</div>
+        <div class="kpi-value">@Model.TotalValue.ToString("C")</div>
+        <div class="kpi-source">
+            <span>@Model.TotalItems.ToString("N0") invoices</span>
+        </div>
+    </div>
+    
+    <div class="kpi-card green">
+        <div class="kpi-label">Units received</div>
+        <div class="kpi-value">@Model.TotalUnits.ToString("N0")</div>
+        <div class="kpi-source">
+            <span>Across recorded invoice lines</span>
+        </div>
+    </div>
+
+    <div class="kpi-card amber">
+        <div class="kpi-label">Extra Charges</div>
+        <div class="kpi-value">@Model.TotalExtras.ToString("C")</div>
+        <div class="kpi-source">
+            <span>Total extra costs applied</span>
+        </div>
+    </div>
+
+    <div class="kpi-card blue">
+        <div class="kpi-label">Base Amount</div>
+        <div class="kpi-value">@Model.TotalBaseAmount.ToString("C")</div>
+        <div class="kpi-source">
+            <span>Before taxes &amp; extras</span>
+        </div>
+    </div>
+</div>
+
+<form class="card toolbar" method="get" asp-action="Index" style="margin-bottom: 16px; padding: 12px 20px;">
+    <div class="filter-grid" style="display: flex; gap: 16px; align-items: flex-end;">
+        <div class="field grow" style="margin: 0; flex-grow: 1;">
+            <label for="QueryInput" class="form-label" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">SEARCH INVOICES</label>
+            <div style="position: relative; width: 100%;">
+                <button type="button" style="position: absolute; top: 50%; transform: translateY(-50%); left: 16px; padding: 0; background: transparent; border: none; display: flex; align-items: center; justify-content: center;">
+                    <svg width="17" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; color: #4b5563;">
+                        <path d="M7.667 12.667A5.333 5.333 0 107.667 2a5.333 5.333 0 000 10.667zM14.334 14l-2.9-2.9" stroke="currentColor" stroke-width="1.333" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                </button>
+                <input type="hidden" asp-for="Query" id="Query" />
+                <input id="QueryInput" name="QueryInput" class="input shadow-md w-full" style="padding: 0 44px; border-radius: 9999px; height: 42px; width: 100%; border: 1px solid var(--line); outline: none; transition: all 0.3s; font-size: 14px;" placeholder="Add a filter..." type="text" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--line)'" />
+                <button type="button" onclick="document.getElementById('QueryInput').value=''; document.getElementById('Query').value=''; this.closest('form').submit();" style="position: absolute; top: 50%; transform: translateY(-50%); right: 12px; padding: 0; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; color: #4b5563;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="field" style="margin: 0;">
+            <label class="form-label" asp-for="PageSize" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">Rows per page</label>
+            <select class="select" asp-for="PageSize" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()" style="height: 42px; border-radius: 8px; width: auto; padding-right: 32px;">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="1000000">All</option>
+            </select>
+        </div>
+        
+        <div class="field" style="margin: 0;">
+            <button class="button btn-primary" type="submit" style="height: 42px; border-radius: 8px; padding: 0 24px;">Search</button>
+        </div>
+    </div>
+    @{
+        var queryTerms = string.IsNullOrWhiteSpace(Model.Query) ? Array.Empty<string>() : Model.Query.Trim().Split('|', StringSplitOptions.RemoveEmptyEntries);
+    }
+    @if (queryTerms.Length > 0)
+    {
+        <div class="flex flex-wrap gap-2 mt-4" style="padding-bottom: 8px; width: 100%;">
+            @foreach (var term in queryTerms)
+            {
+                <span class="inline-flex items-center gap-1 px-3 py-1 text-sm bg-white border border-dashed border-gray-400 rounded-full text-gray-700">
+                    @term
+                    <button type="button" onclick="removeChip('@term')" class="text-gray-400 hover:text-gray-700">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </span>
+            }
+        </div>
+    }
+</form>
+
+<script>
+    document.querySelector('form.toolbar').addEventListener('submit', function(e) {
+        var queryInput = document.getElementById('QueryInput');
+        var queryHidden = document.getElementById('Query');
+        if (queryInput && queryInput.value.trim() !== '') {
+            var current = queryHidden.value ? queryHidden.value + '|' : '';
+            queryHidden.value = current + queryInput.value.trim();
+            queryInput.value = ''; // Don't submit the visual input
+        }
+    });
+
+    function removeChip(term) {
+        var queryHidden = document.getElementById('Query');
+        var terms = queryHidden.value.split('|').filter(t => t !== '' && t !== term);
+        queryHidden.value = terms.join('|');
+        document.querySelector('form.toolbar').submit();
+    }
+</script>
+
+<section class="card">
+    <div class="table-wrap" style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"></th>
+                    <th>Date</th>
+                    <th>Invoice</th>
+                    <th>Device type</th>
+                    <th>S.No. Range</th>
+                    <th class="numeric">Qty</th>
+                    <th class="numeric">Device cost</th>
+                    <th class="numeric">Extra charges</th>
+                    <th class="numeric">Amount</th>
+                    <th class="numeric">Round Off</th>
+                    <th class="numeric">Total with taxes</th>
+                    <th class="numeric">Cost / device</th>
+                    <th style="width: 50px; min-width: 50px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Invoices.Count == 0)
+                {
+                    <tr>
+                        <td colspan="12">
+                            <div class="empty-state">No invoices recorded yet.</div>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Model.Invoices)
+                    {
+                        var inv = item.Invoice;
+                        var hasDevices = item.Devices.Count > 0;
+                        <tr>
+                            <td style="text-align: center; padding-right: 0;">
+                                @if (hasDevices)
+                                {
+                                    <button type="button" class="text-button" onclick="toggleDetails('inv-@inv.Id')" style="padding: 4px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted);" title="View @item.Devices.Count devices">
+                                        <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </button>
+                                }
+                            </td>
+                            <td>@DateValue.Short(inv.Date)</td>
+                            <td>
+                                @if (User.CanEditModule("Invoices"))
+                                {
+                                    <a asp-action="Edit" asp-route-id="@inv.Id" style="font-weight: 700; color: var(--blue-600); text-decoration: none;" class="hover-underline" title="Edit invoice @inv.InvoiceNo">@inv.InvoiceNo</a>
+                                }
+                                else
+                                {
+                                    <strong>@inv.InvoiceNo</strong>
+                                }
+                                @if (MygtsMvc.Services.BatchColorHelper.RtoInvoiceToBatchMap.TryGetValue(inv.InvoiceNo, out var bAlias))
+                                {
+                                    <span style="font-size: 0.8rem; font-weight: 500; color: var(--muted); margin-left: 4px;">(@bAlias)</span>
+                                }
+                            </td>
+                            <td>@inv.DeviceType</td>
+                            <td>
+                                @if (hasDevices)
+                                {
+                                    var sortedSl = item.Devices.OrderBy(d => d.SlNoSortable).ToList();
+                                    var minSl = sortedSl.First().SlNo;
+                                    var maxSl = sortedSl.Last().SlNo;
+                                    if (minSl == maxSl)
+                                    {
+                                        @minSl
+                                    }
+                                    else
+                                    {
+                                        @($"{minSl} – {maxSl}")
+                                    }
+                                }
+                                else
+                                {
+                                    <span>–</span>
+                                }
+                            </td>
+                            <td class="numeric">@inv.Quantity</td>
+                            <td class="numeric">@inv.Rate.ToString("C")</td>
+                            <td class="numeric">@inv.CourierCharges.ToString("C")</td>
+                            <td class="numeric">@inv.Amount.ToString("C")</td>
+                            <td class="numeric">@inv.RoundOff.ToString("C")</td>
+                            <td class="numeric"><strong>@inv.TotalWithTaxes.ToString("C")</strong></td>
+                            <td class="numeric">@inv.CostPerDevice.ToString("C")</td>
+                            <td style="overflow: visible;">
+                                <label class="popup">
+                                  <input type="checkbox">
+                                  <div class="burger" tabindex="0">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                  </div>
+                                  <nav class="popup-window popup-window-right">
+                                    <legend>Actions</legend>
+                                    <ul>
+                                      <li>
+                                        <a asp-action="ExportInvoice" asp-route-id="@inv.Id">
+                                          <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>
+                                          </svg>
+                                          <span>Export</span>
+                                        </a>
+                                      </li>
+                                      @if (User.CanEditModule("Invoices"))
+                                      {
+                                          <li>
+                                            <a asp-action="Edit" asp-route-id="@inv.Id">
+                                              <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                              </svg>
+                                              <span>Edit</span>
+                                            </a>
+                                          </li>
+                                          <li>
+                                            <a asp-action="Create" asp-route-mode="multiple" asp-route-addon="true" asp-route-batch="@inv.InvoiceNo" title="Add more devices into batch @inv.InvoiceNo">
+                                              <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg">
+                                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                              </svg>
+                                              <span>+ Add devices</span>
+                                            </a>
+                                          </li>
+                                          <hr>
+                                          <li>
+                                            <form asp-action="Delete" method="post" style="margin: 0; width: 100%;">
+                                              <input type="hidden" name="id" value="@inv.Id" />
+                                              <button type="submit" onclick="return confirm('Delete this invoice?')">
+                                                <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg">
+                                                  <line y2="18" x2="6" y1="6" x1="18"></line>
+                                                  <line y2="18" x2="18" y1="6" x1="6"></line>
+                                                </svg>
+                                                <span>Delete</span>
+                                              </button>
+                                            </form>
+                                          </li>
+                                      }
+                                    </ul>
+                                  </nav>
+                                </label>
+                            </td>
+                        </tr>
+                        @if (hasDevices)
+                        {
+                            <tr id="inv-@inv.Id" style="display: none; background-color: #f8fbff;">
+                                <td colspan="12" style="padding: 16px 24px;">
+                                    <div style="border-left: 3px solid var(--blue-600); padding-left: 18px; margin-bottom: 8px;">
+                                        <h4 style="margin: 0 0 14px; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">Devices Extracted from File</h4>
+                                        <div style="border: 1px solid var(--line); border-radius: 4px; overflow: hidden;">
+                                            <table class="data-table" style="min-width: 100%; margin: 0;">
+                                                <thead>
+                                                    <tr style="background: #fff;">
+                                                        <th>S.No.</th>
+                                                        <th>ICCID</th>
+                                                        <th>IMEI</th>
+                                                        <th>Stock Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var d in item.Devices.OrderBy(x => x.SlNo))
+                                                    {
+                                                        var statusClass = d.StockStatus.ToLowerInvariant();
+                                                        var rowClass = $"row-status-{statusClass}";
+                                                        <tr class="colored-row @rowClass" style="--default-bg: #fff; --default-hover: #f8fbff;">
+                                                            <td style="color: var(--muted); font-size: 0.75rem;">@d.SlNo</td>
+                                                            <td><strong>@(string.IsNullOrWhiteSpace(d.Iccid) ? "—" : d.Iccid)</strong></td>
+                                                            <td>@(string.IsNullOrWhiteSpace(d.Imei) ? "—" : d.Imei)</td>
+                                                            <td>
+                                                                <span class="badge bg-@(d.StockStatus.ToLowerInvariant())">@d.StockStatus</span>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    
+    @if (Model.TotalItems > 0)
+    {
+        <div style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(0,0,0,0.05);">
+            <div style="font-size: 0.9rem; color: var(--muted);">
+                Showing @((Model.Page - 1) * Model.PageSize + 1) to @Math.Min(Model.Page * Model.PageSize, Model.TotalItems) of @Model.TotalItems entries
+            </div>
+            <div style="display: flex; gap: 4px; align-items: center;">
+                @{
+                    var startPage = Math.Max(1, Model.Page - 2);
+                    var endPage = Math.Min(Model.TotalPages, Model.Page + 2);
+                    
+                    if (startPage > 1) {
+                        <a class="button secondary" asp-action="Index" asp-route-query="@Model.Query" asp-route-PageSize="@Model.PageSize" asp-route-Page="1" style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">1</a>
+                        if (startPage > 2) {
+                            <span style="padding: 4px 8px; color: var(--muted);">...</span>
+                        }
+                    }
+                    
+                    for (int i = startPage; i <= endPage; i++)
+                    {
+                        if (i == Model.Page) {
+                            <button class="button primary" disabled style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">@i</button>
+                        } else {
+                            <a class="button secondary" asp-action="Index" asp-route-query="@Model.Query" asp-route-PageSize="@Model.PageSize" asp-route-Page="@i" style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">@i</a>
+                        }
+                    }
+                    
+                    if (endPage < Model.TotalPages) {
+                        if (endPage < Model.TotalPages - 1) {
+                            <span style="padding: 4px 8px; color: var(--muted);">...</span>
+                        }
+                        <a class="button secondary" asp-action="Index" asp-route-query="@Model.Query" asp-route-PageSize="@Model.PageSize" asp-route-Page="@Model.TotalPages" style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">@Model.TotalPages</a>
+                    }
+                }
+            </div>
+        </div>
+    }
+</section>
+
+<style>
+/* Freeze table header */
+.data-table th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8fafc;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* Freeze last column (Action Menu) */
+.data-table > thead > tr > th:nth-child(13),
+.data-table > tbody > tr > td:nth-child(13):not([colspan]) {
+    position: sticky;
+    right: 0;
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+    z-index: 5;
+    background-color: #ffffff !important;
+    border-left: 2px solid #cbd5e1 !important;
+    box-shadow: -4px 0 8px -2px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Elevate z-index when popup is open so it overlaps rows below */
+.data-table > tbody > tr > td:nth-child(13):has(.popup input:checked),
+.data-table > tbody > tr > td:nth-child(13):focus-within,
+.data-table > tbody > tr > td:nth-child(13):hover:not([colspan]) {
+    z-index: 35 !important;
+}
+
+/* Ensure frozen headers stay above frozen columns */
+.data-table > thead > tr > th:nth-child(13) {
+    z-index: 25 !important;
+    background-color: #f1f5f9 !important;
+}
+
+/* Make sure popup window goes left instead of right since it's on the right edge */
+.popup-window-right {
+    right: 0;
+    left: auto !important;
+}
+
+/* Dark mode support */
+body:has(#theme:checked) .data-table > thead > tr > th,
+body:has(#theme:checked) .data-table > thead > tr > th:nth-child(13) {
+    background-color: #0b0f19 !important;
+    color: #38bdf8 !important;
+    border-color: #1e293b !important;
+}
+body:has(#theme:checked) .data-table > thead > tr > th:nth-child(13) {
+    border-left: 2px solid #334155 !important;
+    box-shadow: -5px 0 10px -2px rgba(0, 0, 0, 0.6) !important;
+}
+
+body:has(#theme:checked) .data-table > tbody > tr > td:nth-child(13):not([colspan]) {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    border-left: 2px solid #334155 !important;
+    box-shadow: -5px 0 10px -2px rgba(0, 0, 0, 0.6) !important;
+}
+body:has(#theme:checked) .data-table > tbody > tr.batch-row > td:nth-child(13):not([colspan]) {
+    background-color: #0f172a !important;
+    background-image: linear-gradient(var(--batch-bg, rgba(255,255,255,0.06)), var(--batch-bg, rgba(255,255,255,0.06))) !important;
+}
+body:has(#theme:checked) .data-table > tbody > tr:hover > td:nth-child(13):not([colspan]) {
+    background-color: #1e293b !important;
+    background-image: none !important;
+}
+.data-table > tbody > tr:hover > td:nth-child(13):not([colspan]) {
+    background-color: #f8fbff !important;
+}
+</style>
+
+@section Scripts {
+    <script>
+        function toggleDetails(id) {
+            var row = document.getElementById(id);
+            if (row.style.display === 'none' || row.style.display === '') {
+                row.style.display = 'table-row';
+            } else {
+                row.style.display = 'none';
+            }
+        }
+
+        function updateDeviceStatus(id, status) {
+            fetch(`/Devices/UpdateStatusFast`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ id: id, status: status })
+            }).then(response => {
+                if (!response.ok) alert('Failed to update device status.');
+            }).catch(err => {
+                alert('Network error while updating device status.');
+            });
+        }
+    </script>
+}

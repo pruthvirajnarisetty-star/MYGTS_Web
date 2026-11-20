@@ -1,0 +1,7355 @@
+@model ReminderPageViewModel
+
+
+
+
+
+
+
+@{
+
+
+
+
+
+
+
+    ViewData["Title"] = "Reminders";
+
+
+
+
+
+
+
+    var currentBranch = Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG";
+
+
+
+
+
+
+
+    var vendorPhoneMap = (ViewBag.VendorPhoneMap as Dictionary<string, string>) ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Gather urgent expiries (expiring today or within 1 day)
+
+
+
+
+
+
+
+    var urgentList = (ViewBag.UrgentDevices as List<DeviceRecord>) ?? new List<DeviceRecord>();
+
+
+
+
+
+
+
+    if (urgentList.Count == 0 && Model.Buckets.TryGetValue("Expiring This Week", out var expiringList))
+
+
+
+
+
+
+
+    {
+
+
+
+
+
+
+
+        urgentList = expiringList.Where(d => DateValue.DaysFromNow(d.LatestExpiryDate) is >= 0 and <= 1).ToList();
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="page-heading">
+
+
+
+
+
+
+
+    <div>
+
+
+
+
+
+
+
+        <div class="eyebrow">Operational risk / follow-up</div>
+
+
+
+
+
+
+
+        <h1>Reminders</h1>
+
+
+
+
+
+
+
+        <p>Surface expiry, renewals, and team follow-ups before they become fleet interruptions.</p>
+
+
+
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="reminder-grid">
+
+
+
+
+
+
+
+    @foreach (var bucket in Model.Buckets)
+
+
+
+
+
+
+
+    {
+
+
+
+
+
+
+
+        var isUrgent = bucket.Key == "Unpaid Vehicles" && bucket.Value.Count > 0;
+
+
+
+
+
+
+
+        var borderStyle = isUrgent ? "border: 2px solid var(--red-600);" : "";
+
+
+
+
+
+
+
+        var textStyle = isUrgent ? "color: var(--red-600);" : "";
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+        <a class="card reminder-card" 
+
+
+
+
+
+
+
+           style="@borderStyle"
+
+
+
+
+
+
+
+           asp-controller="Devices" 
+
+
+
+
+
+
+
+           asp-action="Index" 
+
+
+
+
+
+
+
+           asp-route-SpecialFilter="@bucket.Key">
+
+
+
+
+
+
+
+            <h3 style="@textStyle">
+
+
+
+
+
+
+
+                @if(isUrgent) { <span style="margin-right:4px;">🚨</span> }
+
+
+
+
+
+
+
+                @bucket.Key
+
+
+
+
+
+
+
+            </h3>
+
+
+
+
+
+
+
+            <div class="reminder-count" style="@textStyle">@bucket.Value.Count</div>
+
+
+
+
+
+
+
+            <p style="@(isUrgent ? "color: var(--red-600); font-weight: 500;" : "")">
+
+
+
+
+
+
+
+                @(isUrgent ? "URGENT: Outstanding payment collection" : "Open operational records")
+
+
+
+
+
+
+
+                <span style="float:right; color: @(isUrgent ? "var(--red-600)" : "var(--blue-600)");">↗</span>
+
+
+
+
+
+
+
+            </p>
+
+
+
+
+
+
+
+        </a>
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+    <a class="card reminder-card" 
+
+
+
+
+
+
+
+       style="@(Model.PendingRecharges.Count > 0 ? "border: 2px solid #d97706;" : "")"
+
+
+
+
+
+
+
+       asp-controller="Recharges" 
+
+
+
+
+
+
+
+       asp-action="Index" 
+
+
+
+
+
+
+
+       asp-route-status="Pending">
+
+
+
+
+
+
+
+        <h3 style="@(Model.PendingRecharges.Count > 0 ? "color: #d97706;" : "")">
+
+
+
+
+
+
+
+            @if(Model.PendingRecharges.Count > 0) { <span style="margin-right:4px;">⚡</span> }
+
+
+
+
+
+
+
+            Pending Recharges
+
+
+
+
+
+
+
+        </h3>
+
+
+
+
+
+
+
+        <div class="reminder-count" style="@(Model.PendingRecharges.Count > 0 ? "color: #d97706;" : "")">@Model.PendingRecharges.Count</div>
+
+
+
+
+
+
+
+        <p style="@(Model.PendingRecharges.Count > 0 ? "color: #d97706; font-weight: 500;" : "")">
+
+
+
+
+
+
+
+            SIM activations needing operator processing
+
+
+
+
+
+
+
+            <span style="float:right; color: #d97706;">↗</span>
+
+
+
+
+
+
+
+        </p>
+
+
+
+
+
+
+
+    </a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <a class="card reminder-card" 
+
+
+
+
+
+
+
+       style="@(Model.UnpaidRecharges.Count > 0 ? "border: 2px solid var(--red-600);" : "")"
+
+
+
+
+
+
+
+       asp-controller="Recharges" 
+
+
+
+
+
+
+
+       asp-action="Index" 
+
+
+
+
+
+
+
+       asp-route-payment="Not Paid">
+
+
+
+
+
+
+
+        <h3 style="@(Model.UnpaidRecharges.Count > 0 ? "color: var(--red-600);" : "")">
+
+
+
+
+
+
+
+            @if(Model.UnpaidRecharges.Count > 0) { <span style="margin-right:4px;">🚨</span> }
+
+
+
+
+
+
+
+            Unpaid Recharges
+
+
+
+
+
+
+
+        </h3>
+
+
+
+
+
+
+
+        <div class="reminder-count" style="@(Model.UnpaidRecharges.Count > 0 ? "color: var(--red-600);" : "")">@Model.UnpaidRecharges.Count</div>
+
+
+
+
+
+
+
+        <p style="@(Model.UnpaidRecharges.Count > 0 ? "color: var(--red-600); font-weight: 500;" : "")">
+
+
+
+
+
+
+
+            Processed recharges awaiting payment collection
+
+
+
+
+
+
+
+            <span style="float:right; color: var(--red-600);">↗</span>
+
+
+
+
+
+
+
+        </p>
+
+
+
+
+
+
+
+    </a>
+
+
+
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="card toolbar" style="margin-top: 24px; margin-bottom: 24px; padding: 14px 20px;">
+
+
+
+
+
+
+
+    <div class="filter-grid" style="align-items: flex-end; justify-content: space-between;">
+
+
+
+
+
+
+
+        <div class="field toolbar-search" style="width: 340px; max-width: 400px; min-width: 240px; flex: 0 1 340px;">
+
+
+
+
+
+
+
+            <label for="reminderSearchInput" class="form-label" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">SEARCH REMINDERS</label>
+
+
+
+
+
+
+
+            <div style="position: relative; width: 100%;">
+
+
+
+
+
+
+
+                <button type="button" style="position: absolute; top: 50%; transform: translateY(-50%); left: 16px; padding: 0; background: transparent; border: none; display: flex; align-items: center; justify-content: center; pointer-events: none;">
+
+
+
+
+
+
+
+                    <svg width="17" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; color: #4b5563;">
+
+
+
+
+
+
+
+                        <path d="M7.667 12.667A5.333 5.333 0 107.667 2a5.333 5.333 0 000 10.667zM14.334 14l-2.9-2.9" stroke="currentColor" stroke-width="1.333" stroke-linecap="round" stroke-linejoin="round"></path>
+
+
+
+
+
+
+
+                    </svg>
+
+
+
+
+
+
+
+                </button>
+
+
+
+
+
+
+
+                <input id="reminderSearchInput" class="input shadow-md w-full" style="padding: 0 44px; border-radius: 9999px; height: 42px; width: 100%; border: 1px solid var(--line); outline: none; transition: all 0.3s; font-size: 14px;" placeholder="Search vehicle, note, vendor, phone..." type="text" oninput="filterReminders()" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--line)'" />
+
+
+
+
+
+
+
+                <button type="button" id="reminderSearchClearBtn" onclick="clearReminderSearch()" style="display: none; position: absolute; top: 50%; transform: translateY(-50%); right: 12px; padding: 0; background: transparent; border: none; cursor: pointer; align-items: center; justify-content: center;">
+
+
+
+
+
+
+
+                    <svg xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; color: #4b5563;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+
+
+
+
+
+
+
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+
+
+
+
+
+
+
+                    </svg>
+
+
+
+
+
+
+
+                </button>
+
+
+
+
+
+
+
+            </div>
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="field toolbar-actions">
+
+
+
+
+
+
+
+            <button type="button" class="button secondary" onclick="clearReminderSearch()" style="height: 42px; border-radius: 8px; padding: 0 16px; display: inline-flex; align-items: center; gap: 6px;" title="Reset search">
+
+
+
+
+
+
+
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+
+
+
+
+
+
+
+                <span>Clear</span>
+
+
+
+
+
+
+
+            </button>
+
+
+
+
+
+
+
+            <span id="reminderSearchResultsCount" style="font-size: 0.82rem; color: var(--muted); font-weight: 600; padding-left: 4px;"></span>
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="reminders-split-layout">
+
+
+
+
+
+
+
+    <!-- Left Column: Imminent Expiries (Suspensions Today & Terminating Tomorrow) with 1-Click WhatsApp -->
+
+
+
+
+
+
+
+    <section class="urgent-dispatch-panel">
+
+        @{
+
+            var totalActionable = urgentList.Count + Model.PendingRecharges.Count + Model.UnpaidRecharges.Count;
+
+        }
+
+        <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
+
+            <div>
+
+                <h2 style="margin: 0; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text-main);">
+
+                    <span>🚨</span> Imminent Expiries &amp; Recharge Follow-ups
+
+                    @if (totalActionable > 0)
+
+                    {
+
+                        <span class="badge-urgent-count">@totalActionable Actionable</span>
+
+                    }
+
+                </h2>
+
+                <p class="muted" style="margin: 2px 0 0; font-size: 0.8rem;">Vehicles expiring today/tomorrow &amp; SIM recharges requiring action across @currentBranch.</p>
+
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+
+                <button type="button" class="button secondary small" onclick="openBatchWhatsAppModal()" style="font-size: 0.78rem; font-weight: 700; color: #25D366; display: flex; align-items: center; gap: 5px;">
+
+                    <span>📢</span> Batch WhatsApp
+
+                </button>
+
+                @if (urgentList.Count > 0)
+
+                {
+
+                    <a asp-controller="Devices" asp-action="Index" asp-route-SpecialFilter="Suspensions Today" class="button-link" style="font-size: 0.8rem;">View in fleet &rarr;</a>
+
+                }
+
+                <a asp-controller="Recharges" asp-action="Index" class="button-link" style="font-size: 0.8rem; color: #d97706;">Recharges &rarr;</a>
+
+            </div>
+
+        </div>
+
+
+
+        @if (totalActionable > 0)
+
+        {
+
+            <div class="dispatch-filter-pills">
+
+                <button type="button" class="dispatch-pill is-active" onclick="filterDispatchType('all', this)">
+
+                    All Actionable <span class="pill-badge">@totalActionable</span>
+
+                </button>
+
+                <button type="button" class="dispatch-pill" onclick="filterDispatchType('expiries', this)">
+
+                    🚨 Imminent Expiries <span class="pill-badge">@urgentList.Count</span>
+
+                </button>
+
+                @if (Model.UnpaidRecharges.Count > 0)
+
+                {
+
+                    <button type="button" class="dispatch-pill" onclick="filterDispatchType('unpaid', this)">
+
+                        💳 Recharge Payment Due <span class="pill-badge">@Model.UnpaidRecharges.Count</span>
+
+                    </button>
+
+                }
+
+                @if (Model.PendingRecharges.Count > 0)
+
+                {
+
+                    <button type="button" class="dispatch-pill" onclick="filterDispatchType('pending', this)">
+
+                        ⚡ Pending Activation <span class="pill-badge">@Model.PendingRecharges.Count</span>
+
+                    </button>
+
+                }
+
+            </div>
+
+        }
+
+
+
+        @if (totalActionable == 0)
+
+        {
+
+            <div class="card empty-state" style="padding: 32px 20px; text-align: center;">
+
+                <div style="font-size: 2rem; margin-bottom: 8px;">🎉</div>
+
+                <strong style="color: var(--text-main);">No vehicles expiring or pending recharges</strong>
+
+                <p class="muted" style="margin: 4px 0 0; font-size: 0.85rem;">All active subscriptions and SIM recharges in @currentBranch branch are currently in good standing.</p>
+
+            </div>
+
+        }
+
+        else
+
+        {
+
+            <div class="urgent-card-list">
+
+                <div id="urgentNoResults" class="card empty-state" style="display: none; padding: 28px 20px; text-align: center; color: var(--muted);">
+
+                    <div style="font-size: 1.6rem; margin-bottom: 6px;">🔍</div>
+
+                    <strong>No actionable items match your filter / search</strong>
+
+                </div>
+
+
+
+                @* 1. Imminent Vehicle Expiries *@
+
+                @foreach (var dev in urgentList)
+
+                {
+
+                    var daysLeft = DateValue.DaysFromNow(dev.LatestExpiryDate) ?? 0;
+
+                    var isSuspension = daysLeft == 0;
+
+                    var tagClass = isSuspension ? "tag-suspension" : "tag-tomorrow";
+
+                    var tagText = isSuspension ? "Suspension Today" : "Suspension Tomorrow";
+
+                    
+
+                    var rawPhone = dev.CellNo?.Trim() ?? "";
+
+                    var cleanPhone = new string(rawPhone.Where(char.IsDigit).ToArray());
+
+                    if (cleanPhone.Length == 10) cleanPhone = "91" + cleanPhone;
+
+                    var expiryStr = DateValue.Short(dev.LatestExpiryDate);
+
+                    var vendorName = string.IsNullOrWhiteSpace(dev.Vendor) ? "Vendor" : dev.Vendor;
+
+                    var msgOwner = $"*MYGTS SERVICES*\n\u200B\nDear Customer,\n\u200B\nYour *One State One GPS* recharge for vehicle *{dev.VehicleNo}* will expire on *{expiryStr}*.\n\u200B\nKindly renew the recharge before the expiry date to avoid interruption of GPS tracking services.\n\u200B\nThank you,\n*MYGTS SERVICES*\n\u200B\n--------------------------------\n\u200B\n*ಮೈ ಜಿಟಿಎಸ್ ಸರ್ವಿಸಸ್ (MYGTS SERVICES)*\n\u200B\nಪ್ರಿಯ ಗ್ರಾಹಕರೇ,\n\u200B\nನಿಮ್ಮ ವಾಹನ *{dev.VehicleNo}* ನ ಒಂದು ರಾಜ್ಯ ಒಂದು ಜಿಪಿಎಸ್ (One State One GPS) ರಿಚಾರ್ಜ್ *{expiryStr}* ರಂದು ಮುಕ್ತಾಯಗೊಳ್ಳಲಿದೆ.\n\u200B\nಜಿಪಿಎಸ್ ಟ್ರ್ಯಾಕಿಂಗ್ ಸೇವೆಗಳಲ್ಲಿ ಯಾವುದೇ ಅಡಚಣೆಯನ್ನು ತಪ್ಪಿಸಲು ದಯವಿಟ್ಟು ಮುಕ್ತಾಯದ ದಿನಾಂಕದ ಮೊದಲು ರಿಚಾರ್ಜ್ ಅನ್ನು ನವೀಕರಿಸಿ (Renew).\n\u200B\nಧನ್ಯವಾದಗಳು,\n*ಮೈ ಜಿಟಿಎಸ್ ಸರ್ವಿಸಸ್ (MYGTS SERVICES)*";
+
+                    var msgVendor = $"*MYGTS SERVICES*\n\u200B\nDear {vendorName},\n\u200B\nThe GPS recharge for your client's vehicle *{dev.VehicleNo}* will expire on *{expiryStr}*.\n\u200B\nPlease ensure the renewal is completed before the expiry date.\n\u200B\nThank you,\n*MYGTS SERVICES*\n\u200B\n--------------------------------\n\u200B\n*ಮೈ ಜಿಟಿಎಸ್ ಸರ್ವಿಸಸ್ (MYGTS SERVICES)*\n\u200B\nಪ್ರಿಯ {vendorName},\n\u200B\nನಿಮ್ಮ ಕ್ಲೈಂಟ್‌ನ ವಾಹನ *{dev.VehicleNo}* ನ ಒಂದು ರಾಜ್ಯ ಒಂದು ಜಿಪಿಎಸ್ (One State One GPS) ರಿಚಾರ್ಜ್ *{expiryStr}* ರಂದು ಮುಕ್ತಾಯಗೊಳ್ಳಲಿದೆ.\n\u200B\nಜಿಪಿಎಸ್ ಟ್ರ್ಯಾಕಿಂಗ್ ಸೇವೆಗಳಲ್ಲಿ ಯಾವುದೇ ಅಡಚಣೆಯನ್ನು ತಪ್ಪಿಸಲು ದಯವಿಟ್ಟು ಮುಕ್ತಾಯದ ದಿನಾಂಕದ ಮೊದಲು ರಿಚಾರ್ಜ್ ಅನ್ನು ನವೀಕರಿಸಿ (Renew).\n\u200B\nಧನ್ಯವಾದಗಳು,\n*ಮೈ ಜಿಟಿಎಸ್ ಸರ್ವಿಸಸ್ (MYGTS SERVICES)*";
+
+                    var waOwnerUrl = string.IsNullOrWhiteSpace(cleanPhone)
+
+                        ? $"https://web.whatsapp.com/send?text={Uri.EscapeDataString(msgOwner)}"
+
+                        : $"https://web.whatsapp.com/send?phone={cleanPhone}&text={Uri.EscapeDataString(msgOwner)}";
+
+                    var vendorPhone = !string.IsNullOrWhiteSpace(dev.Vendor) && vendorPhoneMap.TryGetValue(dev.Vendor.Trim(), out var vp) ? vp : "";
+
+                    var cleanVendorPhone = new string(vendorPhone.Where(char.IsDigit).ToArray());
+
+                    if (cleanVendorPhone.Length == 10) cleanVendorPhone = "91" + cleanVendorPhone;
+
+                    var waVendorUrl = !string.IsNullOrWhiteSpace(cleanVendorPhone)
+
+                        ? $"https://web.whatsapp.com/send?phone={cleanVendorPhone}&text={Uri.EscapeDataString(msgVendor)}"
+
+                        : $"https://web.whatsapp.com/send?text={Uri.EscapeDataString(msgVendor)}";
+
+
+
+                    <div class="card urgent-dev-card dispatch-item dispatch-item-expiries @(isSuspension ? "card-danger" : "card-warning")" id="urgent-dev-@dev.VehicleNo">
+
+                        <div class="dev-card-main">
+
+                            <div class="dev-card-info">
+
+                                <div class="dev-vehicle-line">
+
+                                    <span class="vehicle-no">@dev.VehicleNo</span>
+
+                                    <span class="status-pill @tagClass">@tagText</span>
+
+                                    @if (!string.IsNullOrWhiteSpace(dev.NetworkOperator))
+
+                                    {
+
+                                        <span class="badge" style="font-size: 0.72rem; background: #e0f2fe; color: #0369a1; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid #bae6fd;">@dev.NetworkOperator</span>
+
+                                    }
+
+                                </div>
+
+                                <div class="dev-meta-line">
+
+                                    <span><strong>Owner:</strong> @(string.IsNullOrWhiteSpace(dev.Owner) ? "Not Assigned" : dev.Owner)</span>
+
+                                    @if (!string.IsNullOrWhiteSpace(dev.CellNo))
+
+                                    {
+
+                                        <span>&bull; <strong>Phone:</strong> @dev.CellNo</span>
+
+                                    }
+
+                                    <span>&bull; <strong>Vendor:</strong> @(string.IsNullOrWhiteSpace(dev.Vendor) ? "—" : dev.Vendor)</span>
+
+                                    @if (!string.IsNullOrWhiteSpace(dev.NetworkOperator))
+
+                                    {
+
+                                        <span>&bull; <strong>Operator:</strong> @dev.NetworkOperator</span>
+
+                                    }
+
+                                    <span>&bull; <strong>Expiry:</strong> @expiryStr</span>
+
+                                </div>
+
+                            </div>
+
+
+
+                            <div class="dev-card-actions">
+
+                                <div class="wa-picker" style="position: relative; display: inline-block;">
+
+                                    <button type="button" class="button-wa" onclick="toggleWaPicker(this)" title="Send WhatsApp message">
+
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+
+                                        WhatsApp ▾
+
+                                    </button>
+
+                                    <div class="wa-picker-dropdown" style="display:none; position:absolute; bottom: calc(100% + 6px); left:0; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.25), 0 8px 10px -6px rgba(0,0,0,0.2); min-width:240px; z-index:9999; overflow:hidden;">
+
+                                        <div style="padding:8px 12px 6px; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#475569; background:#f8fafc; border-bottom:1px solid #e2e8f0;">Send message to</div>
+
+                                        <a href="@waOwnerUrl" target="_blank" onclick="closeWaPicker(this)" style="display:flex; flex-direction:column; padding:10px 14px; text-decoration:none; color:#0f172a; background:#ffffff; transition:background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#ffffff'">
+
+                                            <span style="font-weight:600; font-size:0.85rem;">👤 Owner@(!string.IsNullOrWhiteSpace(dev.Owner) ? $" — {dev.Owner}" : "")</span>
+
+                                            <span style="font-size:0.75rem; color:#64748b;">@(string.IsNullOrWhiteSpace(dev.CellNo) ? "No phone number on file" : dev.CellNo)</span>
+
+                                        </a>
+
+                                        <a href="@waVendorUrl" target="_blank" onclick="closeWaPicker(this)" style="display:flex; flex-direction:column; padding:10px 14px; text-decoration:none; color:#0f172a; background:#ffffff; border-top:1px solid #e2e8f0; transition:background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#ffffff'">
+
+                                            <span style="font-weight:600; font-size:0.85rem;">🏪 Vendor@(!string.IsNullOrWhiteSpace(dev.Vendor) ? $" — {dev.Vendor}" : "")</span>
+
+                                            <span style="font-size:0.75rem; color:#64748b;">@(string.IsNullOrWhiteSpace(cleanVendorPhone) ? "No phone set — add via Vendors page" : vendorPhone)</span>
+
+                                        </a>
+
+                                    </div>
+
+                                </div>
+
+                                <button type="button" class="button-informed" onclick="markVehicleInformed('@dev.VehicleNo')" title="Snooze alert until tomorrow">
+
+                                    Informed
+
+                                </button>
+
+                                <a asp-controller="Transactions" asp-action="Create" asp-route-VehicleNo="@dev.VehicleNo" class="btn-renew-action">
+
+                                    Collect / Renew
+
+                                </a>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                }
+
+
+
+                @* 2. Recharge Payment Due Cards *@
+
+                @foreach (var rc in Model.UnpaidRecharges)
+
+                {
+
+                    var title = !string.IsNullOrWhiteSpace(rc.VehicleNo) ? rc.VehicleNo : (!string.IsNullOrWhiteSpace(rc.Imei) ? rc.Imei : rc.Iccid);
+
+                    var vendorName = rc.Vendor?.Trim() ?? "";
+
+                    vendorPhoneMap.TryGetValue(vendorName, out var vendorPhone);
+
+                    var cleanVendorPhone = new string((vendorPhone ?? "").Where(char.IsDigit).ToArray());
+
+                    if (cleanVendorPhone.Length == 10) cleanVendorPhone = "91" + cleanVendorPhone;
+
+
+
+                    var msgVendor = $"*MYGTS SERVICES*\n\u200B\nDear {(string.IsNullOrWhiteSpace(vendorName) ? "Vendor" : vendorName)},\n\u200B\nThe GPS recharge for vehicle *{rc.VehicleNo}* was processed on *{rc.RechargeDate}*. Please clear the pending payment.\n\u200B\nThank you,\n*MYGTS SERVICES*";
+
+                    var waVendorUrl = !string.IsNullOrWhiteSpace(cleanVendorPhone)
+
+                        ? $"https://web.whatsapp.com/send?phone={cleanVendorPhone}&text={Uri.EscapeDataString(msgVendor)}"
+
+                        : $"https://web.whatsapp.com/send?text={Uri.EscapeDataString(msgVendor)}";
+
+
+
+                    <div class="card urgent-dev-card dispatch-item dispatch-item-unpaid card-danger" id="recharge-unpaid-@rc.Id" style="border-left: 4px solid #ef4444; background: #fffafa;">
+
+                        <div class="dev-card-main">
+
+                            <div class="dev-card-info">
+
+                                <div class="dev-vehicle-line">
+
+                                    <span class="vehicle-no">💳 @title</span>
+
+                                    <span class="status-pill tag-danger" style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; font-size: 0.72rem; padding: 2px 7px; border-radius: 4px;">Payment Due</span>
+
+                                    @if (!string.IsNullOrWhiteSpace(rc.NetworkOperator))
+
+                                    {
+
+                                        <span class="badge" style="font-size: 0.72rem; background: #e0f2fe; color: #0369a1; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid #bae6fd;">@rc.NetworkOperator</span>
+
+                                    }
+
+                                </div>
+
+                                <div class="dev-meta-line">
+
+                                    <span><strong>Vendor:</strong> @(string.IsNullOrWhiteSpace(rc.Vendor) ? "—" : rc.Vendor)</span>
+
+                                    @if (!string.IsNullOrWhiteSpace(cleanVendorPhone))
+
+                                    {
+
+                                        <span>&bull; <strong>Phone:</strong> @cleanVendorPhone</span>
+
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(rc.NetworkOperator))
+
+                                    {
+
+                                        <span>&bull; <strong>Operator:</strong> @rc.NetworkOperator</span>
+
+                                    }
+
+                                    <span>&bull; <strong>Processed:</strong> @rc.RechargeDate</span>
+
+                                    @if (rc.AmountPaid > 0)
+
+                                    {
+
+                                        <span>&bull; <strong>Amount:</strong> ₹@rc.AmountPaid.ToString("N0")</span>
+
+                                    }
+
+                                </div>
+
+                            </div>
+
+                            <div class="dev-card-actions">
+
+                                @if (!string.IsNullOrWhiteSpace(waVendorUrl))
+
+                                {
+
+                                    <a href="@waVendorUrl" target="_blank" class="button-wa" style="text-decoration: none; display: inline-flex; align-items: center; gap: 5px;" title="Send WhatsApp reminder">
+
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+
+                                        WhatsApp
+
+                                    </a>
+
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(rc.VehicleNo))
+
+                                {
+
+                                    <a asp-controller="Transactions" asp-action="Create" asp-route-VehicleNo="@rc.VehicleNo" asp-route-PaymentFor="Recharge" class="btn-collect-payment">
+
+                                        Collect Payment
+
+                                    </a>
+
+                                }
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                }
+
+
+
+                @* 3. Pending Recharge Activations *@
+
+                @foreach (var rc in Model.PendingRecharges)
+
+                {
+
+                    var title = !string.IsNullOrWhiteSpace(rc.VehicleNo) ? rc.VehicleNo : (!string.IsNullOrWhiteSpace(rc.Imei) ? rc.Imei : rc.Iccid);
+
+                    <div class="card urgent-dev-card dispatch-item dispatch-item-pending card-warning" id="recharge-pending-@rc.Id" style="border-left: 4px solid #f59e0b; background: #fffcf8;">
+
+                        <div class="dev-card-main">
+
+                            <div class="dev-card-info">
+
+                                <div class="dev-vehicle-line">
+
+                                    <span class="vehicle-no">⚡ @title</span>
+
+                                    <span class="status-pill tag-warning" style="background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; font-size: 0.72rem; padding: 2px 7px; border-radius: 4px;">Pending Activation</span>
+
+                                    @if (!string.IsNullOrWhiteSpace(rc.NetworkOperator))
+
+                                    {
+
+                                        <span class="badge" style="font-size: 0.72rem; background: #e0f2fe; color: #0369a1; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid #bae6fd;">@rc.NetworkOperator</span>
+
+                                    }
+
+                                </div>
+
+                                <div class="dev-meta-line">
+
+                                    <span><strong>Vendor:</strong> @(string.IsNullOrWhiteSpace(rc.Vendor) ? "—" : rc.Vendor)</span>
+
+                                    @if (!string.IsNullOrWhiteSpace(rc.NetworkOperator))
+
+                                    {
+
+                                        <span>&bull; <strong>Operator:</strong> @rc.NetworkOperator</span>
+
+                                    }
+
+                                    <span>&bull; <strong>Scheduled:</strong> @(string.IsNullOrWhiteSpace(rc.RechargeDate) ? "Immediate" : rc.RechargeDate)</span>
+
+                                </div>
+
+                            </div>
+
+                            <div class="dev-card-actions">
+
+                                <a asp-controller="Recharges" asp-action="Index" class="btn-process-recharge">
+
+                                    Process Recharge &rarr;
+
+                                </a>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                }
+
+            </div>
+
+        }
+
+    </section>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Right Column: Manual Follow-ups with hidden Create Form behind button -->
+
+
+
+
+
+
+
+    <section class="followups-panel">
+
+
+
+
+
+
+
+        @{
+
+
+
+
+
+
+
+            var openReminders = Model.ManualReminders.Where(r => !r.IsComplete).ToList();
+
+
+
+
+
+
+
+            var completedCount = ViewBag.CompletedCount ?? 0;
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+        <div class="panel-header">
+
+
+
+
+
+
+
+            <div class="panel-title-wrap">
+
+
+
+
+
+
+
+                <h2 style="margin: 0; font-size: 1.08rem; font-weight: 700; display: flex; align-items: center; gap: 6px; color: var(--text-main);">
+
+
+
+
+
+
+
+                    <span>📋</span> Follow-ups
+
+
+
+
+
+
+
+                    <span class="badge-count">@openReminders.Count</span>
+
+
+
+
+
+
+
+                </h2>
+
+
+
+
+
+
+
+                <p class="muted" style="margin: 2px 0 0; font-size: 0.76rem;">Team task checklist &amp; field action notes.</p>
+
+
+
+
+
+
+
+            </div>
+
+
+
+
+
+
+
+            <div class="panel-actions-wrap">
+
+
+
+
+
+
+
+                <a asp-action="Completed" class="btn-completed-archive" title="View completed follow-ups archive">
+
+
+
+
+
+
+
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><polyline points="9 13 12 16 15 13"></polyline></svg>
+
+
+
+
+
+
+
+                    <span>Completed (@completedCount)</span>
+
+
+
+
+
+
+
+                </a>
+
+
+
+
+
+
+
+                @if (User.CanEditModule("Reminders"))
+
+
+
+
+
+
+
+                {
+
+
+
+
+
+
+
+                    <button type="button" class="btn-toggle-create" id="btnToggleReminderForm" onclick="toggleReminderForm()">
+
+
+
+
+
+
+
+                        <span id="btnIcon" style="font-weight: 700;">+</span> <span id="btnText">Add Note</span>
+
+
+
+
+
+
+
+                    </button>
+
+
+
+
+
+
+
+                }
+
+
+
+
+
+
+
+            </div>
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        @if (User.CanEditModule("Reminders"))
+
+
+
+
+
+
+
+        {
+
+
+
+
+
+
+
+            <div id="createReminderContainer" style="display: none; margin-bottom: 16px; animation: slideDown 0.2s ease;">
+
+
+
+
+
+
+
+                <form class="card form-card" style="max-width: none; padding: 18px; border: 1px solid var(--blue-500); background: var(--card-bg, #ffffff);" asp-action="Create" method="post">
+
+
+
+
+
+
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+
+
+
+
+
+
+
+                        <strong style="font-size: 0.95rem; color: var(--text-main);">New Follow-up Note</strong>
+
+
+
+
+
+
+
+                        <button type="button" class="button-link" onclick="toggleReminderForm()" style="font-size: 0.75rem; color: var(--muted);">Cancel</button>
+
+
+
+
+
+
+
+                    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    <div class="field" style="margin-bottom: 12px;">
+
+
+
+
+
+
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+
+
+
+
+
+
+
+                            <label class="form-label" for="TargetAudience" style="font-size: 0.8rem; margin: 0; font-weight: 700;">Visible to / CC</label>
+
+
+
+
+
+
+
+                            <span style="font-size: 0.72rem; color: var(--muted);">Who can see this follow-up</span>
+
+
+
+
+
+
+
+                        </div>
+
+
+
+
+
+
+
+                        <div style="display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;">
+
+
+
+
+
+
+
+                            <button type="button" class="audience-preset-btn" onclick="setAudiencePreset('@@all')">@@all (Everyone)</button>
+
+
+
+
+
+
+
+                            <button type="button" class="audience-preset-btn audience-preset-self" onclick="setAudiencePreset('@@me')">👤 @@me (Self)</button>
+
+
+
+
+
+
+
+                            <button type="button" class="audience-preset-btn" onclick="setAudiencePreset('@@Admin')">@@Admin</button>
+
+
+
+
+
+
+
+                            <button type="button" class="audience-preset-btn" onclick="setAudiencePreset('@@Executive')">@@Executive</button>
+
+
+
+
+
+
+
+                            <button type="button" class="audience-preset-btn" onclick="setAudiencePreset('@@Team')">@@Team</button>
+
+
+
+
+
+
+
+                            <button type="button" class="audience-preset-btn" onclick="setAudiencePreset('@@User')">@@User</button>
+
+
+
+
+
+
+
+                            @if (ViewBag.Usernames is List<string> uList)
+
+
+
+
+
+
+
+                            {
+
+
+
+
+
+
+
+                                foreach (var un in uList)
+
+
+
+
+
+
+
+                                {
+
+
+
+
+
+
+
+                                    <button type="button" class="audience-preset-btn" onclick="setAudiencePreset('@@@un')">@@@un</button>
+
+
+
+
+
+
+
+                                }
+
+
+
+
+
+
+
+                            }
+
+
+
+
+
+
+
+                        </div>
+
+
+
+
+
+
+
+                        <input class="input" name="TargetAudience" id="TargetAudience" value="@@all" list="audiencePresetsList" placeholder="e.g. @@all, @@me, @@Admin, @@Team, or @@username" style="font-size: 0.85rem;" />
+
+
+
+
+
+
+
+                        <datalist id="audiencePresetsList">
+
+
+
+
+
+
+
+                            <option value="@@all">Everyone</option>
+
+
+
+
+
+
+
+                            <option value="@@me">Self (Private Note)</option>
+
+
+
+
+
+
+
+                            <option value="@@Admin">Admins</option>
+
+
+
+
+
+
+
+                            <option value="@@Executive">Executives</option>
+
+
+
+
+
+
+
+                            <option value="@@Team">Team members</option>
+
+
+
+
+
+
+
+                            <option value="@@User">Standard users</option>
+
+
+
+
+
+
+
+                            @if (ViewBag.Usernames is List<string> userOptions)
+
+
+
+
+
+
+
+                            {
+
+
+
+
+
+
+
+                                foreach (var un in userOptions)
+
+
+
+
+
+
+
+                                {
+
+
+
+
+
+
+
+                                    <option value="@@@un">User: @un</option>
+
+
+
+
+
+
+
+                                }
+
+
+
+
+
+
+
+                            }
+
+
+
+
+
+
+
+                        </datalist>
+
+
+
+
+
+
+
+                    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    <div class="field" style="margin-bottom: 10px;">
+
+
+
+
+
+
+
+                        <label class="form-label" for="Title" style="font-size: 0.8rem;">Title</label>
+
+
+
+
+
+
+
+                        <input class="input" name="Title" id="Title" required placeholder="e.g. Confirm renewal quote with client" style="font-size: 0.85rem;" />
+
+
+
+
+
+
+
+                    </div>
+
+
+
+
+
+
+
+                    
+
+
+
+
+
+
+
+                    <div class="field" style="margin-bottom: 10px;">
+
+
+
+
+
+
+
+                        <label class="form-label" for="Details" style="font-size: 0.8rem;">Details</label>
+
+
+
+
+
+
+
+                        <textarea class="textarea" name="Details" id="Details" placeholder="What needs to happen?" style="font-size: 0.85rem; min-height: 60px;"></textarea>
+
+
+
+
+
+
+
+                    </div>
+
+
+
+
+
+
+
+                    
+
+
+
+
+
+
+
+                    <div class="field" style="margin-bottom: 12px;">
+
+
+
+
+
+
+
+                        <label class="form-label" for="DueDate" style="font-size: 0.8rem;">Due date</label>
+
+
+
+
+
+
+
+                        <input class="input" type="date" name="DueDate" id="DueDate" value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" style="font-size: 0.85rem;" />
+
+
+
+
+
+
+
+                    </div>
+
+
+
+
+
+
+
+                    
+
+
+
+
+
+
+
+                    <div class="form-actions" style="margin-top: 8px;">
+
+
+
+
+
+
+
+                        <button class="button primary" type="submit" style="font-size: 0.85rem; padding: 6px 14px;">Save Reminder</button>
+
+
+
+
+
+
+
+                    </div>
+
+
+
+
+
+
+
+                </form>
+
+
+
+
+
+
+
+            </div>
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <div class="note-list">
+
+
+
+
+
+
+
+            <div id="followupsNoResults" class="card empty-state" style="display: none; padding: 24px; text-align: center; color: var(--muted);">
+
+
+
+
+
+
+
+                <div style="font-size: 1.6rem; margin-bottom: 6px;">🔍</div>
+
+
+
+
+
+
+
+                <strong>No follow-up notes match your search</strong>
+
+
+
+
+
+
+
+            </div>
+
+
+
+
+
+
+
+            @if (openReminders.Count == 0)
+
+
+
+
+
+
+
+            {
+
+
+
+
+
+
+
+                <div class="card empty-state" style="padding: 24px; text-align: center;">No active follow-ups. Click "+ Add Note" to create one.</div>
+
+
+
+
+
+
+
+            }
+
+
+
+
+
+
+
+            else
+
+
+
+
+
+
+
+            {
+
+
+
+
+
+
+
+                @foreach (var reminder in openReminders)
+
+
+
+
+
+
+
+                {
+
+
+
+
+
+
+
+                    <article class="card note-item" id="note-card-@reminder.Id" style="padding: 14px 16px; margin-bottom: 10px;">
+
+
+
+
+
+
+
+                        <div id="note-view-@reminder.Id">
+
+
+
+
+
+
+
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+
+
+
+
+
+
+
+                                <h3 style="margin: 0; font-size: 0.92rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+
+
+
+
+
+
+
+                                    <span>@reminder.Title</span>
+
+
+
+
+
+
+
+                                    @if (!string.IsNullOrWhiteSpace(reminder.TargetAudience) && reminder.TargetAudience != "@all")
+
+
+
+
+
+
+
+                                    {
+
+
+
+
+
+
+
+                                        <span class="audience-tag" title="Target Audience: @reminder.TargetAudience">👁️ @reminder.TargetAudience</span>
+
+
+
+
+
+
+
+                                    }
+
+
+
+
+
+
+
+                                </h3>
+
+
+
+
+
+
+
+                            </div>
+
+
+
+
+
+
+
+                            @if (!string.IsNullOrWhiteSpace(reminder.Details))
+
+
+
+
+
+
+
+                            {
+
+
+
+
+
+
+
+                                <p style="margin: 6px 0 0; font-size: 0.82rem; color: var(--muted); line-height: 1.4;">@reminder.Details</p>
+
+
+
+
+
+
+
+                            }
+
+
+
+
+
+
+
+                            <div class="note-footer" style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.76rem;">
+
+
+
+
+
+
+
+                                <span style="color: var(--muted);">
+
+
+
+
+
+
+
+                                    Due: @(string.IsNullOrWhiteSpace(reminder.DueDate) ? "None" : DateValue.Short(reminder.DueDate))
+
+
+
+
+
+
+
+                                    @if (!string.IsNullOrWhiteSpace(reminder.CreatedBy))
+
+
+
+
+
+
+
+                                    {
+
+
+
+
+
+
+
+                                        <span> &bull; by @reminder.CreatedBy</span>
+
+
+
+
+
+
+
+                                    }
+
+
+
+
+
+
+
+                                </span>
+
+
+
+
+
+
+
+                                <div style="display: flex; gap: 6px; align-items: center;">
+
+
+
+
+
+
+
+                                    @if (User.CanEditModule("Reminders"))
+
+
+
+
+
+
+
+                                    {
+
+
+
+
+
+
+
+                                        <button type="button" class="btn-micro-edit" onclick="toggleEditNote('@reminder.Id')" title="Edit follow-up">
+
+
+
+
+
+
+
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+
+
+
+
+
+
+
+                                            Edit
+
+
+
+
+
+
+
+                                        </button>
+
+
+
+
+
+
+
+                                        <form asp-action="Complete" method="post" style="display: inline; margin: 0;">
+
+
+
+
+
+
+
+                                            <input type="hidden" name="id" value="@reminder.Id" />
+
+
+
+
+
+
+
+                                            <button class="btn-micro-complete" type="submit" title="Mark as finished and archive">Complete &rarr;</button>
+
+
+
+
+
+
+
+                                        </form>
+
+
+
+
+
+
+
+                                        <form asp-action="Delete" method="post" style="display: inline; margin: 0;" onsubmit="return confirm('Are you sure you want to delete this follow-up note?');">
+
+
+
+
+
+
+
+                                            <input type="hidden" name="id" value="@reminder.Id" />
+
+
+
+
+
+
+
+                                            <button class="btn-micro-delete" type="submit" title="Delete note">
+
+
+
+
+
+
+
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+
+
+
+
+
+
+
+                                                Delete
+
+
+
+
+
+
+
+                                            </button>
+
+
+
+
+
+
+
+                                        </form>
+
+
+
+
+
+
+
+                                    }
+
+
+
+
+
+
+
+                                </div>
+
+
+
+
+
+
+
+                            </div>
+
+
+
+
+
+
+
+                        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        @if (User.CanEditModule("Reminders"))
+
+
+
+
+
+
+
+                        {
+
+
+
+
+
+
+
+                            <div id="note-edit-@reminder.Id" style="display: none; padding-top: 4px;">
+
+
+
+
+
+
+
+                                <form asp-action="Edit" method="post">
+
+
+
+
+
+
+
+                                    <input type="hidden" name="Id" value="@reminder.Id" />
+
+
+
+
+
+
+
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+
+
+
+
+
+
+
+                                        <strong style="font-size: 0.88rem; color: var(--text-main);">✏️ Edit Follow-up Note</strong>
+
+
+
+
+
+
+
+                                        <button type="button" class="button-link" onclick="toggleEditNote('@reminder.Id')" style="font-size: 0.75rem; color: var(--muted);">Cancel</button>
+
+
+
+
+
+
+
+                                    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    <div class="field" style="margin-bottom: 10px;">
+
+
+
+
+
+
+
+                                        <label class="form-label" for="Title-@reminder.Id" style="font-size: 0.78rem;">Title</label>
+
+
+
+
+
+
+
+                                        <input class="input" name="Title" id="Title-@reminder.Id" value="@reminder.Title" required style="font-size: 0.84rem;" />
+
+
+
+
+
+
+
+                                    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    <div class="field" style="margin-bottom: 10px;">
+
+
+
+
+
+
+
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+
+
+
+
+
+
+
+                                            <label class="form-label" for="TargetAudience-@reminder.Id" style="font-size: 0.78rem; margin: 0; font-weight: 700;">Visible to / CC</label>
+
+
+
+
+
+
+
+                                            <span style="font-size: 0.7rem; color: var(--muted);">Preset CC tags</span>
+
+
+
+
+
+
+
+                                        </div>
+
+
+
+
+
+
+
+                                        <div style="display: flex; gap: 5px; margin-bottom: 6px; flex-wrap: wrap;">
+
+
+
+
+
+
+
+                                            <button type="button" class="audience-preset-btn" onclick="setAudiencePreset('@@all', 'TargetAudience-@reminder.Id')">@@all</button>
+
+
+
+
+
+
+
+                                            <button type="button" class="audience-preset-btn audience-preset-self" onclick="setAudiencePreset('@@me', 'TargetAudience-@reminder.Id')">👤 @@me (Self)</button>
+
+
+
+
+
+
+
+                                            <button type="button" class="audience-preset-btn" onclick="setAudiencePreset('@@Admin', 'TargetAudience-@reminder.Id')">@@Admin</button>
+
+
+
+
+
+
+
+                                            <button type="button" class="audience-preset-btn" onclick="setAudiencePreset('@@Executive', 'TargetAudience-@reminder.Id')">@@Executive</button>
+
+
+
+
+
+
+
+                                            <button type="button" class="audience-preset-btn" onclick="setAudiencePreset('@@Team', 'TargetAudience-@reminder.Id')">@@Team</button>
+
+
+
+
+
+
+
+                                            <button type="button" class="audience-preset-btn" onclick="setAudiencePreset('@@User', 'TargetAudience-@reminder.Id')">@@User</button>
+
+
+
+
+
+
+
+                                        </div>
+
+
+
+
+
+
+
+                                        <input class="input" name="TargetAudience" id="TargetAudience-@reminder.Id" value="@reminder.TargetAudience" list="audiencePresetsList" style="font-size: 0.84rem;" />
+
+
+
+
+
+
+
+                                    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    <div class="field" style="margin-bottom: 10px;">
+
+
+
+
+
+
+
+                                        <label class="form-label" for="Details-@reminder.Id" style="font-size: 0.78rem;">Details</label>
+
+
+
+
+
+
+
+                                        <textarea class="textarea" name="Details" id="Details-@reminder.Id" style="font-size: 0.84rem; min-height: 55px;">@reminder.Details</textarea>
+
+
+
+
+
+
+
+                                    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    <div class="field" style="margin-bottom: 12px;">
+
+
+
+
+
+
+
+                                        <label class="form-label" for="DueDate-@reminder.Id" style="font-size: 0.78rem;">Due date</label>
+
+
+
+
+
+
+
+                                        <input class="input" type="date" name="DueDate" id="DueDate-@reminder.Id" value="@reminder.DueDate" style="font-size: 0.84rem;" />
+
+
+
+
+
+
+
+                                    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+
+
+
+
+
+
+
+                                        <button type="button" class="button secondary" onclick="toggleEditNote('@reminder.Id')" style="font-size: 0.78rem; padding: 4px 10px;">Cancel</button>
+
+
+
+
+
+
+
+                                        <button type="submit" class="button primary" style="font-size: 0.78rem; padding: 4px 14px;">Save Changes</button>
+
+
+
+
+
+
+
+                                    </div>
+
+
+
+
+
+
+
+                                </form>
+
+
+
+
+
+
+
+                            </div>
+
+
+
+
+
+
+
+                        }
+
+
+
+
+
+
+
+                    </article>
+
+
+
+
+
+
+
+                }
+
+
+
+
+
+
+
+            }
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+
+
+
+    </section>
+
+
+
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style>
+
+
+
+    .dispatch-filter-pills {
+
+
+
+        display: flex;
+
+
+
+        gap: 8px;
+
+
+
+        margin: 12px 0 16px;
+
+
+
+        flex-wrap: wrap;
+
+
+
+    }
+
+
+
+    .dispatch-pill {
+
+
+
+        display: inline-flex;
+
+
+
+        align-items: center;
+
+
+
+        gap: 6px;
+
+
+
+        padding: 5px 12px;
+
+
+
+        font-size: 0.8rem;
+
+
+
+        font-weight: 600;
+
+
+
+        border-radius: 20px;
+
+
+
+        border: 1px solid var(--line, #e2e8f0);
+
+
+
+        background: var(--soft, #f8fafc);
+
+
+
+        color: var(--muted, #64748b);
+
+
+
+        cursor: pointer;
+
+
+
+        transition: all 0.15s ease;
+
+
+
+    }
+
+
+
+    .dispatch-pill:hover {
+
+
+
+        border-color: var(--primary-600, #0f62fe);
+
+
+
+        color: var(--primary-600, #0f62fe);
+
+
+
+    }
+
+
+
+    .dispatch-pill.is-active {
+
+
+
+        background: var(--primary-600, #0f62fe);
+
+
+
+        color: #ffffff;
+
+
+
+        border-color: var(--primary-600, #0f62fe);
+
+
+
+    }
+
+
+
+    .dispatch-pill .pill-badge {
+
+
+
+        background: rgba(0, 0, 0, 0.08);
+
+
+
+        font-size: 0.72rem;
+
+
+
+        padding: 1px 6px;
+
+
+
+        border-radius: 10px;
+
+
+
+    }
+
+
+
+    .dispatch-pill.is-active .pill-badge {
+
+
+
+        background: rgba(255, 255, 255, 0.25);
+
+
+
+        color: #ffffff;
+
+
+
+    }
+
+
+
+    body:has(#theme:checked) .dispatch-pill {
+
+
+
+        background: #1e1e1e !important;
+
+
+
+        border-color: #383838 !important;
+
+
+
+        color: #94a3b8 !important;
+
+
+
+    }
+
+
+
+    body:has(#theme:checked) .dispatch-pill:hover {
+
+
+
+        border-color: #38bdf8 !important;
+
+
+
+        color: #38bdf8 !important;
+
+
+
+    }
+
+
+
+    body:has(#theme:checked) .dispatch-pill.is-active {
+
+
+
+        background: #0284c7 !important;
+
+
+
+        border-color: #0284c7 !important;
+
+
+
+        color: #ffffff !important;
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+    .reminders-split-layout {
+
+
+
+
+
+
+
+        display: grid;
+
+
+
+
+
+
+
+        grid-template-columns: 1.55fr 1fr;
+
+
+
+
+
+
+
+        gap: 24px;
+
+
+
+
+
+
+
+        margin-top: 28px;
+
+
+
+
+
+
+
+        align-items: start;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    @@media (max-width: 960px) {
+
+
+
+
+
+
+
+        .reminders-split-layout {
+
+
+
+
+
+
+
+            grid-template-columns: 1fr;
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .panel-header {
+
+
+
+
+
+
+
+        display: flex;
+
+
+
+
+
+
+
+        justify-content: space-between;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        gap: 10px;
+
+
+
+
+
+
+
+        margin-bottom: 14px;
+
+
+
+
+
+
+
+        flex-wrap: nowrap;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .panel-title-wrap {
+
+
+
+
+
+
+
+        min-width: 0;
+
+
+
+
+
+
+
+        flex: 1;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .panel-actions-wrap {
+
+
+
+
+
+
+
+        display: inline-flex;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        gap: 6px;
+
+
+
+
+
+
+
+        flex-shrink: 0;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-completed-archive {
+
+
+
+
+
+
+
+        display: inline-flex;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        gap: 4px;
+
+
+
+
+
+
+
+        background: var(--surface-hover);
+
+
+
+
+
+
+
+        border: 1px solid var(--border);
+
+
+
+
+
+
+
+        color: var(--text-main);
+
+
+
+
+
+
+
+        font-size: 0.72rem;
+
+
+
+
+
+
+
+        font-weight: 600;
+
+
+
+
+
+
+
+        padding: 3px 8px;
+
+
+
+
+
+
+
+        height: 26px;
+
+
+
+
+
+
+
+        border-radius: 6px;
+
+
+
+
+
+
+
+        text-decoration: none;
+
+
+
+
+
+
+
+        white-space: nowrap;
+
+
+
+
+
+
+
+        line-height: 1;
+
+
+
+
+
+
+
+        transition: all 0.15s ease;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-completed-archive:hover {
+
+
+
+
+
+
+
+        background: var(--surface-alt);
+
+
+
+
+
+
+
+        border-color: var(--blue-500);
+
+
+
+
+
+
+
+        color: var(--blue-600);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-toggle-create {
+
+
+
+
+
+
+
+        display: inline-flex;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        gap: 4px;
+
+
+
+
+
+
+
+        background: rgba(59, 130, 246, 0.08);
+
+
+
+
+
+
+
+        border: 1px solid rgba(59, 130, 246, 0.25);
+
+
+
+
+
+
+
+        color: var(--blue-600);
+
+
+
+
+
+
+
+        font-size: 0.72rem;
+
+
+
+
+
+
+
+        font-weight: 600;
+
+
+
+
+
+
+
+        padding: 3px 8px;
+
+
+
+
+
+
+
+        height: 26px;
+
+
+
+
+
+
+
+        border-radius: 6px;
+
+
+
+
+
+
+
+        cursor: pointer;
+
+
+
+
+
+
+
+        white-space: nowrap;
+
+
+
+
+
+
+
+        line-height: 1;
+
+
+
+
+
+
+
+        transition: all 0.15s ease;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-toggle-create:hover {
+
+
+
+
+
+
+
+        background: var(--blue-600);
+
+
+
+
+
+
+
+        border-color: var(--blue-600);
+
+
+
+
+
+
+
+        color: #ffffff;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .audience-preset-self {
+
+
+
+
+
+
+
+        background: rgba(139, 92, 246, 0.08);
+
+
+
+
+
+
+
+        border-color: rgba(139, 92, 246, 0.3);
+
+
+
+
+
+
+
+        color: #7c3aed;
+
+
+
+
+
+
+
+        font-weight: 700;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .audience-preset-self:hover {
+
+
+
+
+
+
+
+        background: #7c3aed;
+
+
+
+
+
+
+
+        color: #ffffff;
+
+
+
+
+
+
+
+        border-color: #7c3aed;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-micro-edit {
+
+
+
+
+
+
+
+        background: rgba(100, 116, 139, 0.08);
+
+
+
+
+
+
+
+        border: 1px solid rgba(100, 116, 139, 0.2);
+
+
+
+
+
+
+
+        color: var(--text-main);
+
+
+
+
+
+
+
+        font-size: 0.73rem;
+
+
+
+
+
+
+
+        font-weight: 700;
+
+
+
+
+
+
+
+        padding: 3px 8px;
+
+
+
+
+
+
+
+        border-radius: 5px;
+
+
+
+
+
+
+
+        cursor: pointer;
+
+
+
+
+
+
+
+        display: inline-flex;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        gap: 4px;
+
+
+
+
+
+
+
+        transition: all 0.15s ease;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-micro-edit:hover {
+
+
+
+
+
+
+
+        background: var(--blue-600);
+
+
+
+
+
+
+
+        border-color: var(--blue-600);
+
+
+
+
+
+
+
+        color: #ffffff;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-micro-complete {
+
+
+
+
+
+
+
+        background: rgba(16, 185, 129, 0.08);
+
+
+
+
+
+
+
+        border: 1px solid rgba(16, 185, 129, 0.2);
+
+
+
+
+
+
+
+        color: #059669;
+
+
+
+
+
+
+
+        font-size: 0.73rem;
+
+
+
+
+
+
+
+        font-weight: 700;
+
+
+
+
+
+
+
+        padding: 3px 8px;
+
+
+
+
+
+
+
+        border-radius: 5px;
+
+
+
+
+
+
+
+        cursor: pointer;
+
+
+
+
+
+
+
+        display: inline-flex;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        gap: 4px;
+
+
+
+
+
+
+
+        transition: all 0.15s ease;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-micro-complete:hover {
+
+
+
+
+
+
+
+        background: #10b981;
+
+
+
+
+
+
+
+        border-color: #10b981;
+
+
+
+
+
+
+
+        color: #ffffff;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-micro-delete {
+
+
+
+
+
+
+
+        background: rgba(239, 68, 68, 0.08);
+
+
+
+
+
+
+
+        border: 1px solid rgba(239, 68, 68, 0.2);
+
+
+
+
+
+
+
+        color: #ef4444;
+
+
+
+
+
+
+
+        font-size: 0.73rem;
+
+
+
+
+
+
+
+        font-weight: 700;
+
+
+
+
+
+
+
+        padding: 3px 8px;
+
+
+
+
+
+
+
+        border-radius: 5px;
+
+
+
+
+
+
+
+        cursor: pointer;
+
+
+
+
+
+
+
+        display: inline-flex;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        gap: 4px;
+
+
+
+
+
+
+
+        transition: all 0.15s ease;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-micro-delete:hover {
+
+
+
+
+
+
+
+        background: #ef4444;
+
+
+
+
+
+
+
+        border-color: #ef4444;
+
+
+
+
+
+
+
+        color: #ffffff;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .badge-urgent-count {
+
+
+
+
+
+
+
+        background: #fee2e2;
+
+
+
+
+
+
+
+        color: #b91c1c;
+
+
+
+
+
+
+
+        font-size: 0.72rem;
+
+
+
+
+
+
+
+        font-weight: 800;
+
+
+
+
+
+
+
+        padding: 2px 8px;
+
+
+
+
+
+
+
+        border-radius: 999px;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .badge-count {
+
+
+
+
+
+
+
+        background: var(--line);
+
+
+
+
+
+
+
+        color: var(--text-main);
+
+
+
+
+
+
+
+        font-size: 0.72rem;
+
+
+
+
+
+
+
+        font-weight: 700;
+
+
+
+
+
+
+
+        padding: 2px 8px;
+
+
+
+
+
+
+
+        border-radius: 999px;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .badge-done {
+
+
+
+
+
+
+
+        background: #dcfce7;
+
+
+
+
+
+
+
+        color: #15803d;
+
+
+
+
+
+
+
+        font-size: 0.68rem;
+
+
+
+
+
+
+
+        font-weight: 800;
+
+
+
+
+
+
+
+        padding: 1px 6px;
+
+
+
+
+
+
+
+        border-radius: 4px;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .urgent-dev-card {
+
+
+
+
+
+
+
+        padding: 14px 18px;
+
+
+
+
+
+
+
+        margin-bottom: 12px;
+
+
+
+
+
+
+
+        border-radius: 10px;
+
+
+
+
+
+
+
+        background: var(--card-bg, #ffffff);
+
+
+
+
+
+
+
+        border: 1px solid #e2e8f0;
+
+
+
+
+
+
+
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+
+
+
+
+
+
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .urgent-dev-card:hover {
+
+
+
+
+
+
+
+        transform: translateY(-1px);
+
+
+
+
+
+
+
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .card-danger {
+
+
+
+
+
+
+
+        border-left: 4px solid #ef4444 !important;
+
+
+
+
+
+
+
+        background: var(--card-bg, #ffffff);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .card-warning {
+
+
+
+
+
+
+
+        border-left: 4px solid #f97316 !important;
+
+
+
+
+
+
+
+        background: var(--card-bg, #ffffff);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .reminder-card {
+
+
+
+
+
+
+
+        background: var(--card-bg, #ffffff);
+
+
+
+
+
+
+
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .note-item {
+
+
+
+
+
+
+
+        background: var(--card-bg, #ffffff);
+
+
+
+
+
+
+
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .empty-state {
+
+
+
+
+
+
+
+        background: var(--card-bg, #ffffff);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    body:has(#theme:checked) .urgent-dev-card,
+
+
+
+
+
+
+
+    body:has(#theme:checked) .reminder-card,
+
+
+
+
+
+
+
+    body:has(#theme:checked) .note-item,
+
+
+
+
+
+
+
+    body:has(#theme:checked) .empty-state,
+
+
+
+
+
+
+
+    body:has(#theme:checked) .card-danger,
+
+
+
+
+
+
+
+    body:has(#theme:checked) .card-warning {
+
+
+
+
+
+
+
+        background: #1e293b !important;
+
+        border-color: #334155 !important;
+
+    }
+
+    body:has(#theme:checked) .reminder-card h3 {
+        color: #f1f5f9 !important;
+    }
+    body:has(#theme:checked) .reminder-card .reminder-count {
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .reminder-card p {
+        color: #94a3b8 !important;
+    }
+    body:has(#theme:checked) .reminder-card:hover {
+        background: #151e2e !important;
+        border-color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .reminder-card[style*="var(--red-600)"] {
+        border-color: #ef4444 !important;
+        background: rgba(239, 68, 68, 0.16) !important;
+    }
+    body:has(#theme:checked) .reminder-card[style*="var(--red-600)"] h3,
+    body:has(#theme:checked) .reminder-card[style*="var(--red-600)"] .reminder-count,
+    body:has(#theme:checked) .reminder-card[style*="var(--red-600)"] p {
+        color: #fca5a5 !important;
+    }
+    body:has(#theme:checked) .reminder-card[style*="#d97706"] {
+        border-color: #f59e0b !important;
+        background: rgba(245, 158, 11, 0.16) !important;
+    }
+    body:has(#theme:checked) .reminder-card[style*="#d97706"] h3,
+    body:has(#theme:checked) .reminder-card[style*="#d97706"] .reminder-count,
+    body:has(#theme:checked) .reminder-card[style*="#d97706"] p {
+        color: #fde047 !important;
+    }
+
+
+
+
+
+
+
+    body:has(#theme:checked) .wa-picker-dropdown {
+
+
+
+
+
+
+
+        background: #1e293b !important;
+
+        border-color: #334155 !important;
+
+    }
+
+    body:has(#theme:checked) .reminder-card h3 {
+        color: #f1f5f9 !important;
+    }
+    body:has(#theme:checked) .reminder-card .reminder-count {
+        color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .reminder-card p {
+        color: #94a3b8 !important;
+    }
+    body:has(#theme:checked) .reminder-card:hover {
+        background: #151e2e !important;
+        border-color: #38bdf8 !important;
+    }
+    body:has(#theme:checked) .reminder-card[style*="var(--red-600)"] {
+        border-color: #ef4444 !important;
+        background: rgba(239, 68, 68, 0.16) !important;
+    }
+    body:has(#theme:checked) .reminder-card[style*="var(--red-600)"] h3,
+    body:has(#theme:checked) .reminder-card[style*="var(--red-600)"] .reminder-count,
+    body:has(#theme:checked) .reminder-card[style*="var(--red-600)"] p {
+        color: #fca5a5 !important;
+    }
+    body:has(#theme:checked) .reminder-card[style*="#d97706"] {
+        border-color: #f59e0b !important;
+        background: rgba(245, 158, 11, 0.16) !important;
+    }
+    body:has(#theme:checked) .reminder-card[style*="#d97706"] h3,
+    body:has(#theme:checked) .reminder-card[style*="#d97706"] .reminder-count,
+    body:has(#theme:checked) .reminder-card[style*="#d97706"] p {
+        color: #fde047 !important;
+    }
+
+
+
+
+
+
+
+    body:has(#theme:checked) .wa-picker-dropdown div {
+
+
+
+
+
+
+
+        background: #0f172a !important;
+
+
+
+
+
+
+
+        color: #94a3b8 !important;
+
+
+
+
+
+
+
+        border-color: #334155 !important;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    body:has(#theme:checked) .wa-picker-dropdown a {
+
+
+
+
+
+
+
+        background: #1e293b !important;
+
+
+
+
+
+
+
+        color: #f1f5f9 !important;
+
+
+
+
+
+
+
+        border-color: #334155 !important;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    body:has(#theme:checked) .wa-picker-dropdown a:hover {
+
+
+
+
+
+
+
+        background: #334155 !important;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .dev-card-main {
+
+
+
+
+
+
+
+        display: flex;
+
+
+
+
+
+
+
+        justify-content: space-between;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        gap: 16px;
+
+
+
+
+
+
+
+        flex-wrap: wrap;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .dev-vehicle-line {
+
+
+
+
+
+
+
+        display: flex;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        gap: 8px;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .vehicle-no {
+
+
+
+
+
+
+
+        font-size: 1rem;
+
+
+
+
+
+
+
+        font-weight: 800;
+
+
+
+
+
+
+
+        color: var(--text-main);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .status-pill {
+
+
+
+
+
+
+
+        font-size: 0.72rem;
+
+
+
+
+
+
+
+        font-weight: 700;
+
+
+
+
+
+
+
+        padding: 2px 7px;
+
+
+
+
+
+
+
+        border-radius: 4px;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .tag-suspension {
+
+
+
+
+
+
+
+        background: #fee2e2;
+
+
+
+
+
+
+
+        color: #b91c1c;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .tag-tomorrow {
+
+
+
+
+
+
+
+        background: #ffedd5;
+
+
+
+
+
+
+
+        color: #c2410c;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .dev-meta-line {
+
+
+
+
+
+
+
+        font-size: 0.8rem;
+
+
+
+
+
+
+
+        color: var(--muted);
+
+
+
+
+
+
+
+        margin-top: 4px;
+
+
+
+
+
+
+
+        display: flex;
+
+
+
+
+
+
+
+        gap: 8px;
+
+
+
+
+
+
+
+        flex-wrap: wrap;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .dev-card-actions {
+
+
+
+
+
+
+
+        display: flex;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        gap: 6px;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .dev-card-actions .button-wa,
+
+
+
+
+
+
+
+    .dev-card-actions .button-informed,
+
+
+
+
+
+
+
+    .dev-card-actions .btn-renew-action {
+
+
+
+
+
+
+
+        height: 30px;
+
+
+
+
+
+
+
+        min-height: 30px;
+
+
+
+
+
+
+
+        max-height: 30px;
+
+
+
+
+
+
+
+        padding: 0 10px;
+
+
+
+
+
+
+
+        font-size: 0.76rem;
+
+
+
+
+
+
+
+        font-weight: 700;
+
+
+
+
+
+
+
+        border-radius: 6px;
+
+
+
+
+
+
+
+        display: inline-flex;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        justify-content: center;
+
+
+
+
+
+
+
+        box-sizing: border-box;
+
+
+
+
+
+
+
+        line-height: 1;
+
+
+
+
+
+
+
+        white-space: nowrap;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .button-wa {
+
+
+
+
+
+
+
+        gap: 6px;
+
+
+
+
+
+
+
+        background: #25D366;
+
+
+
+
+
+
+
+        color: #ffffff !important;
+
+
+
+
+
+
+
+        text-decoration: none;
+
+
+
+
+
+
+
+        transition: background 0.15s ease, transform 0.1s ease;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .button-wa:hover {
+
+
+
+
+
+
+
+        background: #1ebc57;
+
+
+
+
+
+
+
+        transform: translateY(-1px);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-renew-action {
+
+
+
+
+
+
+
+        background: rgba(59, 130, 246, 0.1);
+
+
+
+
+
+
+
+        color: var(--blue-600) !important;
+
+
+
+
+
+
+
+        text-decoration: none;
+
+
+
+
+
+
+
+        border: 1px solid rgba(59, 130, 246, 0.25);
+
+
+
+
+
+
+
+        transition: background 0.15s ease;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .btn-renew-action:hover {
+
+
+
+
+
+
+
+        background: rgba(59, 130, 246, 0.2);
+
+
+
+
+
+
+
+    }
+
+    .dev-card-actions .btn-collect-payment,
+    .dev-card-actions .btn-process-recharge {
+        height: 30px;
+        min-height: 30px;
+        max-height: 30px;
+        padding: 0 10px;
+        font-size: 0.76rem;
+        font-weight: 700;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .btn-collect-payment {
+        background: #fee2e2;
+        color: #b91c1c !important;
+        text-decoration: none;
+        border: 1px solid #fca5a5;
+        transition: all 0.15s ease;
+    }
+
+    .btn-collect-payment:hover {
+        background: #fecaca;
+        color: #991b1b !important;
+        border-color: #f87171;
+    }
+
+    .btn-process-recharge {
+        background: #fef3c7;
+        color: #b45309 !important;
+        text-decoration: none;
+        border: 1px solid #fde68a;
+        transition: all 0.15s ease;
+    }
+
+    .btn-process-recharge:hover {
+        background: #fde68a;
+        color: #92400e !important;
+        border-color: #fcd34d;
+    }
+
+
+
+
+
+
+
+
+    .audience-preset-btn {
+
+
+
+
+
+
+
+        background: rgba(14, 165, 233, 0.1);
+
+
+
+
+
+
+
+        color: var(--blue-600);
+
+
+
+
+
+
+
+        border: 1px solid rgba(14, 165, 233, 0.25);
+
+
+
+
+
+
+
+        border-radius: 12px;
+
+
+
+
+
+
+
+        font-size: 0.72rem;
+
+
+
+
+
+
+
+        font-weight: 600;
+
+
+
+
+
+
+
+        padding: 3px 8px;
+
+
+
+
+
+
+
+        cursor: pointer;
+
+
+
+
+
+
+
+        transition: all 0.15s ease;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .audience-preset-btn:hover {
+
+
+
+
+
+
+
+        background: var(--blue-600);
+
+
+
+
+
+
+
+        color: #ffffff;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    body:has(#theme:checked) .audience-preset-btn {
+
+
+
+
+
+
+
+        background: rgba(14, 165, 233, 0.2);
+
+
+
+
+
+
+
+        color: #38bdf8;
+
+
+
+
+
+
+
+        border-color: rgba(56, 189, 248, 0.3);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    body:has(#theme:checked) .audience-preset-btn:hover {
+
+
+
+
+
+
+
+        background: #0284c7;
+
+
+
+
+
+
+
+        color: #ffffff;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    @@keyframes slideDown {
+
+
+
+
+
+
+
+        from { opacity: 0; transform: translateY(-8px); }
+
+
+
+
+
+
+
+        to { opacity: 1; transform: translateY(0); }
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+
+
+
+
+
+
+
+function setAudiencePreset(val, targetInputId = 'TargetAudience') {
+
+
+
+
+
+
+
+    const input = document.getElementById(targetInputId);
+
+
+
+
+
+
+
+    if (!input) return;
+
+
+
+
+
+
+
+    if (val === '@@all' || val === '@@me') {
+
+
+
+
+
+
+
+        input.value = val;
+
+
+
+
+
+
+
+        return;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    let cur = input.value.trim();
+
+
+
+
+
+
+
+    if (cur === '@@all' || cur === '@@me' || cur === '') {
+
+
+
+
+
+
+
+        input.value = val;
+
+
+
+
+
+
+
+    } else {
+
+
+
+
+
+
+
+        const parts = cur.split(',').map(s => s.trim()).filter(Boolean);
+
+
+
+
+
+
+
+        if (!parts.includes(val)) {
+
+
+
+
+
+
+
+            parts.push(val);
+
+
+
+
+
+
+
+            input.value = parts.join(', ');
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function toggleEditNote(id) {
+
+
+
+
+
+
+
+    const viewEl = document.getElementById('note-view-' + id);
+
+
+
+
+
+
+
+    const editEl = document.getElementById('note-edit-' + id);
+
+
+
+
+
+
+
+    if (!viewEl || !editEl) return;
+
+
+
+
+
+
+
+    if (editEl.style.display === 'none' || editEl.style.display === '') {
+
+
+
+
+
+
+
+        editEl.style.display = 'block';
+
+
+
+
+
+
+
+        viewEl.style.display = 'none';
+
+
+
+
+
+
+
+        const titleInput = editEl.querySelector('input[name="Title"]');
+
+
+
+
+
+
+
+        if (titleInput) titleInput.focus();
+
+
+
+
+
+
+
+    } else {
+
+
+
+
+
+
+
+        editEl.style.display = 'none';
+
+
+
+
+
+
+
+        viewEl.style.display = 'block';
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function toggleReminderForm() {
+
+
+
+
+
+
+
+    const container = document.getElementById('createReminderContainer');
+
+
+
+
+
+
+
+    const icon = document.getElementById('btnIcon');
+
+
+
+
+
+
+
+    const text = document.getElementById('btnText');
+
+
+
+
+
+
+
+    if (!container) return;
+
+
+
+
+
+
+
+    if (container.style.display === 'none' || container.style.display === '') {
+
+
+
+
+
+
+
+        container.style.display = 'block';
+
+
+
+
+
+
+
+        if (icon) icon.textContent = '✕';
+
+
+
+
+
+
+
+        if (text) text.textContent = 'Close';
+
+
+
+
+
+
+
+        const titleInput = document.getElementById('Title');
+
+
+
+
+
+
+
+        if (titleInput) titleInput.focus();
+
+
+
+
+
+
+
+    } else {
+
+
+
+
+
+
+
+        container.style.display = 'none';
+
+
+
+
+
+
+
+        if (icon) icon.textContent = '+';
+
+
+
+
+
+
+
+        if (text) text.textContent = 'Add Note';
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function toggleWaPicker(btn) {
+
+
+
+
+
+
+
+    const dropdown = btn.nextElementSibling;
+
+
+
+
+
+
+
+    const isOpen = dropdown.style.display !== 'none';
+
+
+
+
+
+
+
+    document.querySelectorAll('.wa-picker-dropdown').forEach(d => d.style.display = 'none');
+
+
+
+
+
+
+
+    if (!isOpen) dropdown.style.display = 'block';
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function closeWaPicker(link) {
+
+
+
+
+
+
+
+    const dropdown = link.closest('.wa-picker-dropdown');
+
+
+
+
+
+
+
+    if (dropdown) dropdown.style.display = 'none';
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+document.addEventListener('click', function(e) {
+
+
+
+
+
+
+
+    if (!e.target.closest('.wa-picker')) {
+
+
+
+
+
+
+
+        document.querySelectorAll('.wa-picker-dropdown').forEach(d => d.style.display = 'none');
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function filterDispatchType(type, btn) {
+
+
+
+    document.querySelectorAll('.dispatch-pill').forEach(p => p.classList.remove('is-active'));
+
+
+
+    if (btn) btn.classList.add('is-active');
+
+
+
+
+
+
+
+    const items = document.querySelectorAll('.dispatch-item');
+
+
+
+    items.forEach(item => {
+
+
+
+        if (type === 'all') {
+
+
+
+            item.dataset.typeHidden = 'false';
+
+
+
+        } else if (type === 'expiries' && item.classList.contains('dispatch-item-expiries')) {
+
+
+
+            item.dataset.typeHidden = 'false';
+
+
+
+        } else if (type === 'unpaid' && item.classList.contains('dispatch-item-unpaid')) {
+
+
+
+            item.dataset.typeHidden = 'false';
+
+
+
+        } else if (type === 'pending' && item.classList.contains('dispatch-item-pending')) {
+
+
+
+            item.dataset.typeHidden = 'false';
+
+
+
+        } else {
+
+
+
+            item.dataset.typeHidden = 'true';
+
+
+
+        }
+
+
+
+    });
+
+
+
+    filterReminders();
+
+
+
+}
+
+
+
+
+
+
+
+function filterReminders() {
+
+
+
+
+
+
+
+    const input = document.getElementById('reminderSearchInput');
+
+
+
+
+
+
+
+    const clearBtn = document.getElementById('reminderSearchClearBtn');
+
+
+
+
+
+
+
+    const resultsCount = document.getElementById('reminderSearchResultsCount');
+
+
+
+
+
+
+
+    if (!input) return;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const query = input.value.trim().toLowerCase();
+
+
+
+
+
+
+
+    if (clearBtn) clearBtn.style.display = query.length > 0 ? 'flex' : 'none';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    let totalMatches = 0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // 1. Filter Imminent Expiries
+
+
+
+
+
+
+
+    const urgentCards = document.querySelectorAll('.urgent-dev-card');
+
+
+
+
+
+
+
+    let urgentMatches = 0;
+
+
+
+
+
+
+
+    urgentCards.forEach(card => {
+        if (card.dataset.typeHidden === 'true') {
+            card.style.display = 'none';
+            return;
+        }
+        const text = card.textContent.toLowerCase();
+
+
+
+
+
+
+
+        if (!query || text.includes(query)) {
+
+
+
+
+
+
+
+            card.style.display = '';
+
+
+
+
+
+
+
+            urgentMatches++;
+
+
+
+
+
+
+
+            totalMatches++;
+
+
+
+
+
+
+
+        } else {
+
+
+
+
+
+
+
+            card.style.display = 'none';
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+    const urgentNoResults = document.getElementById('urgentNoResults');
+
+
+
+
+
+
+
+    if (urgentNoResults) {
+
+
+
+
+
+
+
+        urgentNoResults.style.display = (urgentCards.length > 0 && urgentMatches === 0 && query) ? 'block' : 'none';
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // 2. Filter Follow-ups / Notes
+
+
+
+
+
+
+
+    const noteItems = document.querySelectorAll('.followups-panel .note-item');
+
+
+
+
+
+
+
+    let noteMatches = 0;
+
+
+
+
+
+
+
+    noteItems.forEach(note => {
+
+
+
+
+
+
+
+        const text = note.textContent.toLowerCase();
+
+
+
+
+
+
+
+        if (!query || text.includes(query)) {
+
+
+
+
+
+
+
+            note.style.display = '';
+
+
+
+
+
+
+
+            noteMatches++;
+
+
+
+
+
+
+
+            totalMatches++;
+
+
+
+
+
+
+
+        } else {
+
+
+
+
+
+
+
+            note.style.display = 'none';
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+    const followupsNoResults = document.getElementById('followupsNoResults');
+
+
+
+
+
+
+
+    if (followupsNoResults) {
+
+
+
+
+
+
+
+        followupsNoResults.style.display = (noteItems.length > 0 && noteMatches === 0 && query) ? 'block' : 'none';
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Update result counter badge
+
+
+
+
+
+
+
+    if (resultsCount) {
+
+
+
+
+
+
+
+        if (query) {
+
+
+
+
+
+
+
+            resultsCount.textContent = `${totalMatches} matching item${totalMatches === 1 ? '' : 's'}`;
+
+
+
+
+
+
+
+        } else {
+
+
+
+
+
+
+
+            resultsCount.textContent = '';
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function clearReminderSearch() {
+
+
+
+
+
+
+
+    const input = document.getElementById('reminderSearchInput');
+
+
+
+
+
+
+
+    if (input) {
+
+
+
+
+
+
+
+        input.value = '';
+
+
+
+
+
+
+
+        input.focus();
+
+
+
+
+
+
+
+        filterReminders();
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Auto-populate search from URL query if present (e.g. /Reminders?q=KA28)
+
+
+
+
+
+
+
+document.addEventListener('DOMContentLoaded', function() {
+
+
+
+
+
+
+
+    const params = new URLSearchParams(window.location.search);
+
+
+
+
+
+
+
+    const q = params.get('q') || params.get('query') || params.get('search');
+
+
+
+
+
+
+
+    if (q) {
+
+
+
+
+
+
+
+        const input = document.getElementById('reminderSearchInput');
+
+
+
+
+
+
+
+        if (input) {
+
+
+
+
+
+
+
+            input.value = q;
+
+
+
+
+
+
+
+            filterReminders();
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+});
+
+
+
+
+
+
+
+</script>
+
+
+
+
+
+
+

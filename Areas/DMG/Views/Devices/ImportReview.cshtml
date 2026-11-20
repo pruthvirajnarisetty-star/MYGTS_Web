@@ -1,0 +1,219 @@
+@model DeviceImportReviewViewModel
+@{
+    ViewData["Title"] = $"Review {Model.Branch} device import";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Fleet Management / Data Import Review</div>
+        <h1>Review imported @Model.Branch devices</h1>
+        <p>Review the data below extracted from your file. Choose per-row actions for any devices matching existing records before saving.</p>
+    </div>
+    <div class="page-heading-actions">
+        <a class="button ghost" asp-action="Import">← Upload another file</a>
+        <a class="button secondary" asp-action="Index">Cancel</a>
+    </div>
+</div>
+
+<section class="card" style="margin-bottom: 20px; padding: 20px;">
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: center;">
+            <div>
+                <span style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600; display: block;">Branch</span>
+                <strong style="font-size: 1.1rem; color: var(--text-main);">@Model.Branch</strong>
+            </div>
+            <div>
+                <span style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600; display: block;">Total Rows</span>
+                <strong style="font-size: 1.1rem; color: var(--text-main);">@Model.TotalRows.ToString("N0") units</strong>
+            </div>
+            <div>
+                <span style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600; display: block;">New Records</span>
+                <span class="badge success" style="font-size: 0.95rem; font-weight: 700; padding: 4px 10px;">@Model.NewCount New</span>
+            </div>
+            <div>
+                <span style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600; display: block;">Matching Existing</span>
+                <span class="badge danger" style="font-size: 0.95rem; font-weight: 700; padding: 4px 10px; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;">@Model.ConflictCount Matches</span>
+            </div>
+        </div>
+
+        @if (Model.ConflictCount > 0)
+        {
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem;">
+                <span style="color: var(--muted); font-weight: 600;">Bulk conflict action:</span>
+                <button type="button" class="button secondary" onclick="setAllConflicts('replace')" style="font-size: 0.8rem; padding: 4px 10px;">Set all to Replace</button>
+                <button type="button" class="button secondary" onclick="setAllConflicts('keep')" style="font-size: 0.8rem; padding: 4px 10px;">Set all to Keep Existing</button>
+            </div>
+        }
+    </div>
+</section>
+
+<form asp-action="ConfirmImport" method="post">
+    <input type="hidden" name="Branch" value="@Model.Branch" />
+    <input type="hidden" name="StagedDevicesJson" value="@Model.StagedDevicesJson" />
+    <input type="hidden" name="ExcludeFromUnpaid" value="@Model.ExcludeFromUnpaid.ToString().ToLower()" />
+
+    @if (Model.ExcludeFromUnpaid)
+    {
+        <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #d97706; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: #78350f;">
+            <span style="font-size: 1.2rem;">⚠️</span>
+            <span>
+                <strong>"Exclude from Unpaid" is ON for this import.</strong>
+                All @Model.TotalRows devices will be automatically excluded from the <em>Reminders → Unpaid Vehicles</em> list after import.
+                Go back to the upload page if you want to change this.
+            </span>
+        </div>
+    }
+
+    <section class="card" style="margin-bottom: 24px;">
+        <div class="section-heading" style="padding: 16px 20px 10px; margin-top: 0; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2 style="font-size: 1.1rem; margin-bottom: 4px;">Imported Device Rows</h2>
+                <p style="color: var(--muted); font-size: 0.82rem; margin: 0;">
+                    <span style="display: inline-block; width: 12px; height: 12px; background: #ecfdf5; border: 2px solid #10b981; border-radius: 3px; vertical-align: middle; margin-right: 4px;"></span>
+                    Green rows indicate brand new devices.
+                    <span style="display: inline-block; width: 12px; height: 12px; background: #fef2f2; border: 2px solid #ef4444; border-radius: 3px; vertical-align: middle; margin: 0 4px 0 12px;"></span>
+                    Red rows match both IMEI and ICCID of an existing device.
+                </p>
+            </div>
+            <button type="submit" class="button primary" style="padding: 9px 22px; font-weight: 600; font-size: 0.95rem;">
+                Confirm & Apply Import (@Model.TotalRows devices)
+            </button>
+        </div>
+
+        <div class="table-wrap">
+            <table class="data-table" style="font-size: 0.86rem; border-collapse: separate; border-spacing: 0;">
+                <thead>
+                    <tr>
+                        <th style="width: 48px; text-align: center;">#</th>
+                        <th style="min-width: 260px;">Action / Conflict Resolution</th>
+                        <th>Vehicle No</th>
+                        <th>ICCID</th>
+                        <th>IMEI</th>
+                        @if (Model.Branch == "RTO")
+                        {
+                            <th>Device Serial No</th>
+                        }
+                        <th>Airtel SIM</th>
+                        <th>BSNL SIM</th>
+                        <th>Status</th>
+                        <th>Type</th>
+                        <th>Device Name</th>
+                        <th>Owner</th>
+                        <th>Contact</th>
+                        <th>Activation Date</th>
+                        <th>Expiry Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        var item = Model.Items[i];
+                        var isConflict = item.IsConflict;
+                        var rowBg = isConflict ? "#fef2f2" : "#ecfdf5";
+                        var rowBorder = isConflict ? "4px solid #ef4444" : "4px solid #10b981";
+
+                        <tr style="background-color: @rowBg !important; border-left: @rowBorder;">
+                            <td style="text-align: center; color: var(--muted); font-weight: 600;">
+                                @(i + 1)
+                            </td>
+                            <td>
+                                @if (isConflict)
+                                {
+                                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span class="badge danger" style="font-size: 0.72rem; padding: 2px 6px; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;">⚠️ Conflict</span>
+                                            <label style="font-size: 0.78rem; font-weight: 600; color: #991b1b;">Choose row to keep:</label>
+                                        </div>
+                                        <select name="Actions[@i]" class="input conflict-action-select" style="font-size: 0.8rem; padding: 5px 8px; border-color: #f87171; background: #fff; width: 100%;">
+                                            <option value="replace" selected>
+                                                Keep Imported Row (Overwrite Existing: @(string.IsNullOrWhiteSpace(item.Existing?.VehicleNo) ? "No Vehicle" : item.Existing?.VehicleNo))
+                                            </option>
+                                            <option value="keep">
+                                                Keep Existing Row (Skip Imported: @(string.IsNullOrWhiteSpace(item.Imported.VehicleNo) ? "No Vehicle" : item.Imported.VehicleNo))
+                                            </option>
+                                        </select>
+                                        <details style="background: #ffffff; border: 1px solid #fca5a5; border-radius: 6px; padding: 5px 8px; font-size: 0.78rem;">
+                                            <summary style="cursor: pointer; font-weight: 600; color: #b91c1c; display: flex; align-items: center; gap: 4px; user-select: none;">
+                                                <span>📋 View existing row being replaced</span>
+                                            </summary>
+                                            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #fecaca; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; font-size: 0.75rem; color: #374151;">
+                                                <div><span style="color: var(--muted);">Existing Sl No:</span> <strong>@item.Existing?.SlNo</strong></div>
+                                                <div><span style="color: var(--muted);">Existing Vehicle:</span> <strong>@(string.IsNullOrEmpty(item.Existing?.VehicleNo) ? "-" : item.Existing?.VehicleNo)</strong></div>
+                                                @if (Model.Branch == "RTO")
+                                                {
+                                                    <div><span style="color: var(--muted);">Existing Serial No:</span> <strong>@(string.IsNullOrEmpty(item.Existing?.DeviceSerialNo) ? "-" : item.Existing?.DeviceSerialNo)</strong></div>
+                                                }
+                                                <div><span style="color: var(--muted);">Existing Status:</span> <strong>@item.Existing?.Status</strong></div>
+                                                <div><span style="color: var(--muted);">Existing Device Name:</span> <strong>@(string.IsNullOrEmpty(item.Existing?.DeviceName) ? "-" : item.Existing?.DeviceName)</strong></div>
+                                                <div><span style="color: var(--muted);">Existing Airtel:</span> <strong>@(string.IsNullOrEmpty(item.Existing?.SimAirtel) ? "-" : item.Existing?.SimAirtel)</strong></div>
+                                                <div><span style="color: var(--muted);">Existing BSNL:</span> <strong>@(string.IsNullOrEmpty(item.Existing?.SimBsnl) ? "-" : item.Existing?.SimBsnl)</strong></div>
+                                                <div><span style="color: var(--muted);">Existing Owner:</span> <strong>@(string.IsNullOrEmpty(item.Existing?.Owner) ? "-" : item.Existing?.Owner)</strong></div>
+                                                <div><span style="color: var(--muted);">Existing Contact:</span> <strong>@(string.IsNullOrEmpty(item.Existing?.CellNo) ? "-" : item.Existing?.CellNo)</strong></div>
+                                                <div><span style="color: var(--muted);">Existing Expiry:</span> <strong>@(string.IsNullOrEmpty(item.Existing?.LatestExpiryDate) ? "-" : item.Existing?.LatestExpiryDate)</strong></div>
+                                                <div><span style="color: var(--muted);">Existing Notes:</span> <strong>@(string.IsNullOrEmpty(item.Existing?.Notes) ? "-" : item.Existing?.Notes)</strong></div>
+                                            </div>
+                                        </details>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="badge success" style="font-size: 0.78rem; padding: 3px 8px; font-weight: 600;">✓ New Device</span>
+                                        <input type="hidden" name="Actions[@i]" value="insert" />
+                                        <span style="color: #065f46; font-size: 0.78rem;">Will be added as new</span>
+                                    </div>
+                                }
+                            </td>
+                            <td>
+                                <strong>@(string.IsNullOrWhiteSpace(item.Imported.VehicleNo) ? "-" : item.Imported.VehicleNo)</strong>
+                            </td>
+                            <td>
+                                <span style="font-family: monospace; font-size: 0.88rem; font-weight: 600; color: #1e293b;">@item.Imported.Iccid</span>
+                            </td>
+                            <td>
+                                <span style="font-family: monospace; font-size: 0.88rem; font-weight: 600; color: #1e293b;">@item.Imported.Imei</span>
+                            </td>
+                            @if (Model.Branch == "RTO")
+                            {
+                                <td>
+                                    <span style="font-family: monospace; font-size: 0.82rem;">@(string.IsNullOrWhiteSpace(item.Imported.DeviceSerialNo) ? "-" : item.Imported.DeviceSerialNo)</span>
+                                </td>
+                            }
+                            <td>
+                                <span style="font-family: monospace; font-size: 0.82rem;">@(string.IsNullOrWhiteSpace(item.Imported.SimAirtel) ? "-" : item.Imported.SimAirtel)</span>
+                            </td>
+                            <td>
+                                <span style="font-family: monospace; font-size: 0.82rem;">@(string.IsNullOrWhiteSpace(item.Imported.SimBsnl) ? "-" : item.Imported.SimBsnl)</span>
+                            </td>
+                            <td>
+                                <span class="badge @(item.Imported.Status == "Active" ? "success" : "neutral")">@item.Imported.Status</span>
+                            </td>
+                            <td>@item.Imported.Type</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Imported.DeviceName) ? "-" : item.Imported.DeviceName)</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Imported.Owner) ? "-" : item.Imported.Owner)</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Imported.CellNo) ? "-" : item.Imported.CellNo)</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Imported.ActivationDate) ? "-" : item.Imported.ActivationDate)</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Imported.LatestExpiryDate) ? "-" : item.Imported.LatestExpiryDate)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div style="padding: 16px 20px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border);">
+            <a asp-action="Index" class="button ghost">Cancel</a>
+            <button type="submit" class="button primary" style="padding: 10px 24px; font-weight: 600; font-size: 0.95rem;">
+                Confirm & Apply Import
+            </button>
+        </div>
+    </section>
+</form>
+
+<script>
+function setAllConflicts(val) {
+    var selects = document.querySelectorAll('.conflict-action-select');
+    selects.forEach(function(sel) {
+        sel.value = val;
+    });
+}
+</script>

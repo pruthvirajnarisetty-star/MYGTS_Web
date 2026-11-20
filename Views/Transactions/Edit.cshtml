@@ -1,0 +1,375 @@
+@model TransactionFormViewModel
+@{
+    ViewData["Title"] = "Edit transaction";
+    ViewData["BodyClass"] = "form-background-container";
+    var currentBranch = Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG";
+}
+
+<div class="glass-wrapper">
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Financial operations / modify entry</div>
+        <h1>Edit transaction</h1>
+        <p>Update the payment and its operational effect on a device.</p>
+    </div>
+    <a class="btn-back" asp-action="Index">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        Back to transactions
+    </a>
+</div>
+
+<form class="card form-card" asp-action="Edit" method="post" style="margin: 0 auto;">
+    <div asp-validation-summary="All" class="validation-summary-errors"></div>
+    <input type="hidden" asp-for="Id" />
+    
+    <div class="form-grid">
+        <div class="field">
+            <label asp-for="Date" class="form-label">Date</label>
+            <input asp-for="Date" type="date" class="input" id="txn-date" required />
+        </div>
+        
+        <div class="field">
+            <label asp-for="VehicleNo" class="form-label">Vehicle number</label>
+            <input asp-for="VehicleNo" class="input" id="vehicle-input" placeholder="Vehicle identifier" required />
+            <div id="vehicle-error" class="form-error" style="display:none; color: var(--danger); font-size: 0.85rem; margin-top: 4px;">Not available in the data</div>
+        </div>
+        
+        @if (Context.Request.Cookies["mygts_branch"] == "RTO")
+        {
+            <div class="field" id="field-type">
+                <label asp-for="Type" class="form-label">Type</label>
+                <select asp-for="Type" class="input" id="type-select" data-custom-dropdown="TransactionType" data-custom-title="Transaction Type">
+                    <option value="New">New</option>
+                    <option value="Old">Old</option>
+                </select>
+            </div>
+        }
+
+        <div class="field">
+            <label asp-for="Vendor" class="form-label">Vendor</label>
+            <input asp-for="Vendor" class="input" readonly style="background: var(--line);" required />
+        </div>
+        
+        <div class="field">
+            <label asp-for="InvoiceId" class="form-label">Invoice ID</label>
+            <input asp-for="InvoiceId" class="input" readonly style="background: var(--line);" />
+        </div>
+        
+        <div class="field">
+            <label asp-for="PaymentFor" class="form-label">Payment for</label>
+            <select asp-for="PaymentFor" class="select" id="payment-for" required>
+                <option>Activation</option>
+                <option>Reactivation</option>
+                <option>Other</option>
+            </select>
+        </div>
+        
+        <div class="field">
+            <label asp-for="PaymentMode" class="form-label">Payment mode</label>
+            <select asp-for="PaymentMode" class="select" required>
+                <option value="UPI">UPI</option>
+                <option value="Cash">Cash</option>
+                <option value="Banking">Banking</option>
+            </select>
+        </div>
+        
+        <div class="field">
+            <label asp-for="Amount" class="form-label">Base amount</label>
+            <input asp-for="Amount" class="input" type="number" step="0.01" required />
+        </div>
+
+        
+        <div class="field">
+            <label asp-for="BatchId" class="form-label">Batch ID</label>
+            <input asp-for="BatchId" class="input" placeholder="Optional payment batch" />
+        </div>
+        
+        <div class="field">
+            <label asp-for="Utr" class="form-label">UTR / reference</label>
+            <input asp-for="Utr" class="input" required />
+        </div>
+        
+        <div class="field">
+            <label asp-for="PaidTo" class="form-label">Paid to</label>
+            <input asp-for="PaidTo" class="input" required />
+        </div>
+        
+        @if (currentBranch != "RTO")
+        {
+            <div class="field" id="field-extras">
+                <label asp-for="Extras" class="form-label">Extras</label>
+                <select asp-for="Extras" class="select" id="extras-select">
+                    <option value="">None</option>
+                    <option value="DMG">DMG</option>
+                    <option value="Tracking">Tracking</option>
+                </select>
+            </div>
+            
+            <div class="field" id="field-extras-amount" style="display: none;">
+                <label asp-for="ExtrasAmount" class="form-label">Extras deduction amount</label>
+                <input asp-for="ExtrasAmount" class="input" type="number" step="0.01" />
+            </div>
+        }
+
+        <div class="field">
+            <label asp-for="ActivationDate" class="form-label">Activation date</label>
+            <input asp-for="ActivationDate" type="date" class="input" id="activation-date" required />
+        </div>
+        
+        <div class="field">
+            <label asp-for="NewExpiryDate" class="form-label">New expiry date</label>
+            <input asp-for="NewExpiryDate" type="date" class="input" id="new-expiry" placeholder="YYYY-MM-DD" required />
+        </div>
+        
+        <div class="field full">
+            <label asp-for="Notes" class="form-label">Notes</label>
+            <textarea asp-for="Notes" class="textarea"></textarea>
+        </div>
+    </div>
+    
+    <div class="trace-grid" style="margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 16px;">
+            <span class="eyebrow">Amount</span>
+            <strong style="display:block; margin-top: 8px; font-size: 1.55rem; color: var(--blue-600);" data-txn-amount>@((Model.Amount ?? 0m).ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-IN")))</strong>
+        </div>
+        
+        <div class="card" style="padding: 16px;">
+            <span class="eyebrow">Device Cost</span>
+            <strong style="display:block; margin-top: 8px; font-size: 1.55rem; color: var(--danger);" data-txn-cost>@(((decimal)(ViewBag.SavedCost ?? 0m)).ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-IN")))</strong>
+        </div>
+        
+        <div class="card" style="padding: 16px;">
+            <span class="eyebrow">Profit / Margin</span>
+            <strong style="display:block; margin-top: 8px; font-size: 1.55rem; color: var(--success);" data-txn-profit>@(((decimal)(ViewBag.SavedProfit ?? 0m)).ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-IN")))</strong>
+        </div>
+    </div>
+    
+    <div class="permission-note" style="margin-top: 20px;">
+        A transaction with a new expiry date automatically updates the matching device record.
+    </div>
+    
+    <div class="form-actions">
+        <a class="button ghost" asp-action="Index">Cancel</a>
+        <button class="btn-primary" type="submit">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+            Save changes
+        </button>
+    </div>
+</form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const activationInput = document.getElementById('activation-date');
+    const expiryInput = document.getElementById('new-expiry');
+    const paymentFor = document.getElementById("payment-for");
+    const typeSelect = document.getElementById('type-select');
+    const amountInput = document.getElementById("Amount");
+    const vehicleInput = document.getElementById('vehicle-input');
+    const vendorInput = document.getElementById('Vendor');
+    const invoiceIdInput = document.getElementById('InvoiceId');
+    const extrasElement = document.getElementById('ExtrasAmount');
+    const extrasSelect = document.getElementById('extras-select');
+
+    const amountDisplay = document.querySelector('[data-txn-amount]');
+    const costDisplay = document.querySelector('[data-txn-cost]');
+    const profitDisplay = document.querySelector('[data-txn-profit]');
+
+    window.currentDeviceCost = parseFloat('@(ViewBag.SavedDeviceCost ?? 0)') || 0;
+
+    if (extrasSelect && extrasElement) {
+        const extrasAmountField = document.getElementById('field-extras-amount');
+        if (extrasSelect.value) {
+            extrasAmountField.style.display = 'block';
+        }
+        extrasSelect.addEventListener('change', function() {
+            if (this.value) {
+                extrasAmountField.style.display = 'block';
+            } else {
+                extrasAmountField.style.display = 'none';
+                extrasElement.value = 0;
+            }
+            calculateTransactionTotals();
+        });
+    }
+
+    function parseDateParts(str) {
+        if (!str) return null;
+        str = String(str).trim();
+        let m = str.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+        if (m) {
+            return { y: parseInt(m[1], 10), m: parseInt(m[2], 10) - 1, d: parseInt(m[3], 10) };
+        }
+        m = str.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/);
+        if (m) {
+            return { y: parseInt(m[3], 10), m: parseInt(m[2], 10) - 1, d: parseInt(m[1], 10) };
+        }
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) {
+            return { y: d.getFullYear(), m: d.getMonth(), d: d.getDate() };
+        }
+        return null;
+    }
+
+    function formatToIso(str) {
+        const p = parseDateParts(str);
+        if (!p) return '';
+        return `${p.y}-${String(p.m + 1).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+    }
+
+    function calculateExpiryDate(activationDateStr, isNewRto) {
+        const p = parseDateParts(activationDateStr);
+        if (!p) return '';
+        const monthsToAdd = isNewRto ? 23 : (parseInt('@(ViewBag.ActivationExpiryMonths ?? "11")') || 11);
+        const daysToAdd = parseInt('@(ViewBag.ActivationExpiryDays ?? "15")') || 15;
+        const dt = new Date(p.y, p.m + monthsToAdd, p.d + daysToAdd);
+        if (isNaN(dt.getTime())) return '';
+        const resY = dt.getFullYear();
+        const resM = String(dt.getMonth() + 1).padStart(2, '0');
+        const resD = String(dt.getDate()).padStart(2, '0');
+        return `${resY}-${resM}-${resD}`;
+    }
+
+    function updateExpiry() {
+        if (!activationInput || !expiryInput) return;
+        const val = activationInput.value;
+        if (!val) {
+            expiryInput.value = '';
+            return;
+        }
+        let isNewRto = false;
+        const branchMatch = (document.cookie.match(/mygts_branch=([^;]+)/) || [])[1];
+        const branch = (branchMatch ? decodeURIComponent(branchMatch) : '@currentBranch').toUpperCase();
+        if (branch === 'RTO') {
+            if (typeSelect && typeSelect.value) {
+                const tv = typeSelect.value.toUpperCase();
+                isNewRto = tv === 'NEW' || tv.includes('2');
+            } else {
+                isNewRto = true;
+            }
+        }
+        expiryInput.value = calculateExpiryDate(val, isNewRto);
+    }
+
+    if (activationInput) {
+        activationInput.addEventListener("input", updateExpiry);
+        activationInput.addEventListener("change", updateExpiry);
+        activationInput.addEventListener("keyup", updateExpiry);
+        activationInput.addEventListener("blur", updateExpiry);
+    }
+    if (typeSelect) {
+        typeSelect.addEventListener('change', function() {
+            updateExpiry();
+            calculateTransactionTotals();
+        });
+    }
+    if (paymentFor) {
+        paymentFor.addEventListener("change", function() {
+            updateExpiry();
+            calculateTransactionTotals();
+        });
+    }
+
+    function calculateTransactionTotals() {
+        if (!amountInput) return;
+        const amount = parseFloat(amountInput.value) || 0;
+        const extrasAmount = extrasElement ? (parseFloat(extrasElement.value) || 0) : 0;
+        
+        const val = paymentFor ? paymentFor.value : "None";
+        let transactionCost = 0;
+        if (val === "Activation") {
+            transactionCost = window.currentDeviceCost;
+            if (typeSelect) {
+                const branchType = typeSelect.value;
+                const commCost = parseFloat('@ViewBag.CommissionCost') || 0;
+                const simCost = branchType === 'Old' ? (parseFloat('@ViewBag.SimCost1Year') || 0) : (parseFloat('@ViewBag.SimCost2Years') || 0);
+                transactionCost += (commCost + simCost);
+            }
+        } else if (val === "Reactivation") {
+            transactionCost = parseFloat('@ViewBag.PriceReactivation') || 0;
+        } else if (val === "Recharge") {
+            transactionCost = parseFloat('@ViewBag.SimCost1Year') || 0;
+        }
+        
+        const profit = amount - extrasAmount - transactionCost;
+
+        const formatCurrency = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+        
+        if (amountDisplay) amountDisplay.textContent = formatCurrency(amount);
+        if (costDisplay) costDisplay.textContent = formatCurrency(transactionCost);
+        if (profitDisplay) {
+            profitDisplay.textContent = formatCurrency(profit);
+            if (profit < 0) profitDisplay.style.color = "var(--danger)";
+            else if (profit > 0) profitDisplay.style.color = "var(--success)";
+            else profitDisplay.style.color = "inherit";
+        }
+    }
+
+    if (amountInput) amountInput.addEventListener('input', calculateTransactionTotals);
+    if (extrasElement) extrasElement.addEventListener('input', calculateTransactionTotals);
+
+    let debounceTimer;
+    if (vehicleInput) {
+        const initialV = vehicleInput.value.trim();
+        const fetchDeviceInfo = function(v) {
+            const isVehicleChanged = (v.toLowerCase() !== initialV.toLowerCase());
+            fetch('/Transactions/GetDeviceInfo?vehicleNo=' + encodeURIComponent(v))
+                .then(r => r.json())
+                .then(data => {
+                    if (data && (data.isFound === false || data.IsFound === false)) {
+                        let err = document.getElementById('vehicle-error');
+                        if (err) err.style.display = 'block';
+                    } else if (data) {
+                        let err = document.getElementById('vehicle-error');
+                        if (err) err.style.display = 'none';
+                        const vendor = data.vendor || data.Vendor;
+                        const invoiceId = data.invoiceId || data.InvoiceId;
+                        const unitCost = data.unitCost || data.UnitCost;
+                        const typeVal = data.type || data.Type;
+                        const actDate = data.activationDate || data.ActivationDate;
+                        const expDate = data.latestExpiryDate || data.LatestExpiryDate;
+
+                        if (vendorInput && vendor) { vendorInput.value = vendor; }
+                        if (invoiceIdInput && invoiceId) { invoiceIdInput.value = invoiceId; }
+                        if (typeSelect && typeVal) {
+                            typeSelect.value = typeVal;
+                        }
+                        if (isVehicleChanged) {
+                            if (actDate && activationInput) {
+                                activationInput.value = formatToIso(actDate);
+                            }
+                            if (activationInput && activationInput.value) {
+                                updateExpiry();
+                            } else if (expDate && expiryInput) {
+                                expiryInput.value = formatToIso(expDate);
+                            }
+                        }
+                        if (unitCost && parseFloat(unitCost) > 0) {
+                            window.currentDeviceCost = parseFloat(unitCost);
+                        }
+                    }
+                    calculateTransactionTotals();
+                })
+                .catch(e => console.error(e));
+        };
+
+        vehicleInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const v = this.value.trim();
+            if (!v) {
+                let err = document.getElementById('vehicle-error');
+                if (err) err.style.display = 'none';
+                calculateTransactionTotals();
+                return;
+            }
+            debounceTimer = setTimeout(() => fetchDeviceInfo(v), 500);
+        });
+    }
+
+    // Initial run
+    if (activationInput && activationInput.value && (!expiryInput || !expiryInput.value)) {
+        updateExpiry();
+    }
+    calculateTransactionTotals();
+});
+</script>

@@ -1,0 +1,831 @@
+@model MygtsMvc.Models.ExpenditureListViewModel
+@{
+    ViewData["Title"] = "BOOKKEEPING & EXPENDITURES";
+    var f = Model.Filters;
+}
+
+<style>
+    /* EXECUTIVE EXPENSE CARD STYLES */
+    .kpi-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .kpi-item {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.18s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.18s ease, background-color 0.18s ease;
+        user-select: none;
+    }
+
+    .kpi-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .kpi-item.active-filter {
+        border-width: 2px !important;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25), 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .kpi-item-title {
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #64748b;
+        letter-spacing: 0.6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .kpi-item-value {
+        font-size: 1.55rem;
+        font-weight: 900;
+        letter-spacing: -0.5px;
+        margin: 6px 0 4px 0;
+        font-family: inherit;
+    }
+
+    .kpi-item-sub {
+        font-size: 0.70rem;
+        font-weight: 700;
+        color: #94a3b8;
+    }
+
+    .kpi-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.64rem;
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        padding: 4px 9px;
+        border-radius: 999px;
+        margin-top: 10px;
+        width: fit-content;
+        text-transform: uppercase;
+        transition: all 0.15s ease;
+    }
+
+    .kpi-pill-subtle {
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+    }
+
+    .kpi-item:hover .kpi-pill-subtle {
+        background: #0f172a;
+        color: #ffffff;
+        border-color: #0f172a;
+    }
+
+    .kpi-pill-green {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #86efac;
+    }
+
+    .kpi-pill-red {
+        background: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #fca5a5;
+    }
+
+    .kpi-pill-blue {
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #7dd3fc;
+    }
+
+    .kpi-pill-orange {
+        background: #ffedd5;
+        color: #c2410c;
+        border: 1px solid #fdba74;
+    }
+
+    .kpi-pill-indigo {
+        background: #e0e7ff;
+        color: #4338ca;
+        border: 1px solid #c7d2fe;
+    }
+
+    /* FILTER BAR */
+    .exp-filter-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px 22px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+
+    .exp-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 14px;
+        align-items: end;
+    }
+
+    .exp-field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .exp-label {
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #475569;
+        letter-spacing: 0.5px;
+    }
+
+    .exp-input, .exp-select {
+        height: 38px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 0 10px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        background: #f8fafc;
+        color: #0f172a;
+        width: 100%;
+        outline: none;
+        transition: all 0.15s ease;
+    }
+
+    .exp-input:focus, .exp-select:focus {
+        border-color: #0284c7;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    }
+
+    /* TABLE WRAP & HIGHLIGHTS */
+    .exp-table-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .exp-table-header {
+        padding: 16px 24px;
+        background: #fafbfc;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .exp-table-container {
+        overflow-x: auto;
+        width: 100%;
+    }
+
+    .exp-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .exp-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 800;
+        font-size: 0.72rem;
+        letter-spacing: 0.6px;
+        padding: 12px 14px;
+        border-bottom: 2px solid #cbd5e1;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .exp-table td {
+        padding: 11px 14px;
+        border-bottom: 1px solid #f1f5f9;
+        font-weight: 600;
+        color: #1e293b;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    /* PI: SOFT LIGHT ORANGE */
+    .row-pi {
+        background-color: #fff7ed !important;
+        border-left: 4px solid #f97316 !important;
+    }
+    .row-pi:hover {
+        background-color: #ffedd5 !important;
+    }
+
+    /* INVOICE / CONVERTED PI: SOFT LIGHT GREEN */
+    .row-invoice {
+        background-color: #f0fdf4 !important;
+        border-left: 4px solid #22c55e !important;
+    }
+    .row-invoice:hover {
+        background-color: #dcfce7 !important;
+    }
+
+    /* BRANCH CUSTOMER RECEIPT: SOFT BLUE / WHITE */
+    .row-receipt {
+        background-color: #ffffff !important;
+        border-left: 4px solid #0284c7 !important;
+    }
+    .row-receipt:hover {
+        background-color: #f0f9ff !important;
+    }
+
+    /* BADGES */
+    .badge-type-pi {
+        background: #ffedd5;
+        color: #c2410c;
+        border: 1px solid #fed7aa;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.70rem;
+        font-weight: 900;
+    }
+
+    .badge-type-inv {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.70rem;
+        font-weight: 900;
+    }
+
+    .badge-flow-credit {
+        background: #dcfce7;
+        color: #166534;
+        font-weight: 900;
+        font-size: 0.72rem;
+        padding: 3px 9px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        border: 1px solid #bbf7d0;
+    }
+
+    .badge-flow-debit {
+        background: #fee2e2;
+        color: #991b1b;
+        font-weight: 900;
+        font-size: 0.72rem;
+        padding: 3px 9px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        border: 1px solid #fecaca;
+    }
+
+    .action-btn-group {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .action-link {
+        padding: 4px 9px;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        transition: all 0.15s;
+    }
+
+    .action-link-edit {
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+    }
+    .action-link-edit:hover {
+        background: #bae6fd;
+    }
+
+    .action-link-delete {
+        background: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+        cursor: pointer;
+    }
+    .action-link-delete:hover {
+        background: #fca5a5;
+    }
+</style>
+
+<!-- TOP NAVIGATION TABS -->
+<div class="exp-nav-tabs">
+    <a href="/Expenditure/Expenses" class="exp-tab active">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span>INVOICES & PROFORMA (PI)</span>
+        <span class="exp-tab-badge" style="background: rgba(255,255,255,0.25);">@Model.FinancialYearLabel</span>
+    </a>
+    <a href="/Expenditure/Transactions" class="exp-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        <span>BRANCH TRANSACTIONS (DMG & RTO)</span>
+        <span class="exp-tab-badge">LIVE SYNC</span>
+    </a>
+    <a href="/Expenditure/Credit" class="exp-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+        <span>COMPANY CREDITS</span>
+    </a>
+    <a href="/Expenditure/PreviousYears" class="exp-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline><path d="M4 12a8 8 0 0 1 14.93-4"></path></svg>
+        <span>PREVIOUS FINANCIAL YEARS</span>
+        <span class="exp-tab-badge" style="background: rgba(99, 102, 241, 0.25); color: #818cf8;">ARCHIVE</span>
+    </a>
+</div>
+
+<!-- CURRENT FINANCIAL YEAR BANNER -->
+<div style="margin: 0 0 18px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.25); border-radius: 8px; padding: 10px 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 800; color: #0284c7;">
+        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #0284c7;"></span>
+        <span>CURRENT FINANCIAL YEAR: @Model.FinancialYearLabel (01 APR @Model.SelectedFinancialYear — 31 MAR @(Model.SelectedFinancialYear + 1))</span>
+    </div>
+    <a href="/Expenditure/PreviousYears" class="exp-page-btn" style="text-decoration: none; font-size: 0.74rem; font-weight: 800; padding: 4px 12px; display: inline-flex; align-items: center; gap: 5px;">
+        <span>VIEW PREVIOUS YEARS ARCHIVE</span>
+        <span>&rarr;</span>
+    </a>
+</div>
+
+<!-- PAGE HEADING -->
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">FINANCIAL MANAGEMENT & AUDIT</div>
+        <h1 style="font-size: 1.65rem; font-weight: 900; letter-spacing: -0.5px; margin: 2px 0 4px 0;">INVOICES & PROFORMA (PI)</h1>
+        <p style="color: var(--muted); font-size: 0.85rem; font-weight: 600; margin: 0;">
+            EXPENDITURE BOOKKEEPING LEDGER FOR PROFORMA INVOICES (PI) & COMPLETED TAX INVOICES.
+        </p>
+    </div>
+    <div class="page-heading-actions" style="display: flex; gap: 10px; align-items: center;">
+        <a href="@Url.Action("Export", "Expenses", new { area = "Expenditure", StartDate = f.StartDate, EndDate = f.EndDate, DocumentType = f.DocumentType, Bank = f.Bank, PaymentType = f.PaymentType, CashFlow = f.CashFlow, Company = f.Company, Query = f.Query })" class="button btn-secondary" style="font-weight: 800; font-size: 0.82rem; padding: 8px 16px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>EXPORT CSV</span>
+        </a>
+        <a href="/Expenditure/Expenses/Create" class="button btn-primary" style="font-weight: 800; font-size: 0.82rem; padding: 8px 18px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>ADD ENTRY</span>
+        </a>
+    </div>
+</div>
+
+@{
+    var isCreditedActive = string.Equals(f.CashFlow, "CREDITED", StringComparison.OrdinalIgnoreCase);
+    var isDebitedActive = string.Equals(f.CashFlow, "DEBITED", StringComparison.OrdinalIgnoreCase);
+    var isPiActive = string.Equals(f.DocumentType, "PI", StringComparison.OrdinalIgnoreCase);
+    var isInvoiceActive = string.Equals(f.DocumentType, "INVOICE", StringComparison.OrdinalIgnoreCase);
+    var isAllActive = !isCreditedActive && !isDebitedActive && !isPiActive && !isInvoiceActive;
+}
+
+<!-- KPI SUMMARY CARDS (DYNAMIC & CLICK-TO-FILTER) -->
+<div class="kpi-container">
+    <!-- 1. INFLOW (CREDITED) -->
+    <div class="kpi-item @(isCreditedActive ? "active-filter" : "")" 
+         onclick="applyCardFilter('CashFlow', 'CREDITED')" 
+         title="Click to filter table by Credited Inflow"
+         style="border-left: 5px solid #059669; @(isCreditedActive ? "background: #f0fdf4; border-color: #059669;" : "")">
+        <div class="kpi-item-title">
+            <span>DIRECT INFLOW (CREDITED)</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><line x1="17" y1="7" x2="7" y2="17"></line><polyline points="17 17 7 17 7 7"></polyline></svg>
+        </div>
+        <div class="kpi-item-value" style="color: #059669;">₹@Model.TotalCredited.ToString("N2")</div>
+        <div class="kpi-item-sub">
+            BRANCH INFLOW: ₹@Model.TotalBranchInflow.ToString("N0") (DMG: ₹@Model.DmgInflow.ToString("N0") | RTO: ₹@Model.RtoInflow.ToString("N0"))
+        </div>
+        @if (isCreditedActive)
+        {
+            <div class="kpi-pill kpi-pill-green">✓ ACTIVE FILTER (CLICK TO CLEAR)</div>
+        }
+        else
+        {
+            <div class="kpi-pill kpi-pill-subtle">CLICK TO FILTER INFLOW</div>
+        }
+    </div>
+
+    <!-- 2. OUTFLOW (DEBITED) -->
+    <div class="kpi-item @(isDebitedActive ? "active-filter" : "")" 
+         onclick="applyCardFilter('CashFlow', 'DEBITED')" 
+         title="Click to filter table by Debited Outflow"
+         style="border-left: 5px solid #dc2626; @(isDebitedActive ? "background: #fef2f2; border-color: #dc2626;" : "")">
+        <div class="kpi-item-title">
+            <span>TOTAL OUTFLOW (DEBITED)</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+        </div>
+        <div class="kpi-item-value" style="color: #dc2626;">₹@Model.TotalDebited.ToString("N2")</div>
+        <div class="kpi-item-sub">DISBURSEMENTS & OPERATIONAL EXPENSES</div>
+        @if (isDebitedActive)
+        {
+            <div class="kpi-pill kpi-pill-red">✓ ACTIVE FILTER (CLICK TO CLEAR)</div>
+        }
+        else
+        {
+            <div class="kpi-pill kpi-pill-subtle">CLICK TO FILTER OUTFLOW</div>
+        }
+    </div>
+
+    <!-- 3. TAX INVOICES -->
+    <div class="kpi-item @(isInvoiceActive ? "active-filter" : "")" 
+         onclick="applyCardFilter('DocumentType', 'INVOICE')" 
+         title="Click to filter table by Invoices"
+         style="border-left: 5px solid #0284c7; @(isInvoiceActive ? "background: #f0f9ff; border-color: #0284c7;" : "")">
+        <div class="kpi-item-title">
+            <span>TAX INVOICES</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        </div>
+        <div class="kpi-item-value" style="color: #0284c7;">
+            @Model.InvoiceCount <span style="font-size: 1.0rem; font-weight: 700;">(₹@Model.InvoiceAmount.ToString("N2"))</span>
+        </div>
+        <div class="kpi-item-sub">COMPLETED & CONVERTED INVOICES</div>
+        @if (isInvoiceActive)
+        {
+            <div class="kpi-pill kpi-pill-blue">✓ ACTIVE FILTER (CLICK TO CLEAR)</div>
+        }
+        else
+        {
+            <div class="kpi-pill kpi-pill-subtle">CLICK TO FILTER INVOICES</div>
+        }
+    </div>
+
+    <!-- 4. PENDING PROFORMA INVOICES (PI) -->
+    <div class="kpi-item @(isPiActive ? "active-filter" : "")" 
+         onclick="applyCardFilter('DocumentType', 'PI')" 
+         title="Click to filter table by Pending Proforma Invoices"
+         style="border-left: 5px solid #f97316; @(isPiActive ? "background: #fff7ed; border-color: #f97316;" : "")">
+        <div class="kpi-item-title">
+            <span>PENDING PI (PROFORMA)</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+        <div class="kpi-item-value" style="color: #d97706;">
+            @Model.PendingPiCount <span style="font-size: 1.0rem; font-weight: 700;">(₹@Model.PendingPiAmount.ToString("N2"))</span>
+        </div>
+        <div class="kpi-item-sub">AWAITING CONVERSION TO INVOICE</div>
+        @if (isPiActive)
+        {
+            <div class="kpi-pill kpi-pill-orange">✓ ACTIVE FILTER (CLICK TO CLEAR)</div>
+        }
+        else
+        {
+            <div class="kpi-pill kpi-pill-subtle">CLICK TO FILTER PENDING PI</div>
+        }
+    </div>
+
+    <!-- 5. NET CASH FLOW -->
+    <div class="kpi-item @(isAllActive ? "active-filter" : "")" 
+         onclick="applyCardFilter('RESET', '')" 
+         title="Click to reset filters and view all records"
+         style="border-left: 5px solid #6366f1; @(isAllActive ? "background: #eef2ff; border-color: #6366f1;" : "")">
+        <div class="kpi-item-title">
+            <span>NET CASH FLOW</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        </div>
+        <div class="kpi-item-value" style="color: @(Model.NetCashFlow >= 0 ? "#059669" : "#dc2626");">
+            ₹@Model.NetCashFlow.ToString("N2")
+        </div>
+        <div class="kpi-item-sub">
+            COMBINED INFLOW ₹@Model.CombinedInflow.ToString("N0") - OUTFLOW ₹@Model.TotalDebited.ToString("N0")
+        </div>
+        @if (isAllActive)
+        {
+            <div class="kpi-pill kpi-pill-indigo">ALL RECORDS VIEW</div>
+        }
+        else
+        {
+            <div class="kpi-pill kpi-pill-subtle">RESET TO ALL RECORDS</div>
+        }
+    </div>
+</div>
+
+<!-- FILTERS CARD -->
+<div class="exp-filter-card">
+    <form method="get" action="/Expenditure/Expenses" id="expFilterForm">
+        <div class="exp-filter-grid">
+            <!-- DATE RANGE -->
+            <div class="exp-field-group">
+                <label class="exp-label">FROM DATE</label>
+                <input type="date" name="StartDate" value="@f.StartDate" class="exp-input" />
+            </div>
+            <div class="exp-field-group">
+                <label class="exp-label">TO DATE</label>
+                <input type="date" name="EndDate" value="@f.EndDate" class="exp-input" />
+            </div>
+
+            <!-- TYPE -->
+            <div class="exp-field-group">
+                <label class="exp-label">DOCUMENT TYPE</label>
+                <select name="DocumentType" class="exp-select">
+                    <option value="ALL">ALL TYPES</option>
+                    <!option value="PI" @(string.Equals(f.DocumentType, "PI", StringComparison.OrdinalIgnoreCase) ? "selected" : "")>PI ONLY</!option>
+                    <!option value="INVOICE" @(string.Equals(f.DocumentType, "INVOICE", StringComparison.OrdinalIgnoreCase) ? "selected" : "")>INVOICE ONLY</!option>
+                </select>
+            </div>
+
+            <!-- BANK -->
+            <div class="exp-field-group">
+                <label class="exp-label">BANK</label>
+                <select name="Bank" class="exp-select">
+                    <option value="ALL">ALL BANKS</option>
+                    @foreach (var b in Model.AvailableBanks)
+                    {
+                        <!option value="@b" @(string.Equals(f.Bank, b, StringComparison.OrdinalIgnoreCase) ? "selected" : "")>@b</!option>
+                    }
+                </select>
+            </div>
+
+            <!-- PAYMENT TYPE -->
+            <div class="exp-field-group">
+                <label class="exp-label">PAYMENT TYPE</label>
+                <select name="PaymentType" class="exp-select">
+                    <option value="ALL">ALL MODES</option>
+                    @foreach (var pt in Model.AvailablePaymentTypes)
+                    {
+                        <!option value="@pt" @(string.Equals(f.PaymentType, pt, StringComparison.OrdinalIgnoreCase) ? "selected" : "")>@pt</!option>
+                    }
+                </select>
+            </div>
+
+            <!-- CASH FLOW -->
+            <div class="exp-field-group">
+                <label class="exp-label">IN / OUT</label>
+                <select name="CashFlow" class="exp-select">
+                    <option value="ALL">ALL FLOWS</option>
+                    <!option value="CREDITED" @(string.Equals(f.CashFlow, "CREDITED", StringComparison.OrdinalIgnoreCase) ? "selected" : "")>CREDITED (INFLOW)</!option>
+                    <!option value="DEBITED" @(string.Equals(f.CashFlow, "DEBITED", StringComparison.OrdinalIgnoreCase) ? "selected" : "")>DEBITED (OUTFLOW)</!option>
+                </select>
+            </div>
+
+            <!-- COMPANY -->
+            <div class="exp-field-group">
+                <label class="exp-label">COMPANY</label>
+                <input type="text" name="Company" value="@f.Company" placeholder="FILTER COMPANY..." class="exp-input" />
+            </div>
+
+            <!-- GLOBAL SEARCH -->
+            <div class="exp-field-group" style="grid-column: span 2;">
+                <label class="exp-label">SEARCH ANY FIELD</label>
+                <input type="text" name="Query" value="@f.Query" placeholder="SEARCH REF #, FOR, UTR, AMOUNT, COMPANY..." class="exp-input" />
+            </div>
+
+            <!-- BUTTONS -->
+            <div style="display: flex; gap: 8px; align-items: flex-end;">
+                <button type="submit" class="button btn-primary" style="height: 38px; padding: 0 18px; font-size: 0.82rem; font-weight: 800;">
+                    APPLY
+                </button>
+                <a href="/Expenditure/Expenses" class="button btn-secondary" style="height: 38px; padding: 0 14px; font-size: 0.82rem; font-weight: 800; display: inline-flex; align-items: center; text-decoration: none;">
+                    CLEAR
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- DATA TABLE CARD -->
+<div class="exp-table-card">
+    <div class="exp-table-header">
+        <div style="font-weight: 800; color: #0f172a; font-size: 0.92rem;">
+            SHOWING @Model.Records.Count RECORDS
+            @if (!string.IsNullOrEmpty(f.Query) || !string.IsNullOrEmpty(f.DocumentType) && f.DocumentType != "ALL")
+            {
+                <span style="color: #64748b; font-weight: 600; font-size: 0.80rem;">(FILTERED VIEW)</span>
+            }
+        </div>
+        <div style="display: flex; gap: 14px; font-size: 0.74rem; font-weight: 800;">
+            <span style="display: inline-flex; align-items: center; gap: 5px;">
+                <span style="width: 12px; height: 12px; background: #fff7ed; border-left: 3px solid #f97316; border-radius: 2px;"></span>
+                PROFORMA INVOICE (PI)
+            </span>
+            <span style="display: inline-flex; align-items: center; gap: 5px;">
+                <span style="width: 12px; height: 12px; background: #f0fdf4; border-left: 3px solid #22c55e; border-radius: 2px;"></span>
+                TAX INVOICE
+            </span>
+        </div>
+    </div>
+
+    <div class="exp-table-container">
+        <table class="exp-table">
+            <thead>
+                <tr>
+                    <!-- ACTIONS IN FRONT AS REQUESTED -->
+                    <th style="width: 110px; text-align: center; position: sticky; left: 0; background: #f8fafc; z-index: 2;">ACTIONS</th>
+                    <th>DATE</th>
+                    <th>TYPE</th>
+                    <th>REFERENCE #</th>
+                    <th>COMPANY</th>
+                    <th>FOR</th>
+                    <th>BANK</th>
+                    <th>PAYMENT MODE</th>
+                    <th>IN / OUT</th>
+                    <th>UTR / REF #</th>
+                    <th>AMOUNT</th>
+                    <th>PAYMENT DATE</th>
+                    <!-- PI HISTORY AT FAR RIGHT AS REQUESTED -->
+                    <th style="background: #f1f5f9; color: #475569; text-align: center;">ORIGINAL PI HISTORY</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Records.Count == 0)
+                {
+                    <tr>
+                        <td colspan="13" style="text-align: center; padding: 48px 16px; color: #64748b;">
+                            <div style="font-size: 1.1rem; font-weight: 800; color: #0f172a;">NO ENTRIES FOUND</div>
+                            <div style="font-size: 0.82rem; margin-top: 4px;">NO INVOICES OR PROFORMA INVOICES MATCH YOUR SELECTED FILTERS.</div>
+                            <a href="/Expenditure/Expenses/Create" class="button btn-primary" style="margin-top: 16px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+                                + ADD NEW ENTRY
+                            </a>
+                        </td>
+                    </tr>
+                }
+                @foreach (var item in Model.Records)
+                {
+                    var isPi = string.Equals(item.DocumentType, "PI", StringComparison.OrdinalIgnoreCase);
+                    var rowClass = isPi ? "row-pi" : "row-invoice";
+                    var isCredit = string.Equals(item.CashFlow, "CREDITED", StringComparison.OrdinalIgnoreCase);
+
+                    <tr class="@rowClass">
+                        <!-- ACTIONS IN FRONT -->
+                        <td style="text-align: center; position: sticky; left: 0; background: inherit; z-index: 1;">
+                            <div class="action-btn-group">
+                                <a href="/Expenditure/Expenses/Edit/@item.Id" class="action-link action-link-edit" title="Edit Entry">
+                                    EDIT
+                                </a>
+                                <form method="post" action="/Expenditure/Expenses/Delete" style="display: inline;" onsubmit="return confirm('DELETE ENTRY #@item.ReferenceNumber?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button type="submit" class="action-link action-link-delete" title="Delete Entry">
+                                        DEL
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+
+                        <!-- DATE -->
+                        <td style="font-weight: 700;">@item.DisplayDate</td>
+
+                        <!-- TYPE -->
+                        <td>
+                            @if (isPi)
+                            {
+                                <span class="badge-type-pi">PI</span>
+                            }
+                            else
+                            {
+                                <span class="badge-type-inv">INVOICE</span>
+                            }
+                        </td>
+
+                        <!-- REFERENCE NUMBER -->
+                        <td style="font-weight: 800; color: #0f172a;">@item.DisplayReferenceNumber</td>
+
+                        <!-- COMPANY -->
+                        <td style="font-weight: 700;">@item.Company</td>
+
+                        <!-- FOR -->
+                        <td>@item.Purpose</td>
+
+                        <!-- BANK -->
+                        <td style="font-weight: 700;">
+                            @if (item.IsUnpaid)
+                            {
+                                <span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; font-size: 0.70rem; font-weight: 900; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span style="width: 6px; height: 6px; border-radius: 50%; background: #dc2626;"></span>
+                                    UNPAID
+                                </span>
+                            }
+                            else
+                            {
+                                @item.Bank
+                            }
+                        </td>
+
+                        <!-- PAYMENT TYPE -->
+                        <td>
+                            @if (item.IsUnpaid)
+                            {
+                                <span style="color: #94a3b8; font-weight: 700; font-size: 0.75rem;">YET TO PAY</span>
+                            }
+                            else
+                            {
+                                @item.PaymentType
+                            }
+                        </td>
+
+                        <!-- IN / OUT -->
+                        <td>
+                            @if (isCredit)
+                            {
+                                <span class="badge-flow-credit">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="17" y1="7" x2="7" y2="17"></line><polyline points="17 17 7 17 7 7"></polyline></svg>
+                                    CREDITED
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge-flow-debit">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+                                    DEBITED
+                                </span>
+                            }
+                        </td>
+
+                        <!-- UTR -->
+                        <td style="font-family: monospace; font-size: 0.80rem;">@item.Utr</td>
+
+                        <!-- AMOUNT -->
+                        <td style="text-align: right; font-weight: 900; font-size: 0.90rem; color: @(isCredit ? "#15803d" : "#b91c1c");">
+                            ₹@item.Amount.ToString("N2")
+                        </td>
+
+                        <!-- PAYMENT DATE -->
+                        <td style="font-weight: 600;">@item.PaymentDate</td>
+
+                        <!-- PI HISTORY AT FAR RIGHT -->
+                        <td style="background: rgba(0,0,0,0.02); font-size: 0.74rem;">
+                            @if (item.IsFromTransaction)
+                            {
+                                <span style="color: #64748b; font-weight: 700;">CUSTOMER RECEIPT</span>
+                            }
+                            else if (item.IsConvertedToInvoice && !string.IsNullOrEmpty(item.OriginalPiNumber))
+                            {
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-weight: 800; color: #d97706;">PI #@item.OriginalPiNumber</span>
+                                    <span style="color: #64748b;">DATE: @item.OriginalPiDate</span>
+                                </div>
+                            }
+                            else if (isPi)
+                            {
+                                <span style="color: #d97706; font-weight: 700;">ACTIVE PI</span>
+                            }
+                            else
+                            {
+                                <span style="color: #94a3b8;">DIRECT INVOICE</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function applyCardFilter(filterName, filterValue) {
+        const form = document.getElementById('expFilterForm');
+        if (!form) return;
+
+        const cashFlowSelect = form.querySelector('select[name="CashFlow"]');
+        const docTypeSelect = form.querySelector('select[name="DocumentType"]');
+
+        if (filterName === 'RESET') {
+            if (cashFlowSelect) cashFlowSelect.value = 'ALL';
+            if (docTypeSelect) docTypeSelect.value = 'ALL';
+        } else if (filterName === 'CashFlow') {
+            if (cashFlowSelect) {
+                // Toggle off if already selected
+                if (cashFlowSelect.value.toUpperCase() === filterValue.toUpperCase()) {
+                    cashFlowSelect.value = 'ALL';
+                } else {
+                    cashFlowSelect.value = filterValue;
+                }
+            }
+        } else if (filterName === 'DocumentType') {
+            if (docTypeSelect) {
+                // Toggle off if already selected
+                if (docTypeSelect.value.toUpperCase() === filterValue.toUpperCase()) {
+                    docTypeSelect.value = 'ALL';
+                } else {
+                    docTypeSelect.value = filterValue;
+                }
+            }
+        }
+
+        form.submit();
+    }
+</script>
+}

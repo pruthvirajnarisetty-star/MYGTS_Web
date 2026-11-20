@@ -1,0 +1,64 @@
+@model MultipleInvoiceResultViewModel
+@{
+    ViewData["Title"] = "Import successful";
+    var currentBranch = Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Procurement / batch entry successful</div>
+        <h1>Import successful</h1>
+        <p>Invoice @Model.Invoice.InvoiceNo has been recorded and @Model.Invoice.Quantity devices have been added to the fleet inventory.</p>
+    </div>
+    <div class="page-heading-actions">
+        <a class="button secondary" asp-controller="Devices" asp-action="Index">View fleet registry</a>
+        <a class="button" asp-action="Index">Go to invoices</a>
+    </div>
+</div>
+
+<section class="card" style="margin-bottom: 20px; padding: 20px;">
+    <div class="section-heading" style="margin-top: 0;">
+        <h2>Invoice Summary</h2>
+    </div>
+    
+    <div class="two-column" style="gap: 20px;">
+        <div>
+            <div style="margin-bottom: 8px;"><strong>Invoice number:</strong> @Model.Invoice.InvoiceNo</div>
+            <div style="margin-bottom: 8px;"><strong>Invoice date:</strong> @DateValue.Short(Model.Invoice.Date)</div>
+        </div>
+        <div>
+            <div style="margin-bottom: 8px;"><strong>Device type:</strong> @Model.Invoice.DeviceType</div>
+            <div style="margin-bottom: 8px;"><strong>Imported quantity:</strong> @Model.Invoice.Quantity.ToString("N0") units</div>
+            <div style="margin-bottom: 8px;"><strong>Stock status:</strong> <span class="badge @(Model.StockStatus == "Used" ? "used" : Model.StockStatus == "New" ? "success" : "unused")">@(Model.StockStatus == "Used" ? "In-use" : Model.StockStatus == "New" ? "New stock" : Model.StockStatus)</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <div class="section-heading" style="padding: 0 20px; margin-top: 20px;">
+        <h2>Imported Device Rows</h2>
+        <p>Showing columns extracted case-insensitively from the file. All other columns were ignored.</p>
+    </div>
+
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">#</th>
+                    <th>ICCID</th>
+                    <th>IMEI</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var device in Model.Devices)
+                {
+                    <tr>
+                        <td style="color: var(--muted); font-size: 0.75rem;">@device.SlNo</td>
+                        <td><strong>@device.Iccid</strong></td>
+                        <td>@device.Imei</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

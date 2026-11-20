@@ -1,0 +1,513 @@
+@model DashboardViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Dashboard";
+    var maxActivity = Model.ActivitySeries.Any() ? Math.Max(1, Model.ActivitySeries.Max(item => item.Value)) : 1;
+    var maxFinancial = Model.FinancialSeries.Any() ? Math.Max(1, Model.FinancialSeries.Max(item => item.Value)) : 1;
+    var maxVendor = Model.TopVendors.Any() ? Math.Max(1, Model.TopVendors.Max(item => item.Revenue)) : 1;
+}
+
+<style>
+
+    /* Ensure the grid dynamically stretches horizontally */
+    .dashboard-grid { 
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)) !important; 
+        gap: 24px;
+        margin-top: 14px;
+    }
+
+    /* Responsive vendor performance grid - graceful column scaling across all desktop & mobile resolutions */
+    .vendor-grid { 
+        display: grid !important; 
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important; 
+        gap: 16px; 
+    }
+
+    @@media (max-width: 1440px) {
+        .vendor-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        }
+    }
+
+    @@media (max-width: 1050px) {
+        .vendor-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .vendor-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+
+    /* Dashboard Period Switch (Segmented Switcher matching Add Invoices page) */
+    .period-tabs { 
+        display: inline-flex !important; 
+        background: var(--paper, #ffffff) !important; 
+        border: 1px solid var(--line, #e2e8f0) !important; 
+        padding: 4px !important; 
+        border-radius: 8px !important; 
+        gap: 4px !important; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important; 
+        width: fit-content !important; 
+        margin-bottom: 20px !important; 
+        overflow-x: auto !important; 
+        box-sizing: border-box !important; 
+    }
+
+    .period-tab { 
+        display: inline-flex !important; 
+        align-items: center !important; 
+        justify-content: center !important; 
+        padding: 7px 18px !important; 
+        font-size: 0.88rem !important; 
+        font-weight: 600 !important; 
+        border-radius: 6px !important; 
+        border: none !important; 
+        cursor: pointer !important; 
+        background: transparent !important; 
+        color: var(--muted, #64748b) !important; 
+        transition: all 0.2s ease !important; 
+        text-decoration: none !important; 
+        white-space: nowrap !important; 
+        line-height: 1.2 !important; 
+    }
+
+    .period-tab:hover:not(.active) { 
+        color: var(--primary-700, #1d4ed8) !important; 
+        background: rgba(0,0,0,0.03) !important; 
+    }
+
+    .period-tab.active { 
+        background: var(--blue-600, #2563eb) !important; 
+        color: #ffffff !important; 
+        box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3) !important; 
+    }
+
+    body:has(#theme:checked) .period-tabs {
+        background: #1e293b !important;
+        border-color: rgba(255,255,255,0.1) !important;
+    }
+
+    body:has(#theme:checked) .period-tab {
+        color: #94a3b8 !important;
+    }
+
+    body:has(#theme:checked) .period-tab:hover:not(.active) {
+        color: #f8fafc !important;
+        background: rgba(255,255,255,0.06) !important;
+    }
+
+    body:has(#theme:checked) .period-tab.active {
+        background: var(--blue-600, #2563eb) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+    }
+
+    /* Prevent Google Charts tooltip from flickering on hover over pie slices */
+    .google-visualization-tooltip,
+    div.google-visualization-tooltip,
+    #fleetChart .google-visualization-tooltip,
+    #fleetChart svg g.google-visualization-tooltip,
+    #fleetChart svg g[clip-path] + g,
+    #fleetChart svg > g:last-child {
+        pointer-events: none !important;
+    }
+    #fleetChart .google-visualization-tooltip * {
+        pointer-events: none !important;
+    }
+</style>
+
+<div class="glass-wrapper">
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Executive intelligence / @Model.Period</div>
+        <h1>Dashboard</h1>
+        <p>@Model.PeriodLabel. Every headline number is connected to the operational rows behind it.</p>
+    </div>
+    
+    <div class="page-heading-actions">
+        <a class="button secondary" asp-controller="Dashboard" asp-action="All" data-testid="all-dashboards-link">View all dashboards</a>
+        @if (User.CanEditModule("Devices"))
+        {
+            <a class="button" asp-controller="Devices" asp-action="Create" data-testid="dashboard-add-device">Add device</a>
+        }
+    </div>
+</div>
+
+<nav class="period-tabs" aria-label="Dashboard periods" data-testid="dashboard-period-tabs">
+    @foreach (var period in new[] { "Executive", "Daily", "Weekly", "Monthly", "Fiscal Year", "Lifetime" })
+    {
+        <a class="period-tab @(Model.Period == period ? "active" : "")" 
+           asp-action="Index" 
+           asp-route-period="@period" 
+           data-testid="period-@period.ToLowerInvariant().Replace(" ", "-")">@period</a>
+    }
+</nav>
+
+<section class="kpi-grid" style="margin-top: 18px;" aria-label="Key performance indicators">
+    @foreach (var metric in Model.Metrics)
+    {
+        <a class="kpi-card @metric.Tone" href="@metric.TraceUrl" data-testid="kpi-card-@metric.Label.ToLowerInvariant().Replace(" ", "-")" title="@metric.Label: @metric.Value (@metric.Source)">
+            <div class="kpi-label">@metric.Label</div>
+            <div class="kpi-value" title="@metric.Value">@metric.Value</div>
+            <div class="kpi-source">
+                <span title="@metric.Source">@metric.Source</span>
+                <span aria-hidden="true">↗</span>
+            </div>
+        </a>
+    }
+</section>
+
+<div style="margin-top: 10px; padding-bottom: 10px;">
+    <div class="chart-grid-2x2">
+    <div class="card" style="padding: 16px;">
+        <h3 style="text-align: center; font-weight: 400; font-size: 1.2rem; color: var(--muted); margin: 0 0 10px 0; font-family: inherit;">Amount Trend</h3>
+        <div style="position: relative; height: 300px; width: 100%;">
+            <canvas id="revenueChart"></canvas>
+        </div>
+    </div>
+    <div class="card" style="padding: 16px;">
+        <h3 style="text-align: center; font-weight: 400; font-size: 1.2rem; color: var(--muted); margin: 0 0 10px 0; font-family: inherit;">Fleet Status Distribution</h3>
+        <div style="position: relative; height: 300px; width: 100%;">
+            <div id="fleetChart" style="width: 100%; height: 100%;"></div>
+        </div>
+    </div>
+    <div class="card" style="padding: 16px;">
+        <h3 style="text-align: center; font-weight: 400; font-size: 1.2rem; color: var(--muted); margin: 0 0 10px 0; font-family: inherit;">Recharge Trend</h3>
+        <div style="position: relative; height: 300px; width: 100%;">
+            <canvas id="rechargeChart"></canvas>
+        </div>
+    </div>
+    <div class="card" style="padding: 16px;">
+        <h3 style="text-align: center; font-weight: 400; font-size: 1.2rem; color: var(--muted); margin: 0 0 10px 0; font-family: inherit;">Profit Trend</h3>
+        <div style="position: relative; height: 300px; width: 100%;">
+            <canvas id="profitChart"></canvas>
+        </div>
+    </div>
+</div>
+</div>
+
+<div class="section-heading">
+    <div>
+        <h2>Vendor performance</h2>
+        <p>Amount and profit concentration across your operating partners.</p>
+    </div>
+    <a class="button-link" asp-controller="Transactions" asp-action="Index">Open transactions →</a>
+</div>
+
+<section class="card" style="padding: 20px;">
+    @if (Model.TopVendors.Count == 0)
+    {
+        <div class="empty-state">Vendor performance will appear as transactions are recorded.</div>
+    }
+    else
+    {
+        <div class="vendor-grid">
+            @foreach (var vendor in Model.TopVendors)
+            {
+                <div class="vendor-card" style="cursor: pointer;" onclick="location.href='@Url.Action("Index", "Devices", new { Vendor = vendor.Vendor })'" title="View devices for @vendor.Vendor">
+                    <div class="vendor-card-header">
+                        <div class="vendor-name" style="font-size: 1.05rem;"><strong>@vendor.Vendor</strong></div>
+                        <div class="vendor-arrow" style="color: var(--muted); opacity: 0.5;">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </div>
+                    </div>
+                    <div class="vendor-meta" style="margin-bottom: 16px; font-size: 0.8rem;">@vendor.DevicesCount devices</div>
+                    <div class="vendor-card-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line);">
+                        <div style="min-width: 0; overflow: hidden;">
+                            <div style="font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 2px;">Amount</div>
+                            <div class="vendor-number" style="font-size: 0.95rem; font-weight: 700; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="@vendor.Revenue.ToString("C")">@vendor.Revenue.ToString("C")</div>
+                        </div>
+                        <div style="text-align: right; min-width: 0; overflow: hidden;">
+                            <div style="font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 2px; display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                                <span>Profit</span>
+                                @if (vendor.Revenue > 0)
+                                {
+                                    <span style="font-size: 0.65rem; color: var(--success); background: rgba(16,185,129,0.12); padding: 1px 4px; border-radius: 3px; font-weight: 700;">
+                                        @((vendor.Profit / vendor.Revenue).ToString("P0"))
+                                    </span>
+                                }
+                            </div>
+                            <div class="vendor-number" style="color: var(--success); font-size: 0.95rem; font-weight: 700; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="@vendor.Profit.ToString("C")">@vendor.Profit.ToString("C")</div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+<div class="section-heading">
+    <div>
+        <h2>Recent Activity</h2>
+        <p>Latest updates and transactions from your fleet.</p>
+    </div>
+</div>
+
+<div class="trace-grid">
+    <section class="card trace-card">
+        <h3>
+            Recent fleet records 
+            <a class="button-link" asp-controller="Devices" asp-action="Index" style="float: right;">All devices →</a>
+        </h3>
+        
+        @foreach (var device in Model.TraceDevices.Take(6))
+        {
+            <div class="trace-row" onclick="if (!window.getSelection().toString()) { window.location.href='@Url.Action("Index", "Devices", new { Query = device.VehicleNo })'; }" style="cursor: pointer;">
+                <div>
+                    <strong>@device.VehicleNo</strong>
+                    <small>@device.DeviceName · @device.Vendor</small>
+                </div>
+                <span class="badge @(device.LifecycleStatus.ToLowerInvariant())">@device.LifecycleStatus</span>
+            </div>
+        }
+    </section>
+    
+    <section class="card trace-card">
+        <h3>
+            Recent transactions 
+            <a class="button-link" asp-controller="Transactions" asp-action="Index" style="float: right;">All transactions →</a>
+        </h3>
+        
+        @foreach (var transaction in Model.TraceTransactions.Take(6))
+        {
+            <div class="trace-row" onclick="if (!window.getSelection().toString()) { window.location.href='@Url.Action("Index", "Transactions", new { Query = transaction.VehicleNo })'; }" style="cursor: pointer;">
+                <div>
+                    <strong>@transaction.VehicleNo</strong>
+                    <small>@DateValue.Short(transaction.Date) · @transaction.PaymentFor</small>
+                </div>
+                <strong>@(transaction.Amount?.ToString("C") ?? "—")</strong>
+            </div>
+        }
+    </section>
+</div>
+</div>
+
+@{
+    var labels = Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ActivitySeries.Select(s => s.Label)));
+    var rechargeData = Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ActivitySeries.Select(s => s.Value)));
+    var revenueData = Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.FinancialSeries.Select(s => s.Value)));
+    var profitData = Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.FinancialSeries.Select(s => s.SecondaryValue)));
+    var activeFleet = Model.ActiveDevices;
+    var deadFleet = Model.TotalDevices - Model.ActiveDevices;
+}
+
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script>
+        google.charts.load("current", {packages:["corechart"]});
+        google.charts.setOnLoadCallback(drawFleetChart);
+        
+        function drawFleetChart() {
+            var chartData = [['Status', 'Count']];
+            
+            var colorMap = {
+                'unused': '#4e73df',
+                'active': '#1cc88a',
+                'renewal needed': '#f6c23e',
+                'expiring': '#f6c23e',
+                'suspension': '#858796',
+                'suspended': '#858796',
+                'terminated': '#fd7e14',
+                'terminating': '#fd7e14',
+                'dead': '#e74a3b'
+            };
+            
+            var orderMap = {
+                'unused': 1,
+                'active': 2,
+                'renewal needed': 3,
+                'expiring': 3,
+                'suspension': 4,
+                'suspended': 4,
+                'terminated': 5,
+                'terminating': 5,
+                'dead': 6
+            };
+
+            var rawData = [];
+            @foreach (var kvp in Model.FleetStatusDistribution)
+            {
+                <text>rawData.push({ key: '@kvp.Key', value: @kvp.Value, sortOrder: orderMap['@kvp.Key'.toLowerCase()] || 99 });</text>
+            }
+
+            rawData.sort(function(a, b) {
+                return a.sortOrder - b.sortOrder;
+            });
+
+            var chartColors = [];
+            for (var i = 0; i < rawData.length; i++) {
+                var item = rawData[i];
+                chartData.push([item.key, item.value]);
+                chartColors.push(colorMap[item.key.toLowerCase()] || '#858796');
+            }
+
+            var data = google.visualization.arrayToDataTable(chartData);
+
+            var containerWidth = document.getElementById('fleetChart').offsetWidth;
+            var isDarkMode = document.getElementById('theme')?.checked;
+            var textColor = isDarkMode ? '#ffffff' : '#555555';
+
+            var options = {
+                is3D: true,
+                colors: chartColors,
+                legend: containerWidth > 300 ? { position: 'bottom', textStyle: { fontSize: 11, color: textColor } } : 'none',
+                backgroundColor: 'transparent',
+                chartArea: containerWidth > 300 
+                    ? { width: '90%', height: '75%', top: '10%' } 
+                    : { width: '90%', height: '90%', top: '5%' },
+                pieSliceText: 'none',
+                tooltip: {
+                    isHtml: true
+                }
+            };
+
+            var chart = new google.visualization.PieChart(document.getElementById('fleetChart'));
+            
+            google.visualization.events.addListener(chart, 'select', function() {
+                var selection = chart.getSelection();
+                if (selection.length > 0) {
+                    var row = selection[0].row;
+                    var label = data.getValue(row, 0).toLowerCase();
+                    
+                    if (label === 'unused') {
+                        location.href = '@Url.Action("Index", "Inventory")';
+                        return;
+                    }
+
+                    var filter = '';
+                    if (label === 'active') filter = 'Active';
+                    else if (label === 'renewal needed' || label === 'expiring' || label.indexOf('renew') !== -1) filter = 'Expiring';
+                    else if (label === 'suspension' || label.indexOf('suspend') !== -1) filter = 'Suspension';
+                    else if (label === 'terminated' || label.indexOf('terminat') !== -1) filter = 'Terminated';
+                    else if (label === 'dead') filter = 'Dead';
+                    
+                    if (filter) {
+                        location.href = '@Url.Action("Index", "Devices")?Lifecycle=' + encodeURIComponent(filter);
+                    } else {
+                        location.href = '@Url.Action("Index", "Devices")';
+                    }
+                }
+            });
+
+            chart.draw(data, options);
+        }
+
+        var resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(drawFleetChart, 150);
+        });
+
+        document.addEventListener("DOMContentLoaded", function() {
+            Chart.register(ChartDataLabels);
+            
+            const labels = @labels;
+            
+            const lineOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    datalabels: { display: false }
+                },
+                scales: {
+                    x: { 
+                        grid: { display: false, drawBorder: false },
+                        ticks: { autoSkip: true, maxTicksLimit: labels.length <= 12 ? labels.length : 12, maxRotation: 45, minRotation: 0, color: '#555' }
+                    },
+                    y: { 
+                        grid: { display: true, drawBorder: false, color: 'rgba(0,0,0,0.05)' },
+                        ticks: { 
+                            color: '#555',
+                            precision: 0,
+                            maxTicksLimit: 6,
+                            callback: function(value) { return Math.ceil(value).toLocaleString(); }
+                        },
+                        beginAtZero: true
+                    }
+                },
+                elements: {
+                    line: { tension: 0.4, borderWidth: 3 },
+                    point: { radius: 3, hitRadius: 10, hoverRadius: 6, backgroundColor: '#fff', borderWidth: 2 }
+                }
+            };
+
+            function createGradient(ctx, colorStart, colorEnd) {
+                const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+                gradient.addColorStop(0, colorStart);
+                gradient.addColorStop(1, colorEnd);
+                return gradient;
+            }
+
+            const revCtx = document.getElementById('revenueChart').getContext('2d');
+            const revenueChart = new Chart(revCtx, {
+                type: '@(Model.Period == "Lifetime" ? "bar" : "line")',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: @revenueData,
+                        borderColor: '#4e73df',
+                        backgroundColor: createGradient(revCtx, 'rgba(78, 115, 223, 0.4)', 'rgba(78, 115, 223, 0.0)'),
+                        fill: true
+                    }]
+                },
+                options: lineOptions
+            });
+
+            const recCtx = document.getElementById('rechargeChart').getContext('2d');
+            const rechargeChart = new Chart(recCtx, {
+                type: '@(Model.Period == "Lifetime" ? "bar" : "line")',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: @rechargeData,
+                        borderColor: '#1cc88a',
+                        backgroundColor: createGradient(recCtx, 'rgba(28, 200, 138, 0.4)', 'rgba(28, 200, 138, 0.0)'),
+                        fill: true
+                    }]
+                },
+                options: lineOptions
+            });
+
+            const profCtx = document.getElementById('profitChart').getContext('2d');
+            const profitChart = new Chart(profCtx, {
+                type: '@(Model.Period == "Lifetime" ? "bar" : "line")',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: @profitData,
+                        borderColor: '#f6c23e',
+                        backgroundColor: createGradient(profCtx, 'rgba(246, 194, 62, 0.4)', 'rgba(246, 194, 62, 0.0)'),
+                        fill: true
+                    }]
+                },
+                options: lineOptions
+            });
+
+            // Double click interactivity for traceability
+            function attachDoubleClick(canvasId, chartInstance, url, extraTerms = '', queryTermsArray = null) {
+                document.getElementById(canvasId).ondblclick = function(evt) {
+                    const points = chartInstance.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                    if (points.length) {
+                        const firstPoint = points[0];
+                        const label = queryTermsArray && queryTermsArray[firstPoint.index] ? queryTermsArray[firstPoint.index] : chartInstance.data.labels[firstPoint.index];
+                        const queryVal = extraTerms ? label + '|' + extraTerms : label;
+                        location.href = url + '?Query=' + encodeURIComponent(queryVal);
+                    }
+                };
+            }
+
+            const transactionsUrl = '@Url.Action("Index", "Transactions")';
+            const financialQueries = @Html.Raw(Json.Serialize(Model.FinancialSeries.Select(s => s.QueryTerm)));
+            const activityQueries = @Html.Raw(Json.Serialize(Model.ActivitySeries.Select(s => s.QueryTerm)));
+            
+            attachDoubleClick('revenueChart', revenueChart, transactionsUrl, '', financialQueries);
+            attachDoubleClick('rechargeChart', rechargeChart, transactionsUrl, 'Recharge|Reactivation', activityQueries);
+            attachDoubleClick('profitChart', profitChart, transactionsUrl, '', financialQueries);
+        });
+    </script>

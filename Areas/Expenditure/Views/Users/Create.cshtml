@@ -1,0 +1,64 @@
+@model MygtsMvc.Models.ExpenditureUserRecord
+@{
+    ViewData["Title"] = "ADD EXPENDITURE USER";
+}
+
+<div class="page-heading" style="max-width: 680px; margin: 0 auto 20px auto;">
+    <div>
+        <div class="eyebrow">ADMINISTRATION / USER PROVISIONING</div>
+        <h1 style="font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px; margin: 2px 0 4px 0;">ADD EXPENDITURE USER</h1>
+        <p style="color: var(--muted); font-size: 0.85rem; font-weight: 600; margin: 0;">
+            CREATE A NEW LOGIN WITH DEDICATED ACCESS TO THE EXPENDITURE BRANCH.
+        </p>
+    </div>
+    <div class="page-heading-actions">
+        <a href="/Expenditure/Users" class="button btn-secondary" style="font-weight: 800; font-size: 0.82rem; padding: 8px 16px; text-decoration: none;">
+            ← BACK TO USERS
+        </a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 680px; margin: 0 auto; border-radius: 12px; padding: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+    <form method="post" action="/Expenditure/Users/Create">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" style="color: #dc2626; font-size: 0.78rem; font-weight: 800; margin-bottom: 16px;"></div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;">
+            <label style="font-size: 0.76rem; font-weight: 800; color: #334155; letter-spacing: 0.5px;">DISPLAY NAME *</label>
+            <input type="text" asp-for="DisplayName" placeholder="E.G. JOHN DOE" class="input" style="height: 42px; border-radius: 6px; font-weight: 700; font-size: 0.88rem;" required />
+            <span asp-validation-for="DisplayName" style="color: #dc2626; font-size: 0.72rem; font-weight: 700;"></span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;">
+            <label style="font-size: 0.76rem; font-weight: 800; color: #334155; letter-spacing: 0.5px;">USERNAME / EMAIL *</label>
+            <input type="text" asp-for="Email" placeholder="E.G. accounts@mygts" class="input" style="height: 42px; border-radius: 6px; font-weight: 700; font-size: 0.88rem;" required />
+            <span asp-validation-for="Email" style="color: #dc2626; font-size: 0.72rem; font-weight: 700;"></span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;">
+            <label style="font-size: 0.76rem; font-weight: 800; color: #334155; letter-spacing: 0.5px;">PASSWORD *</label>
+            <input type="password" asp-for="PlainPassword" placeholder="ENTER STRONG PASSWORD" class="input" style="height: 42px; border-radius: 6px; font-weight: 700; font-size: 0.88rem;" required />
+            <span asp-validation-for="PlainPassword" style="color: #dc2626; font-size: 0.72rem; font-weight: 700;"></span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;">
+            <label style="font-size: 0.76rem; font-weight: 800; color: #334155; letter-spacing: 0.5px;">ROLE *</label>
+            <select asp-for="Role" class="input" style="height: 42px; border-radius: 6px; font-weight: 700; font-size: 0.88rem;">
+                <option value="USER">USER (REGULAR BOOKKEEPING OPERATOR)</option>
+                <option value="ADMIN">ADMIN (FULL ACCESS & USER MANAGEMENT)</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
+                <input type="checkbox" asp-for="IsActive" style="width: 18px; height: 18px; accent-color: #059669;" />
+                <span style="font-size: 0.82rem; font-weight: 800; color: #0f172a;">ACCOUNT IS ACTIVE (CAN LOG IN IMMEDIATELY)</span>
+            </label>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--line);">
+            <a href="/Expenditure/Users" class="button btn-secondary" style="font-weight: 800; font-size: 0.85rem; padding: 10px 20px; text-decoration: none;">CANCEL</a>
+            <button type="submit" class="button btn-primary" style="font-weight: 800; font-size: 0.85rem; padding: 10px 24px;">CREATE USER</button>
+        </div>
+    </form>
+</div>

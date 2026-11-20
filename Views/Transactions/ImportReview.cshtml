@@ -1,0 +1,195 @@
+@model TransactionImportReviewViewModel
+@{
+    ViewData["Title"] = $"Review {Model.Branch} transaction import";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Financial Operations / Data Import Review</div>
+        <h1>Review imported @Model.Branch transactions</h1>
+        <p>Review the data extracted from your file. Choose per-row actions for any transactions matching existing records (Vehicle No + Date) before saving.</p>
+    </div>
+    <div class="page-heading-actions">
+        <a class="button ghost" asp-action="Import">← Upload another file</a>
+        <a class="button secondary" asp-action="Index">Cancel</a>
+    </div>
+</div>
+
+<section class="card" style="margin-bottom: 20px; padding: 20px;">
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: center;">
+            <div>
+                <span style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600; display: block;">Branch</span>
+                <strong style="font-size: 1.1rem; color: var(--text-main);">@Model.Branch</strong>
+            </div>
+            <div>
+                <span style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600; display: block;">Total Rows</span>
+                <strong style="font-size: 1.1rem; color: var(--text-main);">@Model.TotalRows.ToString("N0") rows</strong>
+            </div>
+            <div>
+                <span style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600; display: block;">New Records</span>
+                <span class="badge success" style="font-size: 0.95rem; font-weight: 700; padding: 4px 10px;">@Model.NewCount New</span>
+            </div>
+            <div>
+                <span style="color: var(--muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600; display: block;">Matching Existing (Vehicle+Date)</span>
+                <span class="badge danger" style="font-size: 0.95rem; font-weight: 700; padding: 4px 10px; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;">@Model.ConflictCount Matches</span>
+            </div>
+        </div>
+
+        @if (Model.ConflictCount > 0)
+        {
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem;">
+                <span style="color: var(--muted); font-weight: 600;">Bulk conflict action:</span>
+                <button type="button" class="button secondary" onclick="setAllConflicts('replace')" style="font-size: 0.8rem; padding: 4px 10px;">Set all to Replace</button>
+                <button type="button" class="button secondary" onclick="setAllConflicts('keep')" style="font-size: 0.8rem; padding: 4px 10px;">Set all to Keep Existing</button>
+            </div>
+        }
+    </div>
+</section>
+
+<form asp-action="ConfirmImport" method="post">
+    <input type="hidden" name="Branch" value="@Model.Branch" />
+    <input type="hidden" name="StagedTransactionsJson" value="@Model.StagedTransactionsJson" />
+
+    <section class="card" style="margin-bottom: 24px;">
+        <div class="section-heading" style="padding: 16px 20px 10px; margin-top: 0; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2 style="font-size: 1.1rem; margin-bottom: 4px;">Imported Transaction Rows</h2>
+                <p style="color: var(--muted); font-size: 0.82rem; margin: 0;">
+                    <span style="display: inline-block; width: 12px; height: 12px; background: #ecfdf5; border: 2px solid #10b981; border-radius: 3px; vertical-align: middle; margin-right: 4px;"></span>
+                    Green rows indicate brand new transactions.
+                    <span style="display: inline-block; width: 12px; height: 12px; background: #fef2f2; border: 2px solid #ef4444; border-radius: 3px; vertical-align: middle; margin: 0 4px 0 12px;"></span>
+                    Red rows match both Vehicle Number and Date of an existing transaction.
+                </p>
+            </div>
+            <button type="submit" class="button primary" style="padding: 9px 22px; font-weight: 600; font-size: 0.95rem;">
+                Confirm & Apply Import (@Model.TotalRows transactions)
+            </button>
+        </div>
+
+        <div class="table-wrap">
+            <table class="data-table" style="font-size: 0.86rem; border-collapse: separate; border-spacing: 0;">
+                <thead>
+                    <tr>
+                        <th style="width: 48px; text-align: center;">#</th>
+                        <th style="min-width: 280px;">Action / Conflict Resolution</th>
+                        <th>Vehicle No</th>
+                        <th>Date</th>
+                        <th>Vendor</th>
+                        <th>Payment Mode</th>
+                        <th>Payment For</th>
+                        <th class="numeric">Amount</th>
+                        <th>UTR / Tx ID</th>
+                        <th>Paid To</th>
+                        @if (Model.Branch != "RTO")
+                        {
+                            <th>Extras</th>
+                        }
+                        <th>Activation Date</th>
+                        <th>New Expiry Date</th>
+                        <th class="numeric">Profits</th>
+                        <th>Batch ID</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        var item = Model.Items[i];
+                        var isConflict = item.IsConflict;
+                        var rowBg = isConflict ? "#fef2f2" : "#ecfdf5";
+                        var rowBorder = isConflict ? "4px solid #ef4444" : "4px solid #10b981";
+
+                        <tr style="background-color: @rowBg !important; border-left: @rowBorder;" data-row-index="@i" data-conflict="@(isConflict ? "true" : "false")">
+                            <td style="text-align: center; color: var(--muted); font-weight: 600;">
+                                @(i + 1)
+                            </td>
+                            <td>
+                                @if (isConflict && item.Existing != null)
+                                {
+                                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                                        <div style="font-size: 0.75rem; color: #b91c1c; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                                            <span>⚠️ Matches existing transaction:</span>
+                                        </div>
+                                        <select name="Actions[@i]" class="select conflict-select" style="font-size: 0.8rem; padding: 4px 8px; height: 32px; border-color: #fca5a5; background: #fff;" onchange="onActionChange(this, @i)">
+                                            <option value="replace" selected>
+                                                🔄 Replace existing (prev: @(item.Existing.Amount?.ToString("C") ?? "—") - @item.Existing.PaymentFor)
+                                            </option>
+                                            <option value="keep">
+                                                🛡️ Keep existing transaction (skip imported row)
+                                            </option>
+                                        </select>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <select name="Actions[@i]" class="select" style="font-size: 0.8rem; padding: 4px 8px; height: 32px; border-color: #a7f3d0; background: #fff;" onchange="onActionChange(this, @i)">
+                                            <option value="insert" selected>➕ Add as new transaction</option>
+                                            <option value="keep">⏭️ Skip this row</option>
+                                        </select>
+                                    </div>
+                                }
+                            </td>
+                            <td><strong style="font-family: monospace; color: var(--blue-700);">@item.Imported.VehicleNo</strong></td>
+                            <td><strong>@item.Imported.Date</strong></td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Imported.Vendor) ? "—" : item.Imported.Vendor)</td>
+                            <td><span class="badge" style="background: #e0e7ff; color: #3730a3;">@item.Imported.PaymentMode</span></td>
+                            <td><span class="badge" style="background: #f1f5f9; color: #334155;">@item.Imported.PaymentFor</span></td>
+                            <td class="numeric"><strong>@(item.Imported.Amount?.ToString("C") ?? "—")</strong></td>
+                            <td style="font-family: monospace; font-size: 0.8rem;">@(string.IsNullOrWhiteSpace(item.Imported.Utr) ? "—" : item.Imported.Utr)</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Imported.PaidTo) ? "—" : item.Imported.PaidTo)</td>
+                            @if (Model.Branch != "RTO")
+                            {
+                                <td>@(string.IsNullOrWhiteSpace(item.Imported.Extras) ? "—" : item.Imported.Extras)</td>
+                            }
+                            <td>@(string.IsNullOrWhiteSpace(item.Imported.ActivationDate) ? "—" : item.Imported.ActivationDate)</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.Imported.NewExpiryDate) ? "—" : item.Imported.NewExpiryDate)</td>
+                            <td class="numeric">@(item.Imported.Profit?.ToString("C") ?? "—")</td>
+                            <td style="font-family: monospace; font-size: 0.8rem;">@(string.IsNullOrWhiteSpace(item.Imported.BatchId) ? "—" : item.Imported.BatchId)</td>
+                            <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="@item.Imported.Notes">
+                                @(string.IsNullOrWhiteSpace(item.Imported.Notes) ? "—" : item.Imported.Notes)
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="form-actions" style="padding: 16px 20px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 10px;">
+            <a class="button ghost" asp-action="Import">← Upload another file</a>
+            <button type="submit" class="button primary" style="padding: 10px 24px; font-weight: 600; font-size: 0.95rem;">
+                Confirm & Apply Import (@Model.TotalRows transactions)
+            </button>
+        </div>
+    </section>
+</form>
+
+<script>
+function setAllConflicts(action) {
+    document.querySelectorAll('.conflict-select').forEach(function(sel) {
+        sel.value = action;
+        var idx = sel.getAttribute('name').match(/\[(\d+)\]/)[1];
+        onActionChange(sel, idx);
+    });
+}
+
+function onActionChange(selectElem, index) {
+    var tr = selectElem.closest('tr');
+    var isConflict = tr.getAttribute('data-conflict') === 'true';
+    if (selectElem.value === 'keep') {
+        tr.style.opacity = '0.55';
+        tr.style.backgroundColor = '#f3f4f6';
+        tr.style.borderLeft = '4px solid #9ca3af';
+    } else {
+        tr.style.opacity = '1';
+        if (isConflict) {
+            tr.style.backgroundColor = '#fef2f2';
+            tr.style.borderLeft = '4px solid #ef4444';
+        } else {
+            tr.style.backgroundColor = '#ecfdf5';
+            tr.style.borderLeft = '4px solid #10b981';
+        }
+    }
+}
+</script>

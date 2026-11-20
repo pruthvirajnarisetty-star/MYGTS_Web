@@ -1,0 +1,721 @@
+@model MygtsMvc.Models.ExpenditurePreviousYearsViewModel
+@{
+    ViewData["Title"] = $"ANNUAL FINANCIAL COMPARISON ({Model.SelectedYearLabel})";
+    Layout = "~/Areas/Expenditure/Views/Shared/_Layout.cshtml";
+
+    var expF = Model.ExpensesModel.Filters;
+    var txnF = Model.TransactionsModel.Filters;
+    var isExpensesTab = Model.ActiveTab == "EXPENSES";
+    var isTxnsTab = Model.ActiveTab == "TRANSACTIONS";
+
+    var selectedInflow = Model.ExpensesModel.CombinedInflow;
+    var selectedOutflow = Model.ExpensesModel.TotalDebited;
+    var selectedNetCashFlow = Model.ExpensesModel.NetCashFlow;
+}
+
+<style>
+    /* WORKSPACE STRUCTURE & YEAR SELECTOR */
+    .fy-selector-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 22px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+
+    .fy-selector-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .fy-selector-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.76rem;
+        font-weight: 800;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+
+    .fy-selector-badge {
+        font-size: 0.72rem;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .fy-pill-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .fy-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 18px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-decoration: none;
+        color: #475569;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        transition: all 0.18s ease;
+    }
+
+    .fy-pill:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+        transform: translateY(-1px);
+    }
+
+    .fy-pill.active {
+        background: #0284c7 !important;
+        color: #ffffff !important;
+        border-color: #0284c7 !important;
+        box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+    }
+
+    /* EXECUTIVE KPI GRID */
+    .kpi-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .kpi-item {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .kpi-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .kpi-item-title {
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #64748b;
+        letter-spacing: 0.6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .kpi-item-value {
+        font-size: 1.60rem;
+        font-weight: 900;
+        letter-spacing: -0.5px;
+        margin: 8px 0 4px 0;
+        font-family: inherit;
+    }
+
+    .kpi-item-sub {
+        font-size: 0.70rem;
+        font-weight: 700;
+        color: #94a3b8;
+    }
+
+    .kpi-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.64rem;
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        padding: 4px 9px;
+        border-radius: 999px;
+        margin-top: 10px;
+        width: fit-content;
+        text-transform: uppercase;
+    }
+
+    .kpi-pill-green { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .kpi-pill-red { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+    .kpi-pill-blue { background: #e0f2fe; color: #0369a1; border: 1px solid #7dd3fc; }
+    .kpi-pill-indigo { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; }
+
+    /* AUDIT COMPARISON SECTION */
+    .audit-card {
+        margin-bottom: 26px;
+    }
+
+    /* SUBTABS SECTION */
+    .fy-subtabs {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 28px 0 16px 0;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 12px;
+    }
+
+    .fy-subtab {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 18px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-decoration: none;
+        color: #64748b;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        transition: all 0.15s ease;
+    }
+
+    .fy-subtab:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+
+    .fy-subtab.active {
+        background: #4338ca;
+        color: #ffffff;
+        border-color: #4338ca;
+        box-shadow: 0 4px 12px rgba(67, 56, 202, 0.25);
+    }
+
+    .subtab-count {
+        font-size: 0.65rem;
+        font-weight: 900;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.12);
+        color: inherit;
+    }
+
+    .fy-subtab.active .subtab-count {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+    }
+
+    /* TABLE & CARD STYLES */
+    .exp-table-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .exp-table-header {
+        padding: 16px 22px;
+        background: #fafbfc;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .exp-table-title {
+        font-weight: 800;
+        color: #0f172a;
+        font-size: 0.88rem;
+        letter-spacing: 0.3px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .exp-table-container {
+        overflow-x: auto;
+        width: 100%;
+    }
+
+    .exp-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .exp-table th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 800;
+        font-size: 0.72rem;
+        letter-spacing: 0.6px;
+        padding: 12px 14px;
+        border-bottom: 2px solid #cbd5e1;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .exp-table td {
+        padding: 11px 14px;
+        border-bottom: 1px solid #f1f5f9;
+        font-weight: 600;
+        color: #1e293b;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .exp-table th.col-sticky-action {
+        width: 110px;
+        position: sticky;
+        left: 0;
+        background: #f8fafc;
+        z-index: 2;
+    }
+
+    .exp-table td.col-sticky-action {
+        position: sticky;
+        left: 0;
+        background: #ffffff;
+        z-index: 1;
+    }
+
+    .exp-table tr:hover td {
+        background-color: #f1f5f9;
+    }
+
+    .row-selected-fy {
+        background: rgba(2, 132, 199, 0.08) !important;
+        font-weight: 800 !important;
+        border-left: 4px solid #0284c7 !important;
+    }
+
+    .action-link {
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.15s;
+        background: #e0f2fe;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+    }
+
+    .action-link:hover {
+        background: #bae6fd;
+        color: #0284c7;
+    }
+
+    .action-link-active {
+        background: #0284c7 !important;
+        color: #ffffff !important;
+        border-color: #0284c7 !important;
+    }
+
+    /* EMPTY STATE */
+    .empty-state-wrap {
+        padding: 48px 24px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .empty-state-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: #f1f5f9;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 4px;
+    }
+
+    /* DARK MODE EXPLICIT SCOPING */
+    body:has(#theme:checked) .fy-selector-card {
+        background: #0b0f19 !important;
+        border-color: #1e293b !important;
+    }
+
+    body:has(#theme:checked) .fy-selector-top {
+        border-bottom-color: #1e293b !important;
+    }
+
+    body:has(#theme:checked) .fy-selector-label {
+        color: #94a3b8 !important;
+    }
+
+    body:has(#theme:checked) .fy-selector-badge {
+        background: rgba(2, 132, 199, 0.20) !important;
+        color: #38bdf8 !important;
+        border-color: rgba(56, 189, 248, 0.35) !important;
+    }
+
+    body:has(#theme:checked) .fy-pill {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        color: #94a3b8 !important;
+    }
+
+    body:has(#theme:checked) .fy-pill:hover {
+        background: #334155 !important;
+        color: #f8fafc !important;
+    }
+
+    body:has(#theme:checked) .fy-pill.active {
+        background: #0284c7 !important;
+        border-color: #38bdf8 !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45) !important;
+    }
+
+    body:has(#theme:checked) .kpi-item {
+        background: #0b0f19 !important;
+        border-color: #1e293b !important;
+        color: #f8fafc !important;
+    }
+
+    body:has(#theme:checked) .kpi-item:hover {
+        border-color: #334155 !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    body:has(#theme:checked) .kpi-item-title {
+        color: #94a3b8 !important;
+    }
+
+    body:has(#theme:checked) .kpi-item-sub {
+        color: #64748b !important;
+    }
+
+    body:has(#theme:checked) .kpi-pill-green {
+        background: rgba(34, 197, 94, 0.18) !important;
+        color: #4ade80 !important;
+        border-color: rgba(74, 222, 128, 0.35) !important;
+    }
+
+    body:has(#theme:checked) .kpi-pill-red {
+        background: rgba(239, 68, 68, 0.18) !important;
+        color: #f87171 !important;
+        border-color: rgba(248, 113, 113, 0.35) !important;
+    }
+
+    body:has(#theme:checked) .kpi-pill-blue {
+        background: rgba(2, 132, 199, 0.18) !important;
+        color: #38bdf8 !important;
+        border-color: rgba(56, 189, 248, 0.35) !important;
+    }
+
+    body:has(#theme:checked) .kpi-pill-indigo {
+        background: rgba(99, 102, 241, 0.18) !important;
+        color: #818cf8 !important;
+        border-color: rgba(129, 140, 248, 0.35) !important;
+    }
+
+    body:has(#theme:checked) .fy-subtabs {
+        border-bottom-color: #1e293b !important;
+    }
+
+    body:has(#theme:checked) .fy-subtab {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        color: #94a3b8 !important;
+    }
+
+    body:has(#theme:checked) .fy-subtab:hover {
+        background: #334155 !important;
+        color: #f8fafc !important;
+    }
+
+    body:has(#theme:checked) .fy-subtab.active {
+        background: #4338ca !important;
+        border-color: #818cf8 !important;
+        color: #ffffff !important;
+    }
+
+    body:has(#theme:checked) .exp-table-card {
+        background: #0b0f19 !important;
+        border-color: #1e293b !important;
+    }
+
+    body:has(#theme:checked) .exp-table-header {
+        background: #111827 !important;
+        border-bottom-color: #1e293b !important;
+    }
+
+    body:has(#theme:checked) .exp-table-title {
+        color: #f8fafc !important;
+    }
+
+    body:has(#theme:checked) .exp-table {
+        background-color: #0b0f19 !important;
+    }
+
+    body:has(#theme:checked) .exp-table th {
+        background-color: #111827 !important;
+        border-bottom-color: #1e293b !important;
+        color: #94a3b8 !important;
+    }
+
+    body:has(#theme:checked) .exp-table th.col-sticky-action {
+        background-color: #111827 !important;
+    }
+
+    body:has(#theme:checked) .exp-table td {
+        background-color: #0b0f19 !important;
+        border-bottom-color: #1e293b !important;
+        color: #cbd5e1 !important;
+    }
+
+    body:has(#theme:checked) .exp-table td.col-sticky-action {
+        background-color: #0b0f19 !important;
+    }
+
+    body:has(#theme:checked) .exp-table tr:hover td,
+    body:has(#theme:checked) .exp-table tbody tr:hover td {
+        background-color: #1e293b !important;
+        color: #f1f5f9 !important;
+    }
+
+    body:has(#theme:checked) .exp-table tr:hover td.col-sticky-action,
+    body:has(#theme:checked) .exp-table tbody tr:hover td.col-sticky-action {
+        background-color: #1e293b !important;
+    }
+
+    body:has(#theme:checked) .row-selected-fy td {
+        background-color: rgba(2, 132, 199, 0.14) !important;
+        color: #f8fafc !important;
+    }
+
+    body:has(#theme:checked) .row-selected-fy {
+        border-left: 4px solid #38bdf8 !important;
+    }
+
+    body:has(#theme:checked) .empty-state-icon {
+        background: #1e293b !important;
+        color: #94a3b8 !important;
+    }
+</style>
+
+<!-- 1. TOP NAVIGATION TABS -->
+<div class="exp-nav-tabs">
+    <a href="/Expenditure/Expenses" class="exp-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span>INVOICES & PROFORMA (PI)</span>
+    </a>
+    <a href="/Expenditure/Transactions" class="exp-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        <span>BRANCH TRANSACTIONS (DMG & RTO)</span>
+        <span class="exp-tab-badge">LIVE SYNC</span>
+    </a>
+    <a href="/Expenditure/Credit" class="exp-tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+        <span>COMPANY CREDITS</span>
+    </a>
+    <a href="/Expenditure/PreviousYears" class="exp-tab active">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline><path d="M4 12a8 8 0 0 1 14.93-4"></path></svg>
+        <span>PREVIOUS FINANCIAL YEARS</span>
+        <span class="exp-tab-badge" style="background: rgba(255, 255, 255, 0.25);">ARCHIVE</span>
+    </a>
+</div>
+
+<!-- 2. HERO PAGE HEADING -->
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">HISTORICAL CASH FLOW & AUDIT LEDGER</div>
+        <h1 style="font-size: 1.65rem; font-weight: 900; letter-spacing: -0.5px; margin: 2px 0 4px 0;">ANNUAL FINANCIAL COMPARISON</h1>
+        <p style="color: var(--muted); font-size: 0.85rem; font-weight: 600; margin: 0;">
+            ANNUAL COMPARISON OF INFLOW, OPERATIONAL OUTFLOW, AND AUDIT LEDGER ENTRIES ACROSS ALL FINANCIAL YEARS.
+        </p>
+    </div>
+    <div class="page-heading-actions" style="display: flex; gap: 10px; align-items: center;">
+        <a href="@Url.Action("ExportTransactions", "PreviousYears", new { area = "Expenditure", year = Model.SelectedYear })" class="button btn-secondary" style="font-weight: 800; font-size: 0.82rem; padding: 8px 16px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>EXPORT ARCHIVE CSV</span>
+        </a>
+    </div>
+</div>
+
+<!-- 3. STRUCTURED FINANCIAL YEAR SELECTOR CARD -->
+<div class="fy-selector-card">
+    <div class="fy-selector-top">
+        <div class="fy-selector-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <span>AUDIT TIMEFRAME SELECTOR</span>
+        </div>
+        <div class="fy-selector-badge">
+            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #0284c7;"></span>
+            <span>VIEWING: @Model.SelectedYearLabel</span>
+        </div>
+    </div>
+    <div class="fy-pill-group">
+        <a href="/Expenditure/PreviousYears?year=0" class="fy-pill @(Model.SelectedYear == 0 ? "active" : "")">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            <span>ALL FINANCIAL YEARS</span>
+        </a>
+        @foreach (var fy in Model.AvailablePreviousYears)
+        {
+            var isCurrActive = Model.SelectedYear == fy;
+            var isCurrentFy = fy == FinancialYearHelper.CurrentFinancialYearStart;
+            <a href="/Expenditure/PreviousYears?year=@fy" class="fy-pill @(isCurrActive ? "active" : "")">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                <span>@FinancialYearHelper.FormatLabel(fy) @(isCurrentFy ? "(CURRENT)" : "")</span>
+            </a>
+        }
+    </div>
+</div>
+
+<!-- 4. STRUCTURED EXECUTIVE KPI SUMMARY CARDS -->
+<div class="kpi-container">
+    <!-- 1. TOTAL INFLOW -->
+    <div class="kpi-item" style="border-left: 5px solid #059669;">
+        <div class="kpi-item-title">
+            <span>COMBINED INFLOW (@Model.SelectedYearLabel)</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><line x1="17" y1="7" x2="7" y2="17"></line><polyline points="17 17 7 17 7 7"></polyline></svg>
+        </div>
+        <div class="kpi-item-value" style="color: #059669;">₹@selectedInflow.ToString("N2")</div>
+        <div class="kpi-item-sub">DIRECT: ₹@Model.ExpensesModel.DirectExpInflow.ToString("N0") | BRANCHES: ₹@Model.ExpensesModel.TotalBranchInflow.ToString("N0")</div>
+        <div class="kpi-pill kpi-pill-green">TOTAL REVENUE RECORDED</div>
+    </div>
+
+    <!-- 2. TOTAL OUTFLOW -->
+    <div class="kpi-item" style="border-left: 5px solid #dc2626;">
+        <div class="kpi-item-title">
+            <span>TOTAL OUTFLOW (@Model.SelectedYearLabel)</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+        </div>
+        <div class="kpi-item-value" style="color: #dc2626;">₹@selectedOutflow.ToString("N2")</div>
+        <div class="kpi-item-sub">DISBURSEMENTS & OPERATIONAL EXPENSES</div>
+        <div class="kpi-pill kpi-pill-red">TOTAL DEBITS ARCHIVED</div>
+    </div>
+
+    <!-- 3. NET CASH FLOW -->
+    <div class="kpi-item" style="border-left: 5px solid #6366f1;">
+        <div class="kpi-item-title">
+            <span>NET CASH FLOW (@Model.SelectedYearLabel)</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        </div>
+        <div class="kpi-item-value" style="color: @(selectedNetCashFlow >= 0 ? "#059669" : "#dc2626");">
+            ₹@selectedNetCashFlow.ToString("N2")
+        </div>
+        <div class="kpi-item-sub">INFLOW ₹@selectedInflow.ToString("N0") - OUTFLOW ₹@selectedOutflow.ToString("N0")</div>
+        <div class="kpi-pill kpi-pill-indigo">HISTORICAL CASH SURPLUS / DEFICIT</div>
+    </div>
+
+    <!-- 4. TAX INVOICES & PIs -->
+    <div class="kpi-item" style="border-left: 5px solid #0284c7;">
+        <div class="kpi-item-title">
+            <span>ARCHIVE LEDGER STATS</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        </div>
+        <div class="kpi-item-value" style="color: #0284c7;">
+            @Model.ExpensesModel.InvoiceCount <span style="font-size: 0.95rem; font-weight: 700;">INV</span> / @Model.ExpensesModel.PendingPiCount <span style="font-size: 0.95rem; font-weight: 700;">PI</span>
+        </div>
+        <div class="kpi-item-sub">LEDGER: @Model.ExpensesModel.TotalCount | TXNS: @Model.TransactionsModel.TotalCount</div>
+        <div class="kpi-pill kpi-pill-blue">ARCHIVED BOOKKEEPING</div>
+    </div>
+</div>
+
+<!-- 5. ANNUAL FINANCIAL COMPARISON (AUDIT SUMMARY CARD) -->
+<div class="exp-table-card audit-card">
+    <div class="exp-table-header">
+        <div class="exp-table-title">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+            <span>ANNUAL FINANCIAL COMPARISON (AUDIT SUMMARY)</span>
+        </div>
+        <span style="font-size: 0.72rem; font-weight: 700; color: var(--muted);">CLICK "AUDIT FY" ON ANY YEAR TO FILTER EXECUTIVE TOTALS</span>
+    </div>
+    <div class="exp-table-container">
+        <table class="exp-table">
+            <thead>
+                <tr>
+                    <th>FINANCIAL YEAR</th>
+                    <th>PERIOD / DATES</th>
+                    <th>DIRECT INFLOW (₹)</th>
+                    <th>BRANCH INFLOW (₹)</th>
+                    <th>TOTAL INFLOW (₹)</th>
+                    <th>TOTAL OUTFLOW (₹)</th>
+                    <th>NET CASH FLOW (₹)</th>
+                    <th>INVOICES / PIs</th>
+                    <th>TRANSACTIONS</th>
+                    <th>ACTION</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.YearlySummaries)
+                {
+                    var isSelected = Model.SelectedYear == item.StartYear;
+                    <tr class="@(isSelected ? "row-selected-fy" : "")">
+                        <td style="font-weight: 900; color: #0284c7;">
+                            @item.Label
+                            @if (item.IsCurrentYear)
+                            {
+                                <span style="margin-left: 6px; font-size: 0.65rem; background: #059669; color: #fff; padding: 2px 7px; border-radius: 4px; font-weight: 800;">CURRENT FY</span>
+                            }
+                            @if (isSelected)
+                            {
+                                <span style="margin-left: 6px; font-size: 0.65rem; background: #0284c7; color: #fff; padding: 2px 7px; border-radius: 4px; font-weight: 800;">ACTIVE</span>
+                            }
+                        </td>
+                        <td style="color: var(--muted); font-size: 0.76rem;">@item.DateRangeText</td>
+                        <td>₹@item.DirectInflow.ToString("N2")</td>
+                        <td>₹@item.BranchInflow.ToString("N2")</td>
+                        <td style="font-weight: 900; color: #059669;">₹@item.TotalInflow.ToString("N2")</td>
+                        <td style="font-weight: 900; color: #dc2626;">₹@item.TotalOutflow.ToString("N2")</td>
+                        <td style="font-weight: 900; color: @(item.NetCashFlow >= 0 ? "#059669" : "#dc2626");">
+                            ₹@item.NetCashFlow.ToString("N2")
+                        </td>
+                        <td>@item.InvoiceCount Invoices / @item.PiCount PIs</td>
+                        <td>@item.TransactionCount Txns</td>
+                        <td style="display: flex; gap: 6px; justify-content: center; align-items: center;">
+                            <a href="/Expenditure/PreviousYears?year=@item.StartYear" class="action-link @(isSelected ? "action-link-active" : "")">
+                                <span>@(isSelected ? "SELECTED" : "AUDIT FY")</span>
+                                <span>&rarr;</span>
+                            </a>
+                            @if (item.IsCurrentYear)
+                            {
+                                <a href="/Expenditure/Transactions" class="action-link" style="background: rgba(5, 150, 105, 0.12); color: #059669; border-color: rgba(5, 150, 105, 0.3);" title="Open Live Branch Transactions">
+                                    <span>LIVE TXNS ↗</span>
+                                </a>
+                            }
+                            else
+                            {
+                                <a href="/Expenditure/Transactions?FinancialYear=@item.StartYear" class="action-link" style="background: rgba(2, 132, 199, 0.12); color: #0284c7; border-color: rgba(2, 132, 199, 0.3);" title="View all transactions for this financial year">
+                                    <span>VIEW TXNS ↗</span>
+                                </a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,1054 @@
+@using System.Security.Claims
+@using MygtsMvc.Services
+@using MygtsMvc.Models
+@{
+    var userName = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Name) ?? "USER";
+    var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "USER";
+    var isAdmin = string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase) || string.Equals(userRole, "ADMIN", StringComparison.OrdinalIgnoreCase);
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#001d6c" />
+    <title>@(ViewData["Title"] is null ? "EXPENDITURE · MYGTS" : $"{ViewData["Title"]} · EXPENDITURE · MYGTS")</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2" />
+    <link rel="stylesheet" href="~/css/site.css?v=15" asp-append-version="true" />
+    <style>
+        /* GLOBAL EXPENDITURE RULE: ALL TEXT MUST BE UPPERCASE */
+        *, *::before, *::after, input, button, select, textarea, span, p, h1, h2, h3, h4, h5, th, td, label, a, div {
+            text-transform: uppercase !important;
+            box-sizing: border-box;
+        }
+
+        /* WATERMARK LOGO IN BACKGROUND */
+        .exp-watermark {
+            position: fixed;
+            top: 52%;
+            left: calc(50% + 130px);
+            transform: translate(-50%, -50%);
+            width: 520px;
+            height: 520px;
+            background: url('/images/expenditure_logo.jpg') center/contain no-repeat;
+            opacity: 0.032;
+            pointer-events: none;
+            z-index: 0;
+            transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .app-shell.collapsed-sidebar .exp-watermark {
+            left: calc(50% + 35px);
+        }
+        @@media (max-width: 780px) {
+            .exp-watermark {
+                left: 50% !important;
+                width: 320px;
+                height: 320px;
+            }
+        }
+
+        /* SIDEBAR BRAND STYLING */
+        .sidebar-brand-img {
+            height: 42px;
+            width: 42px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+            margin-right: 10px;
+            background: #000;
+            flex-shrink: 0;
+        }
+
+        /* COLLAPSED SIDEBAR LOGO */
+        .collapsed .sidebar-brand-img {
+            margin-right: 0 !important;
+        }
+
+        /* BRANCH CHIP IN SIDEBAR */
+        .exp-sidebar-branch {
+            padding: 0 16px 14px 16px;
+        }
+        .collapsed .exp-sidebar-branch {
+            display: none;
+        }
+
+        /* BRANCH SWITCHER DEFAULT STYLES */
+        .branch-full { display: inline-block; }
+        .branch-short { display: none; }
+
+        /* COLLAPSED BRANCH SWITCHER STYLES */
+        .sidebar.collapsed .branch-switcher-container,
+        .collapsed .branch-switcher-container,
+        .collapsed-sidebar .sidebar .branch-switcher-container {
+            padding: 0 12px 14px 12px !important;
+            display: flex !important;
+            justify-content: center !important;
+        }
+        .sidebar.collapsed #branchSwitcherBtn,
+        .collapsed #branchSwitcherBtn,
+        .collapsed-sidebar .sidebar #branchSwitcherBtn,
+        .collapsed-sidebar #branchSwitcherBtn {
+            justify-content: center !important;
+            align-items: center !important;
+            padding: 0 !important;
+            width: 38px !important;
+            height: 38px !important;
+            min-width: 38px !important;
+            max-width: 38px !important;
+            border-radius: 8px !important;
+            margin: 0 auto !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+            display: flex !important;
+        }
+        .sidebar.collapsed .branch-full,
+        .collapsed .branch-full,
+        .collapsed-sidebar .sidebar .branch-full,
+        .collapsed-sidebar #branchSwitcherBtn .branch-full {
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            pointer-events: none !important;
+            overflow: hidden !important;
+        }
+        .sidebar.collapsed .branch-short,
+        .collapsed .branch-short,
+        .collapsed-sidebar .sidebar .branch-short,
+        .collapsed-sidebar #branchSwitcherBtn .branch-short {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 1.15rem !important;
+            font-weight: 900 !important;
+            text-align: center !important;
+            line-height: 1 !important;
+            color: #ffffff !important;
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .sidebar.collapsed .branch-chevron,
+        .collapsed .branch-chevron,
+        .collapsed-sidebar .sidebar .branch-chevron,
+        .collapsed-sidebar #branchSwitcherBtn .branch-chevron {
+            display: none !important;
+        }
+
+        .exp-branch-card {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(15, 118, 110, 0.22));
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 8px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* USER PROFILE PILL IN TOPBAR */
+        .exp-user-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #ffffff;
+            padding: 6px 14px;
+            border-radius: 999px;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        .exp-user-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.82rem;
+            box-shadow: 0 2px 5px rgba(2, 132, 199, 0.3);
+        }
+        .exp-user-info {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.15;
+            text-align: left;
+        }
+        .exp-user-name {
+            font-weight: 800;
+            font-size: 0.78rem;
+            color: #0f172a;
+        }
+        .exp-user-role {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #64748b;
+        }
+        .exp-logout-btn {
+            color: #ef4444;
+            display: flex;
+            align-items: center;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background 0.15s;
+            margin-left: 4px;
+        }
+        .exp-logout-btn:hover {
+            background: #fee2e2;
+        }
+
+        /* TOP NAVIGATION TABS */
+        .exp-nav-tabs {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 22px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 12px;
+        }
+        .exp-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 800;
+            text-decoration: none;
+            color: #64748b;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            transition: all 0.15s ease;
+        }
+        .exp-tab:hover {
+            color: #0f172a;
+            background: #e2e8f0;
+        }
+        .exp-tab.active {
+            color: #ffffff !important;
+            background: #0284c7 !important;
+            border-color: #0284c7 !important;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+        }
+        .exp-tab-badge {
+            font-size: 0.62rem;
+            font-weight: 900;
+            padding: 2px 7px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+            letter-spacing: 0.5px;
+        }
+
+        /* SHARED EXECUTIVE KPI STYLES */
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .kpi-item {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 18px 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.18s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.18s ease;
+            user-select: none;
+        }
+        .kpi-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+        .kpi-item-title {
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: #64748b;
+            letter-spacing: 0.6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .kpi-item-value {
+            font-size: 1.55rem;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            margin: 6px 0 4px 0;
+            font-family: inherit;
+        }
+        .kpi-val-total { color: #059669; }
+        .kpi-val-dmg { color: #0284c7; }
+        .kpi-val-rto { color: #c2410c; }
+        .kpi-val-profit { color: #4338ca; }
+        .kpi-item-sub {
+            font-size: 0.70rem;
+            font-weight: 700;
+            color: #94a3b8;
+        }
+        .kpi-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.64rem;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            padding: 4px 9px;
+            border-radius: 999px;
+            margin-top: 10px;
+            width: fit-content;
+            text-transform: uppercase;
+            transition: all 0.15s ease;
+        }
+        .kpi-pill-subtle { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+        .kpi-pill-green { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+        .kpi-pill-red { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .kpi-pill-blue { background: #e0f2fe; color: #0369a1; border: 1px solid #7dd3fc; }
+        .kpi-pill-orange { background: #ffedd5; color: #c2410c; border: 1px solid #fdba74; }
+        .kpi-pill-indigo { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; }
+
+        /* SHARED FILTER CARD */
+        .exp-filter-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        }
+        .exp-filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 14px;
+            align-items: end;
+        }
+        .exp-field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .exp-label {
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: #475569;
+            letter-spacing: 0.5px;
+        }
+        .exp-input, .exp-select {
+            height: 38px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 0 10px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            background: #f8fafc;
+            color: #0f172a;
+            width: 100%;
+            outline: none;
+            transition: all 0.15s ease;
+        }
+        .exp-input:focus, .exp-select:focus {
+            border-color: #0284c7;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+        }
+
+        /* SHARED BADGES */
+        .badge-type-pi {
+            background: #ffedd5;
+            color: #c2410c;
+            border: 1px solid #fed7aa;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.70rem;
+            font-weight: 900;
+        }
+        .badge-type-inv {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.70rem;
+            font-weight: 900;
+        }
+        .badge-flow-credit {
+            background: #dcfce7;
+            color: #166534;
+            font-weight: 900;
+            font-size: 0.72rem;
+            padding: 3px 9px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border: 1px solid #bbf7d0;
+        }
+        .badge-flow-debit {
+            background: #fee2e2;
+            color: #991b1b;
+            font-weight: 900;
+            font-size: 0.72rem;
+            padding: 3px 9px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border: 1px solid #fecaca;
+        }
+
+        /* DARK MODE FOR EXPENDITURE */
+        body:has(#theme:checked) .exp-nav-tabs {
+            border-bottom-color: #334155;
+        }
+        body:has(#theme:checked) .exp-tab {
+            background: #1e293b;
+            border-color: #334155;
+            color: #94a3b8;
+        }
+        body:has(#theme:checked) .exp-tab:hover {
+            background: #334155;
+            color: #f8fafc;
+        }
+        body:has(#theme:checked) .exp-tab.active {
+            background: #0284c7 !important;
+            border-color: #38bdf8 !important;
+            color: #ffffff !important;
+        }
+        body:has(#theme:checked) .exp-user-pill {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        body:has(#theme:checked) .exp-user-name {
+            color: #f8fafc;
+        }
+        body:has(#theme:checked) .exp-user-role {
+            color: #94a3b8;
+        }
+        body:has(#theme:checked) .kpi-item {
+            background: #0b0f19 !important;
+            border-color: #1e293b !important;
+            color: #f8fafc !important;
+        }
+        /* EXPENDITURE DARK MODE COMPREHENSIVE OVERRIDES */
+        body:has(#theme:checked) .card,
+        body:has(#theme:checked) .exp-form-card {
+            background: #0b0f19 !important;
+            border-color: #1e293b !important;
+            color: #f8fafc !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+        }
+        body:has(#theme:checked) .exp-form-label {
+            color: #94a3b8 !important;
+        }
+        body:has(#theme:checked) .unpaid-option-box {
+            background: rgba(239, 68, 68, 0.12) !important;
+            border-color: rgba(239, 68, 68, 0.35) !important;
+        }
+        body:has(#theme:checked) .unpaid-option-box label,
+        body:has(#theme:checked) .unpaid-option-box label span,
+        body:has(#theme:checked) .unpaid-option-box #unpaidNotice {
+            color: #fca5a5 !important;
+        }
+        body:has(#theme:checked) .conversion-option-box {
+            background: rgba(245, 158, 11, 0.12) !important;
+            border-color: rgba(245, 158, 11, 0.35) !important;
+        }
+        body:has(#theme:checked) .conversion-option-box label,
+        body:has(#theme:checked) .conversion-option-box label span {
+            color: #fcd34d !important;
+        }
+        body:has(#theme:checked) .credit-card,
+        body:has(#theme:checked) .credit-form-card,
+        body:has(#theme:checked) .credit-table-card {
+            background: #0b0f19 !important;
+            border-color: #1e293b !important;
+            color: #f8fafc !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+        }
+        body:has(#theme:checked) .credit-metric-title {
+            color: #94a3b8 !important;
+        }
+        body:has(#theme:checked) .credit-metric-value {
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .credit-table-header {
+            background: #111827 !important;
+            border-bottom-color: #1e293b !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .credit-filter-label {
+            color: #94a3b8 !important;
+        }
+        body:has(#theme:checked) .credit-filter-input,
+        body:has(#theme:checked) .credit-input,
+        body:has(#theme:checked) .credit-textarea,
+        body:has(#theme:checked) .exp-form-input,
+        body:has(#theme:checked) .exp-form-select,
+        body:has(#theme:checked) .exp-form-textarea,
+        body:has(#theme:checked) .custom-select-trigger {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .credit-filter-input:focus,
+        body:has(#theme:checked) .credit-input:focus,
+        body:has(#theme:checked) .credit-textarea:focus,
+        body:has(#theme:checked) .exp-form-input:focus,
+        body:has(#theme:checked) .exp-form-select:focus,
+        body:has(#theme:checked) .exp-form-textarea:focus,
+        body:has(#theme:checked) .custom-select-trigger:focus {
+            background: #0f172a !important;
+            border-color: #38bdf8 !important;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
+        }
+        body:has(#theme:checked) .credit-table-container {
+            background: #0b0f19 !important;
+        }
+        body:has(#theme:checked) .credit-data-table {
+            background-color: #0b0f19 !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .credit-data-table thead th {
+            background: #111827 !important;
+            border-bottom-color: #1e293b !important;
+            color: #94a3b8 !important;
+        }
+        body:has(#theme:checked) .credit-data-table tbody td {
+            background-color: transparent !important;
+            border-bottom-color: #1e293b !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .credit-data-table tbody tr:hover td {
+            background-color: #1e293b !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .credit-data-table tfoot td {
+            background: #111827 !important;
+            border-top-color: #334155 !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .credit-direction-selector {
+            background: #1e293b !important;
+        }
+        body:has(#theme:checked) .credit-direction-option {
+            color: #94a3b8 !important;
+        }
+        body:has(#theme:checked) .credit-direction-option.selected {
+            background: #0b0f19 !important;
+            border-color: #334155 !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .credit-direction-option.selected.to-us {
+            color: #38bdf8 !important;
+            border-color: #0284c7 !important;
+        }
+        body:has(#theme:checked) .credit-direction-option.selected.by-us {
+            color: #c084fc !important;
+            border-color: #7c3aed !important;
+        }
+        body:has(#theme:checked) .credit-action-btn-reopen {
+            background: #1e293b !important;
+            color: #cbd5e1 !important;
+            border-color: #334155 !important;
+        }
+        body:has(#theme:checked) .credit-action-btn-reopen:hover {
+            background: #334155 !important;
+            color: #ffffff !important;
+        }
+        body:has(#theme:checked) .credit-action-btn-edit {
+            background: rgba(2, 132, 199, 0.2) !important;
+            color: #38bdf8 !important;
+            border-color: #0284c7 !important;
+        }
+        body:has(#theme:checked) .credit-action-btn-del {
+            background: rgba(239, 68, 68, 0.2) !important;
+            color: #f87171 !important;
+            border-color: #dc2626 !important;
+        }
+        body:has(#theme:checked) .credit-modal-content {
+            background: #0b0f19 !important;
+            border: 1px solid #1e293b !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .custom-select-dropdown {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+            color: #f8fafc !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+        }
+        body:has(#theme:checked) .dropdown-opt {
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .dropdown-opt:hover {
+            background: #334155 !important;
+            color: #38bdf8 !important;
+        }
+        body:has(#theme:checked) .dropdown-search-input {
+            background: #0f172a !important;
+            border-color: #334155 !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .dropdown-add-bottom {
+            background: #0f172a !important;
+            border-color: #334155 !important;
+        }
+        body:has(#theme:checked) #unpaidNoticeBox {
+            background: rgba(239, 68, 68, 0.12) !important;
+            border-color: rgba(239, 68, 68, 0.35) !important;
+            color: #fca5a5 !important;
+        }
+        body:has(#theme:checked) #unpaidNoticeBox span {
+            color: #fca5a5 !important;
+        }
+        body:has(#theme:checked) #invoiceConversionNoticeBox {
+            background: rgba(245, 158, 11, 0.12) !important;
+            border-color: rgba(245, 158, 11, 0.35) !important;
+            color: #fcd34d !important;
+        }
+        body:has(#theme:checked) #invoiceConversionNoticeBox span {
+            color: #fcd34d !important;
+        }
+        body:has(#theme:checked) .credit-form-card div[style*="background: #f8fafc"] {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        body:has(#theme:checked) .credit-form-card label span,
+        body:has(#theme:checked) .credit-modal label span {
+            color: #f8fafc !important;
+        }
+
+        body:has(#theme:checked) .exp-filter-card {
+            background: #0b0f19 !important;
+            border-color: #1e293b !important;
+        }
+        body:has(#theme:checked) .exp-input,
+        body:has(#theme:checked) .exp-select {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .exp-table-card {
+            background: #0b0f19 !important;
+            border-color: #1e293b !important;
+        }
+        body:has(#theme:checked) .exp-table-header {
+            background: #111827 !important;
+            border-bottom-color: #1e293b !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .exp-table {
+            background-color: #0b0f19 !important;
+        }
+        body:has(#theme:checked) .exp-table th {
+            background: #111827 !important;
+            border-bottom-color: #334155 !important;
+            color: #94a3b8 !important;
+        }
+        body:has(#theme:checked) .exp-table td {
+            background-color: #0b0f19 !important;
+            border-bottom-color: #1e293b !important;
+            color: #f8fafc !important;
+        }
+        body:has(#theme:checked) .exp-table tr:hover td,
+        body:has(#theme:checked) .exp-table tbody tr:hover td {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+        }
+        body:has(#theme:checked) .exp-table tr:hover td.col-sticky-action,
+        body:has(#theme:checked) .exp-table tbody tr:hover td.col-sticky-action {
+            background-color: #1e293b !important;
+        }
+        body:has(#theme:checked) .exp-pagination {
+            background: #0f172a !important;
+            border-top-color: #1e293b !important;
+        }
+        body:has(#theme:checked) .exp-pagination-info {
+            color: #94a3b8 !important;
+        }
+        body:has(#theme:checked) .exp-pagination-current {
+            color: #cbd5e1 !important;
+        }
+        body:has(#theme:checked) .badge-type-pi {
+            background: rgba(249, 115, 22, 0.18) !important;
+            color: #fb923c !important;
+            border-color: rgba(251, 146, 60, 0.35) !important;
+        }
+        body:has(#theme:checked) .badge-type-inv {
+            background: rgba(34, 197, 94, 0.18) !important;
+            color: #4ade80 !important;
+            border-color: rgba(74, 222, 128, 0.35) !important;
+        }
+        body:has(#theme:checked) .badge-flow-credit {
+            background: rgba(34, 197, 94, 0.18) !important;
+            color: #4ade80 !important;
+            border-color: rgba(74, 222, 128, 0.35) !important;
+        }
+        body:has(#theme:checked) .badge-flow-debit {
+            background: rgba(239, 68, 68, 0.18) !important;
+            color: #f87171 !important;
+            border-color: rgba(248, 113, 113, 0.35) !important;
+        }
+        body:has(#theme:checked) .exp-page-btn {
+            background: #1e293b !important;
+            color: #cbd5e1 !important;
+            border-color: #334155 !important;
+        }
+        body:has(#theme:checked) .exp-page-btn:hover {
+            background: #273549 !important;
+            color: #ffffff !important;
+            border-color: #475569 !important;
+        }
+        body:has(#theme:checked) .row-pi {
+            background-color: rgba(249, 115, 22, 0.12) !important;
+        }
+        body:has(#theme:checked) .row-pi:hover {
+            background-color: rgba(249, 115, 22, 0.20) !important;
+        }
+        body:has(#theme:checked) .row-invoice {
+            background-color: rgba(34, 197, 94, 0.10) !important;
+        }
+        body:has(#theme:checked) .row-invoice:hover {
+            background-color: rgba(34, 197, 94, 0.18) !important;
+        }
+        body:has(#theme:checked) .row-receipt {
+            background-color: #0b0f19 !important;
+        }
+        body:has(#theme:checked) .row-receipt:hover {
+            background-color: #151e2e !important;
+        }
+        body:has(#theme:checked) .kpi-pill-subtle {
+            background: #1e293b !important;
+            color: #94a3b8 !important;
+            border-color: #334155 !important;
+        }
+    </style>
+</head>
+<body class="preload app-body">
+    <div class="exp-watermark"></div>
+
+    <div class="app-shell" id="appShell">
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar" data-testid="app-sidebar">
+            <script>
+                if (localStorage.getItem('sidebar_collapsed') === 'true' && window.innerWidth > 780) {
+                    document.getElementById('appShell').classList.add('collapsed-sidebar');
+                    document.getElementById('sidebar').classList.add('collapsed');
+                }
+            </script>
+            <div class="sidebar-header">
+                <a class="brand-lockup" href="/Expenditure/Expenses" data-testid="brand-link" style="display: flex; align-items: center; text-decoration: none;">
+                    <img src="/images/expenditure_logo.jpg" alt="MYGTS Shield Emblem" class="sidebar-brand-img" />
+                    <span class="brand-text"><strong>MYGTS</strong><small>EXPENDITURE</small></span>
+                </a>
+                <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle sidebar">
+                    <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 10H3M21 18H3M21 6H3M21 14H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- BRANCH SWITCHER -->
+            <div class="branch-switcher-container" style="padding: 0 16px 14px 16px; position: relative;">
+                <button id="branchSwitcherBtn" type="button" class="input" style="width: 100%; padding: 6px 12px; font-size: 0.85rem; font-weight: 800; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; background-color: rgba(2, 132, 199, 0.25); color: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; overflow: hidden;" title="Expenditure">
+                    <span class="branch-full">EXPENDITURE</span>
+                    <span class="branch-short">E</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="branch-chevron" style="opacity: 0.8;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <div id="branchSwitcherMenu" style="display: none; position: absolute; top: calc(100% - 6px); left: 16px; right: 16px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); overflow: hidden; z-index: 1000;">
+                    @if (User.HasBranchAccess("DMG"))
+                    {
+                        <a href="/Dashboard/SwitchBranch?branch=DMG" class="branch-option" data-value="DMG" style="display: block; padding: 8px 12px; color: #0f172a; text-decoration: none; font-weight: 700; transition: background 0.15s; font-size: 0.85rem;">DMG</a>
+                    }
+                    @if (User.HasBranchAccess("RTO"))
+                    {
+                        <a href="/Dashboard/SwitchBranch?branch=RTO" class="branch-option" data-value="RTO" style="display: block; padding: 8px 12px; color: #0f172a; text-decoration: none; font-weight: 700; transition: background 0.15s; font-size: 0.85rem;">RTO</a>
+                    }
+                    @if (User.HasBranchAccess("Expenditure"))
+                    {
+                        <a href="/Dashboard/SwitchBranch?branch=Expenditure" class="branch-option selected" data-value="Expenditure" style="display: block; padding: 8px 12px; color: #ffffff; background: #0284c7; text-decoration: none; font-weight: 800; font-size: 0.85rem;">EXPENDITURE</a>
+                    }
+                </div>
+            </div>
+
+            <div class="sidebar-section-label">FINANCIAL WORKSPACE</div>
+            <nav class="primary-nav" aria-label="Expenditure navigation">
+                <a class="nav-link @(currentController == "Expenses" && currentAction != "Create" ? "active" : "")" href="/Expenditure/Expenses" title="Invoices & Proforma (PI) Records">
+                    <span class="nav-icon">
+                        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                    </span>
+                    <span class="nav-text">INVOICES & PIs</span>
+                </a>
+
+                <a class="nav-link @(currentController == "Transactions" ? "active" : "")" href="/Expenditure/Transactions" title="Customer Transactions from DMG & RTO">
+                    <span class="nav-icon">
+                        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="5" width="20" height="14" rx="2"/>
+                            <line x1="2" y1="10" x2="22" y2="10"/>
+                        </svg>
+                    </span>
+                    <span class="nav-text">BRANCH TRANSACTIONS</span>
+                </a>
+
+                <a class="nav-link @(currentController == "Credit" ? "active" : "")" href="/Expenditure/Credit" title="Company Credit Ledger">
+                    <span class="nav-icon">
+                        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                            <line x1="1" y1="10" x2="23" y2="10"></line>
+                        </svg>
+                    </span>
+                    <span class="nav-text">COMPANY CREDITS</span>
+                </a>
+
+                <a class="nav-link @(currentController == "PreviousYears" ? "active" : "")" href="/Expenditure/PreviousYears" title="Previous Financial Years Archive">
+                    <span class="nav-icon">
+                        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 14 14"></polyline>
+                            <path d="M4 12a8 8 0 0 1 14.93-4"></path>
+                        </svg>
+                    </span>
+                    <span class="nav-text">PREVIOUS YEARS</span>
+                </a>
+
+                <a class="nav-link @(currentController == "Expenses" && currentAction == "Create" ? "active" : "")" href="/Expenditure/Expenses/Create" title="Add New Invoice / PI Entry">
+                    <span class="nav-icon">
+                        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="16"/>
+                            <line x1="8" y1="12" x2="16" y2="12"/>
+                        </svg>
+                    </span>
+                    <span class="nav-text">ADD ENTRY</span>
+                </a>
+
+                @if (isAdmin)
+                {
+                    <div class="sidebar-section-label" style="margin-top: 20px;">SECURITY & ACCESS</div>
+                    <a class="nav-link @(currentController == "Users" ? "active" : "")" href="/Expenditure/Users" title="Expenditure Users">
+                        <span class="nav-icon">
+                            <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">USER MANAGEMENT</span>
+                    </a>
+                }
+
+                <div class="sidebar-section-label" style="margin-top: 20px;">HELP & DOCS</div>
+                @if (isAdmin)
+                {
+                    <a class="nav-link @(currentController == "Documents" && currentAction == "Src" ? "active" : "")" href="/Documents/Src?branch=Expenditure" title="System Requirements Specification (Admin Only)">
+                        <span class="nav-icon">
+                            <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <polyline points="10 9 9 9 8 9"/>
+                            </svg>
+                        </span>
+                        <span class="nav-text">SRC (SPEC)</span>
+                    </a>
+                }
+                <a class="nav-link @(currentController == "Documents" && currentAction == "UserManual" ? "active" : "")" href="/Documents/UserManual?branch=Expenditure" title="Modular User Manual">
+                    <span class="nav-icon">
+                        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        </svg>
+                    </span>
+                    <span class="nav-text">USER MANUAL</span>
+                </a>
+
+                <div class="sidebar-section-label" style="margin-top: 20px;">BRANCH NAVIGATION</div>
+                <a class="nav-link" href="/Account/Login" title="Switch Branch / Logout">
+                    <span class="nav-icon">
+                        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                            <polyline points="16 17 21 12 16 7"/>
+                            <line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                    </span>
+                    <span class="nav-text">SWITCH BRANCH</span>
+                </a>
+
+                <a class="nav-link" href="/Account/Logout" title="Sign out of Expenditure">
+                    <span class="nav-icon">
+                        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+                            <line x1="12" y1="2" x2="12" y2="12"/>
+                        </svg>
+                    </span>
+                    <span class="nav-text">LOGOUT</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footnote">
+                <span class="status-dot"></span>
+                <span class="footnote-text"><strong>ISOLATED DATA</strong><small>EXPENDITURE_MYGTS.DB</small></span>
+            </div>
+        </aside>
+
+        <!-- APP MAIN WRAPPER -->
+        <div class="app-main">
+            <!-- TOPBAR -->
+            <header class="topbar">
+                <button class="menu-toggle" type="button" id="mobileMenuToggle" aria-label="Toggle navigation">☰</button>
+                <div class="topbar-context">
+                    <span class="eyebrow">
+                        <a href="/Expenditure/Expenses" style="text-decoration: none; color: inherit;">MYGTS</a>
+                        <span> / </span>
+                        <a href="/Expenditure/Expenses" style="text-decoration: none; color: inherit;">EXPENDITURE</a>
+                        @if (!string.IsNullOrEmpty(currentAction) && currentAction != "Index")
+                        {
+                            <span> / </span>
+                            <span>@currentAction</span>
+                        }
+                    </span>
+                    <span class="topbar-title">@ViewData["Title"]</span>
+                </div>
+                <div class="topbar-actions" style="display: flex; align-items: center; gap: 12px;">
+                    <!-- Theme Switcher -->
+                    <label for="theme" class="theme" style="--bg: #fff; --transDur: 0.3s; --primary: #0284c7; --primaryT: #0369a1; font-size: 10px; margin: 0 4px; cursor: pointer;">
+                        <span class="theme__toggle-wrap">
+                            <input id="theme" class="theme__toggle" type="checkbox" role="switch" name="theme" value="dark">
+                            <script>
+                                if (localStorage.getItem('mygts_theme') === 'dark') {
+                                    document.getElementById('theme').checked = true;
+                                }
+                                document.getElementById('theme').addEventListener('change', function() {
+                                    localStorage.setItem('mygts_theme', this.checked ? 'dark' : 'light');
+                                });
+                            </script>
+                            <span class="theme__fill"></span>
+                            <span class="theme__icon">
+                                <span class="theme__icon-part"></span>
+                                <span class="theme__icon-part"></span>
+                                <span class="theme__icon-part"></span>
+                                <span class="theme__icon-part"></span>
+                                <span class="theme__icon-part"></span>
+                                <span class="theme__icon-part"></span>
+                                <span class="theme__icon-part"></span>
+                                <span class="theme__icon-part"></span>
+                                <span class="theme__icon-part"></span>
+                            </span>
+                        </span>
+                    </label>
+
+                    <a href="/Expenditure/Expenses/Create" class="button btn-primary" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 0.82rem; font-weight: 800; border-radius: 6px; text-decoration: none;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>NEW ENTRY</span>
+                    </a>
+
+                    <div class="exp-user-pill">
+                        <div class="exp-user-avatar">
+                            @(userName.Length > 0 ? userName.Substring(0, 1).ToUpper() : "U")
+                        </div>
+                        <a href="/Users/Profile" class="exp-user-info" style="text-decoration: none; cursor: pointer;" title="View My Profile & Credentials">
+                            <span class="exp-user-name">@userName</span>
+                            <span class="exp-user-role">@userRole</span>
+                        </a>
+                        <a href="/Account/Logout" class="exp-logout-btn" title="Sign Out">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                <polyline points="16 17 21 12 16 7"/>
+                                <line x1="21" y1="12" x2="9" y2="12"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="page-content" style="padding: 24px 32px 64px 32px; max-width: 1750px; margin: 0 auto; width: 100%; box-sizing: border-box; position: relative; z-index: 1;">
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // SIDEBAR COLLAPSE TOGGLE (handled globally by site.js)
+        const sidebar = document.getElementById('sidebar');
+        const appShell = document.getElementById('appShell');
+
+        // MOBILE TOGGLE
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        if (mobileMenuToggle && sidebar) {
+            mobileMenuToggle.addEventListener('click', function () {
+                sidebar.classList.toggle('mobile-open');
+            });
+        }
+
+        // BRANCH SWITCHER
+        const branchBtn = document.getElementById('branchSwitcherBtn');
+        const branchMenu = document.getElementById('branchSwitcherMenu');
+        if (branchBtn && branchMenu) {
+            branchBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                branchMenu.style.display = branchMenu.style.display === 'none' ? 'block' : 'none';
+            });
+            document.addEventListener('click', (e) => {
+                if (!branchMenu.contains(e.target) && e.target !== branchBtn) {
+                    branchMenu.style.display = 'none';
+                }
+            });
+            document.querySelectorAll('.branch-option').forEach(opt => {
+                opt.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const targetBranch = this.dataset.value || (this.innerText || '').trim();
+                    document.cookie = "mygts_branch=" + encodeURIComponent(targetBranch) + ";path=/;max-age=31536000;SameSite=Lax";
+                    if (branchMenu) branchMenu.style.display = 'none';
+                    try {
+                        if (window.sessionStorage) sessionStorage.clear();
+                    } catch(e) {}
+                    window.location.replace('/Dashboard/SwitchBranch?branch=' + encodeURIComponent(targetBranch));
+                });
+            });
+        }
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+    <script>
+        (function() {
+            function checkTablePage() {
+                if (document.querySelector('.table-wrap, .exp-table-container, .dsh-table-container, .credit-table-container, .vendors-table-card')) {
+                    document.documentElement.classList.add('has-table-page');
+                    document.body.classList.add('has-table-page');
+                } else {
+                    document.documentElement.classList.remove('has-table-page');
+                    document.body.classList.remove('has-table-page');
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', checkTablePage);
+            } else {
+                checkTablePage();
+            }
+        })();
+    </script>
+</body>
+</html>

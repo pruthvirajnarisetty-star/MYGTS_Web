@@ -1,0 +1,1991 @@
+@model ConfigViewModel
+
+
+
+
+
+
+
+@{
+
+
+
+
+
+
+
+    ViewData["Title"] = "Configuration";
+
+
+
+
+
+
+
+    var currentBranch = ViewContext.RouteData.Values["area"]?.ToString() == "RTO" ? "RTO" : (Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG");
+
+
+
+
+
+
+
+    var labels = new Dictionary<string, string> { 
+
+
+
+
+
+
+
+        ["ADMIN_COST"] = "Admin Cost",
+        ["PRICE_RECHARGE"] = "Recharge price",
+        ["PRICE_REACTIVATION"] = "Reactivation price",
+        ["PRICE_TAX"] = "Tax rate", 
+
+
+
+
+
+
+
+        ["SIM_COST"] = currentBranch == "RTO" ? "SIM (2 years)" : "SIM Cost",
+
+
+
+
+
+
+
+        ["SIM_COST_1_YEAR"] = "SIM (1 year)",
+
+
+
+
+
+
+
+        ["COMMISSION_COST"] = "Commission Cost",
+
+
+
+
+
+
+
+        ["REMINDER_DAYS"] = "Reminder window (days)",
+
+
+
+
+
+
+
+        ["SUSPENSION_DAYS"] = "Taisys suspension window (days)",
+        ["TERMINATION_DAYS"] = "Taisys termination window (days)",
+        ["SENSORISE_SUSPENSION_DAYS"] = "Sensorise suspension window (days)",
+        ["SENSORISE_TERMINATION_DAYS"] = "Sensorise termination window (days)",
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+                ["ACTIVATION_EXPIRY_1_YEAR_MONTHS"] = "1 Year SIM expiry period (months)",
+
+        ["ACTIVATION_EXPIRY_1_YEAR_DAYS"] = "1 Year SIM expiry padding (days)",
+
+        ["ACTIVATION_EXPIRY_2_YEAR_MONTHS"] = "2 Years SIM expiry period (months)",
+
+        ["ACTIVATION_EXPIRY_2_YEAR_DAYS"] = "2 Years SIM expiry padding (days)",
+
+        ["ACTIVATION_EXPIRY_MONTHS"] = "Activation expiry period (months)",
+
+
+
+
+
+
+
+        ["ACTIVATION_EXPIRY_DAYS"] = "Activation expiry padding (days)",
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+        ["COMPANY_RECHARGE_RATE"] = "Taisys Recharge Rate (Renewal)",
+        ["COMPANY_REACTIVATION_RATE"] = "Taisys Reactivation Rate",
+        ["SENSORISE_RECHARGE_RATE"] = "Sensorise Recharge Rate (Renewal)",
+        ["SENSORISE_REACTIVATION_RATE"] = "Sensorise Reactivation Rate",
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+    };
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+    var pricingKeys = currentBranch == "RTO"
+        ? new List<string> { "ADMIN_COST", "PRICE_RECHARGE", "PRICE_REACTIVATION", "PRICE_TAX", "SIM_COST", "SIM_COST_1_YEAR", "COMMISSION_COST" }
+        : new List<string> { "ADMIN_COST", "PRICE_TAX" };
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="page-heading">
+
+
+
+
+
+
+
+    <div>
+
+
+
+
+
+
+
+        <div class="eyebrow">Executive controls / pricing engine (@currentBranch Branch)</div>
+
+
+
+
+
+
+
+        <h1>Configuration</h1>
+
+
+
+
+
+
+
+        <p>Maintain the values used by calculated transactions, dashboard margins, and operational reminders.</p>
+
+
+
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@if (TempData["Success"] != null)
+
+
+
+
+
+
+
+{
+
+
+
+
+
+
+
+    <div class="alert alert-success" style="padding: 12px 18px; margin-bottom: 16px; border-radius: 8px; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+
+
+
+
+
+
+
+        ✓ @TempData["Success"]
+
+
+
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+@if (TempData["Error"] != null)
+
+
+
+
+
+
+
+{
+
+
+
+
+
+
+
+    <div class="alert alert-danger" style="padding: 12px 18px; margin-bottom: 16px; border-radius: 8px; background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">
+
+
+
+
+
+
+
+        ⚠ @TempData["Error"]
+
+
+
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style>
+
+
+
+
+
+
+
+    .config-input.locked {
+
+
+
+
+
+
+
+        background-color: rgba(255, 255, 255, 0.04) !important;
+
+
+
+
+
+
+
+        color: var(--text) !important;
+
+
+
+
+
+
+
+        cursor: not-allowed !important;
+
+
+
+
+
+
+
+        opacity: 0.85 !important;
+
+
+
+
+
+
+
+        border-color: var(--line) !important;
+
+
+
+
+
+
+
+        user-select: none;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .config-input.unlocked {
+
+
+
+
+
+
+
+        background-color: var(--surface) !important;
+
+
+
+
+
+
+
+        color: var(--text) !important;
+
+
+
+
+
+
+
+        cursor: text !important;
+
+
+
+
+
+
+
+        opacity: 1 !important;
+
+
+
+
+
+
+
+        border-color: var(--accent) !important;
+
+
+
+
+
+
+
+        box-shadow: 0 0 0 1px var(--accent);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .edit-lock-card {
+
+
+
+
+
+
+
+        background: var(--bg-surface-2, rgba(255, 255, 255, 0.02));
+
+
+
+
+
+
+
+        border: 1px solid var(--line);
+
+
+
+
+
+
+
+        border-radius: 8px;
+
+
+
+
+
+
+
+        padding: 16px 20px;
+
+
+
+
+
+
+
+        margin-bottom: 22px;
+
+
+
+
+
+
+
+        display: flex;
+
+
+
+
+
+
+
+        align-items: center;
+
+
+
+
+
+
+
+        justify-content: space-between;
+
+
+
+
+
+
+
+        flex-wrap: wrap;
+
+
+
+
+
+
+
+        gap: 16px;
+
+
+
+
+
+
+
+        transition: all 0.2s ease;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    .edit-lock-card.unlocked-mode {
+
+
+
+
+
+
+
+        border-color: rgba(16, 185, 129, 0.4);
+
+
+
+
+
+
+
+        background: rgba(16, 185, 129, 0.04);
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<form class="card" style="padding: 24px;" asp-action="Save" method="post" id="configForm" onsubmit="return validateConfigSubmission();">
+
+
+
+
+
+
+
+    <!-- EDIT LOCK BANNER & CHECKBOX -->
+
+
+
+
+
+
+
+    <div class="edit-lock-card" id="editLockCard">
+
+
+
+
+
+
+
+        <div style="display: flex; align-items: center; gap: 14px;">
+
+
+
+
+
+
+
+            <div id="lockIconBox" style="width: 42px; height: 42px; border-radius: 8px; background: rgba(239, 68, 68, 0.12); color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+
+
+
+
+
+
+
+                <span id="lockIcon">🔒</span>
+
+
+
+
+
+
+
+            </div>
+
+
+
+
+
+
+
+            <div>
+
+
+
+
+
+
+
+                <div style="display: flex; align-items: center; gap: 10px;">
+
+
+
+
+
+
+
+                    <strong style="font-size: 1rem; color: var(--text);">Configuration Edit Protection</strong>
+
+
+
+
+
+
+
+                    <span id="lockStatusBadge" class="badge" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 0.75rem;">Locked (Read-Only)</span>
+
+
+
+
+
+
+
+                </div>
+
+
+
+
+
+
+
+                <div style="font-size: 0.85rem; color: var(--muted); margin-top: 3px;">
+
+
+
+
+
+
+
+                    All configuration fields are locked to prevent accidental erasures or overwrites. Enable editing only when you need to change values.
+
+
+
+
+
+
+
+                </div>
+
+
+
+
+
+
+
+            </div>
+
+
+
+
+
+
+
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; background: var(--surface); padding: 9px 18px; border: 1px solid var(--line); border-radius: 6px; font-weight: 600; font-size: 0.95rem; color: var(--text);">
+
+
+
+
+
+
+
+            <input type="checkbox" id="enableEditCheckbox" name="IsEditingEnabled" value="true" onchange="toggleConfigEditing(this.checked)" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent);" />
+
+
+
+
+
+
+
+            <span>Enable Editing</span>
+
+
+
+
+
+
+
+        </label>
+
+
+
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1.1rem; color: var(--text);">Pricing & Margins</h3>
+
+
+
+
+
+
+
+    <div class="config-grid" style="margin-bottom: 32px;">
+
+
+
+
+
+
+
+        @foreach (var key in pricingKeys)
+
+
+
+
+
+
+
+        {
+
+
+
+
+
+
+
+            var val = Model.Values.TryGetValue(key, out var v) ? v : "";
+
+
+
+
+
+
+
+            var ph = key == "PRICE_TAX" ? "e.g. 0.18" : "e.g. 1500.00";
+
+
+
+
+
+
+
+            <div class="config-item card">
+
+
+
+
+
+
+
+                <label class="form-label" for="Values_@key">
+
+
+
+
+
+
+
+                    @labels[key]
+
+
+
+
+
+
+
+                </label>
+
+
+
+
+
+
+
+                <input class="input config-input locked" type="number" step="any" id="Values_@key" name="Values[@key]" value="@val" placeholder="@ph" readonly="readonly" />
+
+
+
+
+
+
+
+                @if (key == "ADMIN_COST")
+
+
+
+
+
+
+
+                {
+
+
+
+
+
+
+
+                    <span style="display: block; font-size: 0.73rem; color: var(--muted); margin-top: 5px;">Applied to new devices. Once set on a device, changes here will never alter historical profit or transactions.</span>
+
+
+
+
+
+
+
+                }
+
+
+
+
+
+
+
+            </div>
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div>
+
+        <h3 style="margin-top: 0; margin-bottom: 8px; font-size: 1.1rem; color: var(--text);">SIM Activation Expiry Periods</h3>
+
+        <p style="margin-top: 0; margin-bottom: 16px; font-size: 0.82rem; color: var(--muted);">Configured statutory & operational activation validity periods separately for 1-Year and 2-Year SIMs.</p>
+
+
+
+        <!-- 1 Year SIM Activation Expiry -->
+
+        <div style="font-weight: 700; font-size: 0.88rem; color: #2563eb; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+
+            <span>📅</span> 1 Year SIM Activation Expiry Period
+
+        </div>
+
+        <div class="config-grid" style="margin-bottom: 24px;">
+
+            @foreach (var key in new[] { "ACTIVATION_EXPIRY_1_YEAR_MONTHS", "ACTIVATION_EXPIRY_1_YEAR_DAYS" })
+
+            {
+
+                var val = Model.Values.TryGetValue(key, out var v) ? v : (key.EndsWith("MONTHS") ? (currentBranch == "RTO" ? "12" : "11") : (currentBranch == "RTO" ? "0" : "15"));
+
+                var ph = key.EndsWith("MONTHS") ? (currentBranch == "RTO" ? "e.g. 12" : "e.g. 11") : (currentBranch == "RTO" ? "e.g. 0" : "e.g. 15");
+
+                <div class="config-item card">
+
+                    <label class="form-label" for="Values_@key">
+
+                        @labels[key]
+
+                    </label>
+
+                    <input class="input config-input locked" type="number" id="Values_@key" name="Values[@key]" value="@val" placeholder="@ph" readonly="readonly" />
+
+                </div>
+
+            }
+
+        </div>
+
+
+
+        <!-- 2 Years SIM Activation Expiry -->
+
+        <div style="font-weight: 700; font-size: 0.88rem; color: #7c3aed; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+
+            <span>📆</span> 2 Years SIM Activation Expiry Period
+
+        </div>
+
+        <div class="config-grid" style="margin-bottom: 24px;">
+
+            @foreach (var key in new[] { "ACTIVATION_EXPIRY_2_YEAR_MONTHS", "ACTIVATION_EXPIRY_2_YEAR_DAYS" })
+
+            {
+
+                var val = Model.Values.TryGetValue(key, out var v) ? v : (key.EndsWith("MONTHS") ? (currentBranch == "RTO" ? "24" : "23") : (currentBranch == "RTO" ? "0" : "15"));
+
+                var ph = key.EndsWith("MONTHS") ? (currentBranch == "RTO" ? "e.g. 24" : "e.g. 23") : (currentBranch == "RTO" ? "e.g. 0" : "e.g. 15");
+
+                <div class="config-item card">
+
+                    <label class="form-label" for="Values_@key">
+
+                        @labels[key]
+
+                    </label>
+
+                    <input class="input config-input locked" type="number" id="Values_@key" name="Values[@key]" value="@val" placeholder="@ph" readonly="readonly" />
+
+                </div>
+
+            }
+
+        </div>
+
+    </div>
+
+
+
+    <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1.1rem; color: var(--text);">Auto-Calculations, Grace Periods & Alerts</h3>
+
+
+
+
+
+
+
+    <div class="config-grid">
+
+
+
+
+
+
+
+        @foreach (var key in new[] { "SUSPENSION_DAYS", "TERMINATION_DAYS", "SENSORISE_SUSPENSION_DAYS", "SENSORISE_TERMINATION_DAYS" })
+
+
+
+
+
+
+
+        {
+
+
+
+
+
+
+
+            var val = Model.Values.TryGetValue(key, out var v) ? v : "";
+
+
+
+
+
+
+
+            var ph = key switch {
+
+
+
+
+
+
+
+                "ACTIVATION_EXPIRY_MONTHS" => "e.g. 12",
+
+
+
+
+
+
+
+                "ACTIVATION_EXPIRY_DAYS" => "e.g. 0",
+
+
+
+
+
+
+
+                "SUSPENSION_DAYS" => "e.g. 30",
+
+
+
+
+
+
+
+                "TERMINATION_DAYS" => "e.g. 20",
+                "SENSORISE_SUSPENSION_DAYS" => "e.g. 30",
+                "SENSORISE_TERMINATION_DAYS" => "e.g. 20",
+
+
+
+
+
+
+
+                
+
+
+
+
+
+
+
+                
+
+
+
+
+
+
+
+                _ => "0"
+
+
+
+
+
+
+
+            };
+
+
+
+
+
+
+
+            <div class="config-item card">
+
+
+
+
+
+
+
+                <label class="form-label" for="Values_@key">
+
+
+
+
+
+
+
+                    @labels[key]
+
+
+
+
+
+
+
+                </label>
+
+
+
+
+
+
+
+                <input class="input config-input locked" type="number" id="Values_@key" name="Values[@key]" value="@val" placeholder="@ph" readonly="readonly" />
+
+
+
+
+
+
+
+            </div>
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div class="form-actions" style="margin-top: 24px; border-top: 1px solid var(--line); padding-top: 16px;">
+
+
+
+
+
+
+
+        <button class="button btn-primary" id="saveConfigBtn" type="submit" disabled="disabled" style="width: 100%; cursor: not-allowed; opacity: 0.5;">Save configuration</button>
+
+
+
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+</form>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+
+
+
+
+
+
+
+    function toggleConfigEditing(enabled) {
+
+
+
+
+
+
+
+        const inputs = document.querySelectorAll('.config-input');
+
+
+
+
+
+
+
+        const saveBtn = document.getElementById('saveConfigBtn');
+
+
+
+
+
+
+
+        const badge = document.getElementById('lockStatusBadge');
+
+
+
+
+
+
+
+        const iconBox = document.getElementById('lockIconBox');
+
+
+
+
+
+
+
+        const icon = document.getElementById('lockIcon');
+
+
+
+
+
+
+
+        const card = document.getElementById('editLockCard');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        inputs.forEach(input => {
+
+
+
+
+
+
+
+            if (enabled) {
+
+
+
+
+
+
+
+                input.removeAttribute('readonly');
+
+
+
+
+
+
+
+                input.classList.remove('locked');
+
+
+
+
+
+
+
+                input.classList.add('unlocked');
+
+
+
+
+
+
+
+            } else {
+
+
+
+
+
+
+
+                input.setAttribute('readonly', 'readonly');
+
+
+
+
+
+
+
+                input.classList.remove('unlocked');
+
+
+
+
+
+
+
+                input.classList.add('locked');
+
+
+
+
+
+
+
+            }
+
+
+
+
+
+
+
+        });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        if (saveBtn) {
+
+
+
+
+
+
+
+            saveBtn.disabled = !enabled;
+
+
+
+
+
+
+
+            if (enabled) {
+
+
+
+
+
+
+
+                saveBtn.style.cursor = 'pointer';
+
+
+
+
+
+
+
+                saveBtn.style.opacity = '1';
+
+
+
+
+
+
+
+            } else {
+
+
+
+
+
+
+
+                saveBtn.style.cursor = 'not-allowed';
+
+
+
+
+
+
+
+                saveBtn.style.opacity = '0.5';
+
+
+
+
+
+
+
+            }
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        if (card) {
+
+
+
+
+
+
+
+            if (enabled) {
+
+
+
+
+
+
+
+                card.classList.add('unlocked-mode');
+
+
+
+
+
+
+
+            } else {
+
+
+
+
+
+
+
+                card.classList.remove('unlocked-mode');
+
+
+
+
+
+
+
+            }
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        if (badge) {
+
+
+
+
+
+
+
+            if (enabled) {
+
+
+
+
+
+
+
+                badge.textContent = "Unlocked - Editable";
+
+
+
+
+
+
+
+                badge.style.background = "rgba(16, 185, 129, 0.12)";
+
+
+
+
+
+
+
+                badge.style.color = "#10b981";
+
+
+
+
+
+
+
+                badge.style.borderColor = "rgba(16, 185, 129, 0.3)";
+
+
+
+
+
+
+
+            } else {
+
+
+
+
+
+
+
+                badge.textContent = "Locked (Read-Only)";
+
+
+
+
+
+
+
+                badge.style.background = "rgba(239, 68, 68, 0.12)";
+
+
+
+
+
+
+
+                badge.style.color = "#ef4444";
+
+
+
+
+
+
+
+                badge.style.borderColor = "rgba(239, 68, 68, 0.3)";
+
+
+
+
+
+
+
+            }
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        if (iconBox && icon) {
+
+
+
+
+
+
+
+            if (enabled) {
+
+
+
+
+
+
+
+                icon.textContent = "🔓";
+
+
+
+
+
+
+
+                iconBox.style.background = "rgba(16, 185, 129, 0.12)";
+
+
+
+
+
+
+
+                iconBox.style.color = "#10b981";
+
+
+
+
+
+
+
+            } else {
+
+
+
+
+
+
+
+                icon.textContent = "🔒";
+
+
+
+
+
+
+
+                iconBox.style.background = "rgba(239, 68, 68, 0.12)";
+
+
+
+
+
+
+
+                iconBox.style.color = "#ef4444";
+
+
+
+
+
+
+
+            }
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    function validateConfigSubmission() {
+
+
+
+
+
+
+
+        const checkbox = document.getElementById('enableEditCheckbox');
+
+
+
+
+
+
+
+        if (!checkbox || !checkbox.checked) {
+
+
+
+
+
+
+
+            alert("Editing is disabled. Please check 'Enable Editing' to unlock and save changes.");
+
+
+
+
+
+
+
+            return false;
+
+
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+        return true;
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+
+
+
+
+
+
+        const checkbox = document.getElementById('enableEditCheckbox');
+
+
+
+
+
+
+
+        toggleConfigEditing(checkbox ? checkbox.checked : false);
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+
+</script>
+
+
+
+
+
+
+

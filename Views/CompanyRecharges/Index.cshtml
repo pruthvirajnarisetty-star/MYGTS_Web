@@ -1,0 +1,963 @@
+@model CompanyRechargesIndexViewModel
+@{
+    ViewData["Title"] = "Taisys";
+    var defaultRechargeRate = ViewBag.DefaultRechargeRate as decimal? ?? 1298m;
+    var defaultReactivationRate = ViewBag.DefaultReactivationRate as decimal? ?? 1534m;
+}
+
+<style>
+    .cr-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+    .cr-badge-success {
+        background: rgba(16, 185, 129, 0.12);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.28);
+    }
+    .cr-badge-warning {
+        background: rgba(245, 158, 11, 0.12);
+        color: #d97706;
+        border: 1px solid rgba(245, 158, 11, 0.28);
+    }
+    .cr-badge-danger {
+        background: rgba(239, 68, 68, 0.12);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.28);
+    }
+    .cr-badge-info {
+        background: rgba(59, 130, 246, 0.12);
+        color: #3b82f6;
+        border: 1px solid rgba(59, 130, 246, 0.28);
+    }
+    .cr-badge-neutral {
+        background: rgba(107, 114, 128, 0.12);
+        color: #6b7280;
+        border: 1px solid rgba(107, 114, 128, 0.24);
+    }
+
+    .cr-batch-card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        transition: border-color 0.2s;
+    }
+    .cr-batch-card:hover {
+        border-color: #cbd5e1;
+    }
+
+    .cr-batch-header {
+        padding: 18px 24px;
+        background: rgba(248, 250, 252, 0.7);
+        border-bottom: 1px solid var(--line);
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    body:has(#theme:checked) .cr-batch-card {
+        background: #0f172a !important;
+        border-color: #1e293b !important;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.3) !important;
+    }
+    body:has(#theme:checked) .cr-batch-card:hover {
+        border-color: #334155 !important;
+    }
+    body:has(#theme:checked) .cr-batch-header {
+        background: #1e293b !important;
+        border-bottom: 1px solid #334155 !important;
+    }
+    body:has(#theme:checked) .cr-batch-header h2 {
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .cr-meta-row {
+        color: #94a3b8 !important;
+    }
+    body:has(#theme:checked) .cr-meta-row strong {
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .cr-financial-pill {
+        background: #0b0f19 !important;
+        border-color: #334155 !important;
+        color: #f1f5f9 !important;
+    }
+    body:has(#theme:checked) .cr-badge-neutral {
+        background: rgba(148, 163, 184, 0.15) !important;
+        color: #cbd5e1 !important;
+        border-color: rgba(148, 163, 184, 0.25) !important;
+    }
+    body:has(#theme:checked) .cr-batch-content {
+        background: #0b0f19 !important;
+    }
+    body:has(#theme:checked) .cr-modal-box {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .cr-batch-card .button.secondary {
+        background: #1e293b !important;
+        color: #e2e8f0 !important;
+        border-color: #475569 !important;
+    }
+    body:has(#theme:checked) .cr-batch-card .button.secondary:hover {
+        background: #334155 !important;
+        color: #ffffff !important;
+    }
+
+    .cr-batch-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .cr-chevron {
+        transition: transform 0.2s ease;
+        color: var(--muted);
+    }
+    .cr-batch-card.collapsed .cr-chevron {
+        transform: rotate(-90deg);
+    }
+    .cr-batch-card.collapsed .cr-batch-content {
+        display: none;
+    }
+
+    .cr-meta-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 0.84rem;
+        color: var(--muted);
+        margin-top: 4px;
+    }
+
+    .cr-financial-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border-radius: 8px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .cr-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+    }
+    .cr-modal-backdrop.active {
+        display: flex;
+    }
+    .cr-modal-box {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        width: 100%;
+        max-width: 520px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        animation: modalPop 0.2s ease-out;
+    }
+    @@keyframes modalPop {
+        from { transform: scale(0.96); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+</style>
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Carrier Management</div>
+        <h1>Taisys</h1>
+        <p>Record advance batch payments and track per-device deductions for SIM renewals and reactivations.</p>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+        @if (User.CanEditModule("CompanyRecharges"))
+        {
+            <a class="button btn-primary" asp-action="Create" asp-route-provider="@Model.FilterProvider" style="display: inline-flex; align-items: center; gap: 8px;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Add Batch
+            </a>
+        }
+    </div>
+</div>
+
+<!-- COMPANY PROVIDER SWITCHER -->
+<div style="display: flex; gap: 0; margin: 20px 0 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--card-bg);">
+    <a href="@Url.Action("Index", new { query = Model.Query })" 
+       style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 16px 24px; text-decoration: none; border-right: 1px solid var(--line); transition: all 0.2s; @(string.IsNullOrWhiteSpace(Model.FilterProvider) ? "background: linear-gradient(135deg, rgba(15,98,254,0.08), rgba(15,98,254,0.03)); border-bottom: 3px solid #0f62fe;" : "background: transparent;")">
+        <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px;">All Providers</div>
+        <div style="font-size: 1.35rem; font-weight: 800; letter-spacing: -0.03em; color: @(string.IsNullOrWhiteSpace(Model.FilterProvider) ? "var(--primary-600)" : "var(--ink)");">₹@Model.TotalAdvanceOverall.ToString("N2")</div>
+        <div style="font-size: 0.72rem; color: var(--muted); margin-top: 3px;">@Model.TotalBatchesCount batches · @Model.TotalDevicesCount units</div>
+    </a>
+    <a href="@Url.Action("Index", new { query = Model.Query, provider = "BlueMine" })" 
+       style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 16px 24px; text-decoration: none; border-right: 1px solid var(--line); transition: all 0.2s; @(Model.FilterProvider == "BlueMine" ? "background: linear-gradient(135deg, rgba(6,182,212,0.1), rgba(6,182,212,0.04)); border-bottom: 3px solid #06b6d4;" : "background: transparent;")">
+        <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px;">🔵 BlueMine</div>
+        <div style="font-size: 1.35rem; font-weight: 800; letter-spacing: -0.03em; color: @(Model.FilterProvider == "BlueMine" ? "#06b6d4" : "var(--ink)");">₹@Model.BluemineAdvance.ToString("N2")</div>
+        <div style="font-size: 0.72rem; color: var(--muted); margin-top: 3px;">@Model.BluemineBatchCount batches · @Model.BluemineDevicesCount units · ₹@Model.BluemineRechargeRate.ToString("N2") / ₹@Model.BluemineReactivationRate.ToString("N2")</div>
+    </a>
+    <a href="@Url.Action("Index", new { query = Model.Query, provider = "MYGTS" })" 
+       style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 16px 24px; text-decoration: none; transition: all 0.2s; @(Model.FilterProvider == "MYGTS" ? "background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(139,92,246,0.04)); border-bottom: 3px solid #8b5cf6;" : "background: transparent;")">
+        <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px;">🟣 MYGTS</div>
+        <div style="font-size: 1.35rem; font-weight: 800; letter-spacing: -0.03em; color: @(Model.FilterProvider == "MYGTS" ? "#8b5cf6" : "var(--ink)");">₹@Model.MygtsAdvance.ToString("N2")</div>
+        <div style="font-size: 0.72rem; color: var(--muted); margin-top: 3px;">@Model.MygtsBatchCount batches · @Model.MygtsDevicesCount units · ₹@defaultRechargeRate.ToString("N2") / ₹@defaultReactivationRate.ToString("N2")</div>
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success" style="padding: 12px 18px; margin-top: 16px; border-radius: 8px; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+        ✓ @TempData["Success"]
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger" style="padding: 12px 18px; margin-top: 16px; border-radius: 8px; background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">
+        ⚠ @TempData["Error"]
+    </div>
+}
+
+<!-- KPI SUMMARY CARDS (context-aware by selected company) -->
+@{
+    var displayAdvance = Model.Batches.Sum(b => b.AdvanceAmount + b.CarriedForwardAmount - b.CarriedOutAmount);
+    var displayConsumed = Model.Batches.Sum(b => b.TotalAmount);
+    var displayBalance = displayAdvance - displayConsumed;
+    var displayBatches = Model.Batches.Count;
+    var displayDevices = Model.Batches.Sum(b => b.TotalDevices);
+    var displayRenewRate = Model.FilterProvider == "BlueMine" ? Model.BluemineRechargeRate : defaultRechargeRate;
+    var displayReactRate = Model.FilterProvider == "BlueMine" ? Model.BluemineReactivationRate : defaultReactivationRate;
+}
+<div class="kpi-grid" style="grid-template-columns: repeat(4,minmax(0,1fr)); margin-top: 18px; margin-bottom: 24px;">
+    <div class="kpi-card cyan">
+        <div class="kpi-label">Total Advance Paid</div>
+        <div class="kpi-value" id="kpi-total-advance">₹@displayAdvance.ToString("N2")</div>
+        <div class="kpi-source">
+            <span id="kpi-batches-count">Across @displayBatches batches</span>
+        </div>
+    </div>
+    
+    <div class="kpi-card amber">
+        <div class="kpi-label">Total Consumed (Deductions)</div>
+        <div class="kpi-value" id="kpi-total-consumed">₹@displayConsumed.ToString("N2")</div>
+        <div class="kpi-source">
+            <span id="kpi-devices-billed">@displayDevices devices billed</span>
+        </div>
+    </div>
+
+    <div class="kpi-card @(displayBalance >= 0 ? "green" : "red")" id="kpi-balance-card">
+        <div class="kpi-label">Remaining Balance</div>
+        <div class="kpi-value" id="kpi-total-balance">₹@displayBalance.ToString("N2")</div>
+        <div class="kpi-source">
+            <span>Available company advance credit</span>
+        </div>
+    </div>
+
+    <div class="kpi-card purple">
+        <div class="kpi-label">Units Processed</div>
+        <div class="kpi-value" id="kpi-units-processed">@displayDevices.ToString("N0")</div>
+        <div class="kpi-source">
+            <span>Rates: ₹@displayRenewRate.ToString("N2") renew &bull; ₹@displayReactRate.ToString("N2") react</span>
+        </div>
+    </div>
+</div>
+
+<!-- SEARCH & FILTER TOOLBAR -->
+<form class="card toolbar" method="get" asp-action="Index" style="margin-bottom: 24px; padding: 14px 20px;">
+    @if (!string.IsNullOrWhiteSpace(Model.FilterProvider))
+    {
+        <input type="hidden" name="provider" value="@Model.FilterProvider" />
+    }
+    <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; width: 100%;">
+        <div style="flex: 1; min-width: 260px; position: relative;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" name="query" value="@Model.SearchQuery" class="input" placeholder="Search by PO number, Ref No, Notes, IMEI, ICCID, or Vehicle..." style="padding-left: 42px; border-radius: 9999px; height: 40px;" />
+        </div>
+        <button type="submit" class="button btn-primary" style="height: 40px; padding: 0 20px;">Search</button>
+        @if (!string.IsNullOrWhiteSpace(Model.SearchQuery))
+        {
+            <a asp-action="Index" asp-route-provider="@Model.FilterProvider" class="button secondary" style="height: 40px; padding: 0 16px;">Clear</a>
+        }
+    </div>
+</form>
+
+<!-- BATCH CARDS LIST (INVENTORY-STYLE COLLAPSIBLE) -->
+<div class="cr-batches-container">
+    @if (Model.Batches.Count == 0)
+    {
+        <div class="card" style="padding: 48px 24px; text-align: center; color: var(--muted);">
+            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin: 0 auto 16px; opacity: 0.5;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            <h3 style="font-size: 1.15rem; color: var(--text-main); margin-bottom: 6px;">No Taisys batches found</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 20px;">Start by recording your first Taisys advance payment batch to track SIM recharges.</p>
+            @if (User.CanEditModule("CompanyRecharges"))
+            {
+                <a asp-action="Create" class="button btn-primary">Create First Batch</a>
+            }
+        </div>
+    }
+
+    @foreach (var batch in Model.Batches)
+    {
+        var effectiveAdvance = batch.AdvanceAmount + batch.CarriedForwardAmount - batch.CarriedOutAmount;
+        var remaining = effectiveAdvance - batch.TotalAmount;
+        var isLowBalance = remaining > 0 && remaining < defaultRechargeRate;
+
+        <div class="cr-batch-card" id="batch-card-@batch.Id" data-provider="@batch.Provider">
+            <div class="cr-batch-header" onclick="toggleBatchCard('@batch.Id')">
+                <div class="cr-batch-left">
+                    <svg class="cr-chevron" width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <h2 style="font-size: 1.15rem; margin: 0; font-weight: 700; color: var(--text-main);">
+                                PO: @(string.IsNullOrWhiteSpace(batch.PoNumber) ? "Batch #" + batch.Id : batch.PoNumber)
+                            </h2>
+                            @if (batch.Provider == "BlueMine")
+                            {
+                                <span class="cr-badge" style="background: rgba(6,182,212,0.12); color: #06b6d4; border: 1px solid rgba(6,182,212,0.3); font-weight: 700;">🔵 BlueMine</span>
+                            }
+                            else
+                            {
+                                <span class="cr-badge" style="background: rgba(139,92,246,0.12); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.3); font-weight: 700;">🟣 MYGTS</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(batch.PaymentReferenceNo))
+                            {
+                                <span class="cr-badge cr-badge-neutral" title="Payment Reference / CMS ID">Ref: @batch.PaymentReferenceNo</span>
+                            }
+                            @if (batch.CarriedForwardAmount > 0)
+                            {
+                                <span class="cr-badge cr-badge-success" title="Carried forward from @batch.TransferredFromBatchPo">
+                                    +₹@batch.CarriedForwardAmount.ToString("N2") from @(batch.TransferredFromBatchPo ?? "Previous Batch")
+                                </span>
+                            }
+                            @if (batch.CarriedOutAmount > 0)
+                            {
+                                <span class="cr-badge cr-badge-neutral" title="Transferred out to @batch.TransferredToBatchPo">
+                                    -₹@batch.CarriedOutAmount.ToString("N2") sent to @(batch.TransferredToBatchPo ?? "Next Batch")
+                                </span>
+                            }
+                        </div>
+                        <div class="cr-meta-row">
+                            <span>Date: <strong>@(string.IsNullOrWhiteSpace(batch.BatchDate) ? "—" : DateValue.Short(batch.BatchDate))</strong></span>
+                            <span>&bull;</span>
+                            <span>Units: <strong><span id="hdr-units-@batch.Id">@batch.Items.Count</span></strong> (<span id="hdr-ren-@batch.Id">@batch.RenewalCount</span> Renewals, <span id="hdr-react-@batch.Id">@batch.ReactivationCount</span> Reactivations)</span>
+                            @if (!string.IsNullOrWhiteSpace(batch.Notes))
+                            {
+                                <span>&bull;</span>
+                                <span style="font-style: italic;">@batch.Notes</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;" onclick="event.stopPropagation();">
+                    <!-- Financial Summary Badges -->
+                    <div class="cr-financial-pill" title="Advance Amount Paid">
+                        <span style="color: var(--muted); font-size: 0.76rem; text-transform: uppercase;">Advance</span>
+                        <span>₹@batch.AdvanceAmount.ToString("N2")</span>
+                    </div>
+
+                    <div class="cr-financial-pill" title="Total Batch Cost Deducted">
+                        <span style="color: var(--muted); font-size: 0.76rem; text-transform: uppercase;">Cost</span>
+                        <span style="color: #7c3aed;" id="hdr-cost-@batch.Id">₹@batch.TotalAmount.ToString("N2")</span>
+                    </div>
+
+                    <div class="cr-financial-pill" id="hdr-bal-pill-@batch.Id" style="@(remaining > 0 ? "border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.06);" : (remaining < 0 ? "border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.06);" : ""))">
+                        <span style="color: var(--muted); font-size: 0.76rem; text-transform: uppercase;">Balance</span>
+                        <span style="font-weight: 700; color: @(remaining > 0 ? "#10b981" : (remaining < 0 ? "#ef4444" : "var(--muted)"));" id="hdr-bal-@batch.Id">
+                            ₹@remaining.ToString("N2")
+                        </span>
+                    </div>
+
+                    <!-- Leftover balance transfer action -->
+                    @if (User.CanEditModule("CompanyRecharges") && remaining > 0)
+                    {
+                        <button type="button" class="button small secondary" style="border-color: #f59e0b; color: #d97706; background: rgba(245, 158, 11, 0.08); font-size: 0.8rem; padding: 4px 10px;"
+                                onclick="openTransferModal('@batch.Id', '@(string.IsNullOrWhiteSpace(batch.PoNumber) ? "Batch #" + batch.Id : batch.PoNumber)', @remaining)"
+                                title="Transfer leftover balance of ₹@remaining.ToString("N2") to another batch to avoid stranded money">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                            Transfer ₹@remaining.ToString("N2")
+                        </button>
+                    }
+
+                    <!-- Inline Add Device action (stays on page, creates only one row) -->
+                    @if (User.CanEditModule("CompanyRecharges"))
+                    {
+                        <button type="button" class="button small btn-primary" onclick="event.stopPropagation(); addSingleDeviceRow('@batch.Id')" title="Add a device row directly inside this batch" style="display: inline-flex; align-items: center; gap: 6px;">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            Add Device
+                        </button>
+                    }
+
+                    <!-- Excel Export -->
+                    <a class="button small secondary" asp-action="ExportBatch" asp-route-id="@batch.Id" title="Download Excel workbook matching Taisys/Sensorise submission format">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Export Excel
+                    </a>
+
+                    @if (User.CanEditModule("CompanyRecharges"))
+                    {
+                        <a class="button small secondary" asp-action="Edit" asp-route-id="@batch.Id" title="Edit batch details">Edit</a>
+                        <form asp-action="Delete" asp-route-id="@batch.Id" method="post" style="margin: 0;" onsubmit="return confirm('Are you sure you want to delete this company recharge batch (@batch.PoNumber)? This cannot be undone.');">
+                            <button type="submit" class="button small ghost" style="color: var(--danger); padding: 4px 8px;" title="Delete batch">
+                                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+
+            <!-- COLLAPSIBLE BATCH ITEMS TABLE (INLINE EDITABLE) -->
+            <div class="cr-batch-content" id="batch-content-@batch.Id">
+                <div id="empty-state-@batch.Id" style="@(batch.Items.Count == 0 ? "" : "display: none;") padding: 32px 24px; text-align: center; color: var(--muted); font-size: 0.92rem; background: rgba(0,0,0,0.01);">
+                    <div style="font-weight: 600; color: var(--text-main); margin-bottom: 6px;">No devices added to this batch yet</div>
+                    <div style="font-size: 0.85rem; margin-bottom: 16px;">This batch has an available advance balance of <strong style="color: @(remaining > 0 ? "#10b981" : "var(--text-main)");">₹@remaining.ToString("N2")</strong>. Add vehicles/SIMs for renewal or reactivation.</div>
+                    @if (User.CanEditModule("CompanyRecharges"))
+                    {
+                        <button type="button" class="button btn-primary small" onclick="addSingleDeviceRow('@batch.Id')" style="display: inline-flex; align-items: center; gap: 6px;">
+                            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            Add Device
+                        </button>
+                    }
+                </div>
+
+                <div class="table-wrap" id="table-wrap-@batch.Id" style="@(batch.Items.Count > 0 ? "" : "display: none;") overflow-x: auto;">
+                    <table class="data-table" id="table-@batch.Id" style="width: 100%; margin: 0; font-size: 0.88rem;">
+                        <thead>
+                            <tr style="background: rgba(0,0,0,0.02);">
+                                <th style="width: 50px; text-align: center;">Sl.No</th>
+                                <th style="width: 180px;">Vehicle Number</th>
+                                <th style="width: 180px;">IMEI</th>
+                                <th style="width: 220px;">ICCID</th>
+                                <th style="width: 150px;">Request ID</th>
+                                <th style="width: 140px; text-align: center;">Action Type</th>
+                                <th style="width: 120px; text-align: right;">Amount (₹)</th>
+                                <th style="width: 60px; text-align: center;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-@batch.Id">
+                            @foreach (var item in batch.Items.OrderBy(i => i.SlNo))
+                            {
+                                var isReactivation = string.Equals(item.ActionType, "Reactivation", StringComparison.OrdinalIgnoreCase);
+                                <tr id="row-item-@item.Id">
+                                    <td style="text-align: center; color: var(--muted); font-size: 0.8rem;" class="cell-slno">@item.SlNo</td>
+                                    <td style="font-weight: 700; color: var(--text-main); font-family: monospace; font-size: 0.92rem;">
+                                        @(string.IsNullOrWhiteSpace(item.VehicleNo) ? "—" : item.VehicleNo)
+                                    </td>
+                                    <td style="font-family: monospace;">@(string.IsNullOrWhiteSpace(item.Imei) ? "—" : item.Imei)</td>
+                                    <td style="font-family: monospace; font-size: 0.82rem;">@(string.IsNullOrWhiteSpace(item.Iccid) ? "—" : item.Iccid)</td>
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(item.RequestId) && item.RequestId != "-")
+                                        {
+                                            <span class="cr-badge cr-badge-neutral" style="font-family: monospace; font-size: 0.75rem;">@item.RequestId</span>
+                                        }
+                                        else
+                                        {
+                                            <span style="color: var(--muted);">—</span>
+                                        }
+                                    </td>
+                                    <td style="text-align: center;">
+                                        @if (isReactivation)
+                                        {
+                                            <span class="cr-badge cr-badge-warning">Reactivation</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="cr-badge cr-badge-success">Renewal</span>
+                                        }
+                                    </td>
+                                    <td style="text-align: right; font-weight: 600;">
+                                        ₹@item.PerDeviceAmount.ToString("N2")
+                                    </td>
+                                    <td style="text-align: center;">
+                                        @if (User.CanEditModule("CompanyRecharges"))
+                                        {
+                                            <form asp-action="DeleteDevice" method="post" style="margin: 0;" onsubmit="return confirm('Remove @(string.IsNullOrWhiteSpace(item.VehicleNo) ? item.Imei : item.VehicleNo) from this batch?');">
+                                                <input type="hidden" name="itemId" value="@item.Id" />
+                                                <input type="hidden" name="batchId" value="@batch.Id" />
+                                                <button type="submit" class="button ghost small" style="color: var(--danger); padding: 2px 6px; font-size: 1rem; line-height: 1;" title="Remove this device from batch">&times;</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: rgba(0,0,0,0.03); font-weight: 700; border-top: 2px solid var(--line);">
+                                <td colspan="5" style="text-align: right; color: var(--muted); font-size: 0.84rem;">
+                                    Total Deductions (<span id="tfoot-ren-@batch.Id">@batch.RenewalCount</span> Renewals @@ ₹@defaultRechargeRate.ToString("N2") + <span id="tfoot-react-@batch.Id">@batch.ReactivationCount</span> Reactivations @@ ₹@defaultReactivationRate.ToString("N2")):
+                                </td>
+                                <td style="text-align: center;"><span id="tfoot-count-@batch.Id">@batch.Items.Count</span> items</td>
+                                <td style="text-align: right; color: #7c3aed; font-size: 0.95rem;">
+                                    <span id="tfoot-total-@batch.Id">₹@batch.TotalAmount.ToString("N2")</span>
+                                </td>
+                                <td></td>
+                            </tr>
+                            <tr style="background: rgba(0,0,0,0.02); font-weight: 700;">
+                                <td colspan="5" style="text-align: right; color: var(--muted); font-size: 0.84rem;">
+                                    Remaining Advance Balance on Batch:
+                                </td>
+                                <td colspan="2" style="text-align: right; font-size: 1rem;">
+                                    <span id="tfoot-bal-@batch.Id" style="color: @(remaining > 0 ? "#10b981" : (remaining < 0 ? "#ef4444" : "var(--muted)"));">
+                                        ₹@remaining.ToString("N2")
+                                    </span>
+                                    <span id="tfoot-low-@batch.Id" style="font-size: 0.76rem; font-weight: 500; color: #d97706; margin-left: 8px; @(isLowBalance ? "" : "display: none;")">
+                                        (&lt; 1 renewal cost &mdash; transfer available)
+                                    </span>
+                                </td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- TRANSFER BALANCE MODAL -->
+<div class="cr-modal-backdrop" id="transferModal" onclick="closeTransferModal(event)">
+    <div class="cr-modal-box" onclick="event.stopPropagation();">
+        <form asp-action="TransferBalance" method="post" style="margin: 0;">
+            <input type="hidden" name="sourceBatchId" id="modalSourceBatchId" />
+            
+            <div style="padding: 20px 24px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1.15rem; color: var(--text-main);">Transfer Leftover Balance</h3>
+                    <div style="font-size: 0.85rem; color: var(--muted); margin-top: 2px;">
+                        Move remaining funds to another batch so no money is stranded or wasted.
+                    </div>
+                </div>
+                <button type="button" onclick="closeTransferModal()" style="background: none; border: none; font-size: 1.5rem; color: var(--muted); cursor: pointer; line-height: 1;">&times;</button>
+            </div>
+
+            <div style="padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+                <div style="padding: 12px 16px; border-radius: 8px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); font-size: 0.9rem;">
+                    From Source: <strong id="modalSourceBatchPo" style="color: #2563eb;">—</strong><br />
+                    Available Leftover Credit: <strong id="modalAvailableCredit" style="color: #10b981; font-size: 1.1rem;">₹0.00</strong>
+                </div>
+
+                <div class="field" style="margin: 0;">
+                    <label class="form-label" for="targetBatchId" style="font-weight: 600; margin-bottom: 6px; display: block;">Target Destination Batch</label>
+                    <select name="targetBatchId" id="targetBatchId" class="select" required style="width: 100%; height: 42px;">
+                        <option value="">-- Choose destination batch to credit --</option>
+                        @foreach (var b in Model.Batches)
+                        {
+                            <option value="@b.Id" data-batch-id="@b.Id">
+                                @(string.IsNullOrWhiteSpace(b.PoNumber) ? "Batch #" + b.Id : b.PoNumber) (Date: @b.BatchDate)
+                            </option>
+                        }
+                    </select>
+                    <small style="color: var(--muted); font-size: 0.8rem; margin-top: 4px; display: block;">
+                        The balance will be added to this destination batch's effective advance balance.
+                    </small>
+                </div>
+
+                <div class="field" style="margin: 0;">
+                    <label class="form-label" for="transferAmount" style="font-weight: 600; margin-bottom: 6px; display: block;">Transfer Amount (₹)</label>
+                    <input type="number" step="0.01" min="0.01" name="amount" id="transferAmount" class="input" required style="width: 100%; height: 42px; font-weight: 700; font-size: 1.05rem;" />
+                    <small style="color: var(--muted); font-size: 0.8rem; margin-top: 4px; display: block;">
+                        Defaults to the full remaining leftover balance.
+                    </small>
+                </div>
+            </div>
+
+            <div style="padding: 16px 24px; background: rgba(0,0,0,0.02); border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" class="button secondary" onclick="closeTransferModal()">Cancel</button>
+                <button type="submit" class="button btn-primary" style="background: #10b981; border-color: #10b981;">Transfer Balance</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="crToastContainer" style="position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px;"></div>
+
+<script>
+    const defaultRenRate = @defaultRechargeRate;
+    const defaultReactRate = @defaultReactivationRate;
+    const bluemineRenRate = @Model.BluemineRechargeRate;
+    const bluemineReactRate = @Model.BluemineReactivationRate;
+
+    function getBatchRates(batchId) {
+        const card = document.getElementById('batch-card-' + batchId);
+        const isBm = card && card.getAttribute('data-provider') === 'BlueMine';
+        return {
+            ren: isBm ? bluemineRenRate : defaultRenRate,
+            react: isBm ? bluemineReactRate : defaultReactRate
+        };
+    }
+
+    function toggleBatchCard(batchId) {
+        var card = document.getElementById('batch-card-' + batchId);
+        if (card) {
+            card.classList.toggle('collapsed');
+        }
+    }
+
+    // Auto-expand batch if passed in query string or hash
+    window.addEventListener('DOMContentLoaded', function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const expandId = urlParams.get('expandBatchId');
+        if (expandId) {
+            const card = document.getElementById('batch-card-' + expandId);
+            if (card) {
+                card.classList.remove('collapsed');
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+    });
+
+    // INLINE SINGLE DEVICE ROW ENTRY
+    function addSingleDeviceRow(batchId) {
+        // If an inline row already exists for this batch, do not create another row; focus vehicle input
+        const existingRow = document.getElementById('new-device-row-' + batchId);
+        if (existingRow) {
+            const vehInput = document.getElementById('new-veh-' + batchId);
+            if (vehInput) vehInput.focus();
+            return;
+        }
+
+        // Expand card if collapsed
+        const card = document.getElementById('batch-card-' + batchId);
+        if (card && card.classList.contains('collapsed')) {
+            card.classList.remove('collapsed');
+        }
+
+        // Hide empty state if present, show table wrap
+        const emptyState = document.getElementById('empty-state-' + batchId);
+        if (emptyState) emptyState.style.display = 'none';
+
+        const tableWrap = document.getElementById('table-wrap-' + batchId);
+        if (tableWrap) tableWrap.style.display = 'block';
+
+        const tbody = document.getElementById('tbody-' + batchId);
+        const nextSl = tbody.querySelectorAll('tr:not(#new-device-row-' + batchId + ')').length + 1;
+
+        const tr = document.createElement('tr');
+        tr.id = 'new-device-row-' + batchId;
+        tr.style.cssText = 'background: rgba(59, 130, 246, 0.08); border-left: 4px solid #2563eb;';
+        tr.innerHTML = `
+            <td style="text-align: center; color: #2563eb; font-weight: 700; font-size: 0.8rem;">${nextSl}</td>
+            <td>
+                <input type="text" id="new-veh-${batchId}" class="input" placeholder="Vehicle No" 
+                       style="height: 34px; font-weight: 700; text-transform: uppercase; font-size: 0.88rem; width: 100%; border-color: #93c5fd;" 
+                       oninput="lookupFromField('vehicle', this.value, '${batchId}')" 
+                       onkeydown="onRowKeydown(event, '${batchId}')" autocomplete="off" />
+            </td>
+            <td>
+                <input type="text" id="new-imei-${batchId}" class="input" placeholder="IMEI" 
+                       style="height: 34px; font-family: monospace; font-size: 0.85rem; width: 100%; border-color: #93c5fd;" 
+                       oninput="lookupFromField('imei', this.value, '${batchId}')" 
+                       onkeydown="onRowKeydown(event, '${batchId}')" autocomplete="off" />
+            </td>
+            <td>
+                <input type="text" id="new-iccid-${batchId}" class="input" placeholder="ICCID" 
+                       style="height: 34px; font-family: monospace; font-size: 0.8rem; width: 100%; border-color: #93c5fd;" 
+                       oninput="lookupFromField('iccid', this.value, '${batchId}')" 
+                       onkeydown="onRowKeydown(event, '${batchId}')" autocomplete="off" />
+            </td>
+            <td>
+                <input type="text" id="new-req-${batchId}" class="input" placeholder="Request ID (opt)" 
+                       style="height: 34px; font-size: 0.82rem; width: 100%;" 
+                       onkeydown="onRowKeydown(event, '${batchId}')" autocomplete="off" />
+            </td>
+            <td style="text-align: center;">
+                <select id="new-type-${batchId}" class="select" 
+                        style="height: 34px; font-size: 0.82rem; padding: 0 6px; width: 100%;" 
+                        onchange="onNewRowTypeChange('${batchId}')">
+                    <option value="Renewal">Renewal</option>
+                    <option value="Reactivation">Reactivation</option>
+                </select>
+            </td>
+            <td style="text-align: right; font-weight: 700; color: #2563eb; font-size: 0.92rem; vertical-align: middle;">
+                <span id="new-amt-disp-${batchId}">₹${getBatchRates(batchId).ren.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+            </td>
+            <td style="text-align: center; white-space: nowrap; vertical-align: middle;">
+                <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                    <button type="button" class="button btn-primary small" id="new-btn-save-${batchId}" onclick="submitSingleDevice('${batchId}')" style="padding: 4px 10px; font-size: 0.78rem; font-weight: 600;" title="Save (Enter)">Save</button>
+                    <button type="button" class="button ghost small" onclick="cancelSingleDeviceRow('${batchId}')" style="padding: 4px 6px; color: var(--muted); font-size: 1.1rem; line-height: 1;" title="Cancel (Esc)">&times;</button>
+                </div>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+        setTimeout(() => {
+            const el = document.getElementById('new-veh-' + batchId);
+            if (el) el.focus();
+        }, 50);
+    }
+
+    function cancelSingleDeviceRow(batchId) {
+        const row = document.getElementById('new-device-row-' + batchId);
+        if (row) row.remove();
+
+        const tbody = document.getElementById('tbody-' + batchId);
+        if (tbody && tbody.querySelectorAll('tr').length === 0) {
+            const tableWrap = document.getElementById('table-wrap-' + batchId);
+            if (tableWrap) tableWrap.style.display = 'none';
+            const emptyState = document.getElementById('empty-state-' + batchId);
+            if (emptyState) emptyState.style.display = 'block';
+        }
+    }
+
+    function onNewRowTypeChange(batchId) {
+        const typeSelect = document.getElementById('new-type-' + batchId);
+        const amtDisp = document.getElementById('new-amt-disp-' + batchId);
+        if (!typeSelect || !amtDisp) return;
+        const isReact = typeSelect.value === 'Reactivation';
+        const rates = getBatchRates(batchId);
+        const rate = isReact ? rates.react : rates.ren;
+        amtDisp.textContent = '₹' + rate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    let lookupTimer = null;
+    function lookupFromField(field, value, batchId) {
+        clearTimeout(lookupTimer);
+        if (!value || value.trim().length < 4) return;
+        lookupTimer = setTimeout(() => {
+            fetch(`/CompanyRecharges/LookupDevice?query=${encodeURIComponent(value.trim())}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.found) {
+                        const veh = document.getElementById('new-veh-' + batchId);
+                        const imei = document.getElementById('new-imei-' + batchId);
+                        const iccid = document.getElementById('new-iccid-' + batchId);
+                        if (veh && field !== 'vehicle' && data.vehicleNo) veh.value = data.vehicleNo;
+                        if (imei && field !== 'imei' && data.imei) imei.value = data.imei;
+                        if (iccid && field !== 'iccid' && data.iccid) iccid.value = data.iccid;
+                        [veh, imei, iccid].forEach(el => {
+                            if (el && el.value) {
+                                el.style.borderColor = '#10b981';
+                                setTimeout(() => { if (el) el.style.borderColor = '#93c5fd'; }, 1500);
+                            }
+                        });
+                    }
+                })
+                .catch(() => {});
+        }, 250);
+    }
+
+    function onRowKeydown(event, batchId) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            submitSingleDevice(batchId);
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            cancelSingleDeviceRow(batchId);
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function showToast(msg) {
+        const container = document.getElementById('crToastContainer');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.style.cssText = 'background: #1e293b; color: #fff; padding: 10px 18px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); font-size: 0.88rem; font-weight: 500; display: flex; align-items: center; gap: 8px; animation: modalPop 0.2s ease-out;';
+        toast.textContent = msg;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    async function submitSingleDevice(batchId) {
+        const vehInput = document.getElementById('new-veh-' + batchId);
+        const imeiInput = document.getElementById('new-imei-' + batchId);
+        const iccidInput = document.getElementById('new-iccid-' + batchId);
+        const reqInput = document.getElementById('new-req-' + batchId);
+        const typeSelect = document.getElementById('new-type-' + batchId);
+        const saveBtn = document.getElementById('new-btn-save-' + batchId);
+
+        const vehicleNo = vehInput ? vehInput.value.trim() : '';
+        const imei = imeiInput ? imeiInput.value.trim() : '';
+        const iccid = iccidInput ? iccidInput.value.trim() : '';
+        const requestId = reqInput ? reqInput.value.trim() : '';
+        const actionType = typeSelect ? typeSelect.value : 'Renewal';
+
+        if (!vehicleNo && !imei && !iccid) {
+            if (vehInput) {
+                vehInput.focus();
+                vehInput.style.borderColor = '#ef4444';
+            }
+            alert('Please enter at least a Vehicle Number, IMEI, or ICCID.');
+            return;
+        }
+
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+        }
+
+        const formData = new FormData();
+        formData.append('BatchId', batchId);
+        formData.append('VehicleNo', vehicleNo);
+        formData.append('Imei', imei);
+        formData.append('Iccid', iccid);
+        formData.append('RequestId', requestId);
+        formData.append('ActionType', actionType);
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]');
+        if (token) {
+            formData.append('__RequestVerificationToken', token.value);
+        }
+
+        try {
+            const resp = await fetch('/CompanyRecharges/AddSingleDevice', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const data = await resp.json();
+            if (!data || !data.success) {
+                alert((data && data.message) ? data.message : 'Error adding device.');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save';
+                }
+                return;
+            }
+
+            // Remove editable row
+            const newRow = document.getElementById('new-device-row-' + batchId);
+            if (newRow) newRow.remove();
+
+            // Append newly created row
+            const tbody = document.getElementById('tbody-' + batchId);
+            const tr = document.createElement('tr');
+            tr.id = 'row-item-' + data.item.id;
+            const isReact = data.item.actionType === 'Reactivation';
+            tr.innerHTML = `
+                <td style="text-align: center; color: var(--muted); font-size: 0.8rem;" class="cell-slno">${data.item.slNo}</td>
+                <td style="font-weight: 700; color: var(--text-main); font-family: monospace; font-size: 0.92rem;">
+                    ${escapeHtml(data.item.vehicleNo || '—')}
+                </td>
+                <td style="font-family: monospace;">${escapeHtml(data.item.imei || '—')}</td>
+                <td style="font-family: monospace; font-size: 0.82rem;">${escapeHtml(data.item.iccid || '—')}</td>
+                <td>
+                    ${data.item.requestId && data.item.requestId !== '-' ? `<span class="cr-badge cr-badge-neutral" style="font-family: monospace; font-size: 0.75rem;">${escapeHtml(data.item.requestId)}</span>` : '<span style="color: var(--muted);">—</span>'}
+                </td>
+                <td style="text-align: center;">
+                    <span class="cr-badge ${isReact ? 'cr-badge-warning' : 'cr-badge-success'}">${data.item.actionType}</span>
+                </td>
+                <td style="text-align: right; font-weight: 600;">
+                    ₹${Number(data.item.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </td>
+                <td style="text-align: center;">
+                    <form action="/CompanyRecharges/DeleteDevice" method="post" style="margin: 0;" onsubmit="return confirm('Remove this device from batch?');">
+                        <input type="hidden" name="itemId" value="${data.item.id}" />
+                        <input type="hidden" name="batchId" value="${data.batch.id}" />
+                        <button type="submit" class="button ghost small" style="color: var(--danger); padding: 2px 6px; font-size: 1rem; line-height: 1;" title="Remove this device from batch">&times;</button>
+                    </form>
+                </td>
+            `;
+            tbody.appendChild(tr);
+
+            // Update Batch Card Header
+            const hdrUnits = document.getElementById('hdr-units-' + batchId);
+            if (hdrUnits) hdrUnits.textContent = data.batch.totalDevices;
+            const hdrRen = document.getElementById('hdr-ren-' + batchId);
+            if (hdrRen) hdrRen.textContent = data.batch.renewalCount;
+            const hdrReact = document.getElementById('hdr-react-' + batchId);
+            if (hdrReact) hdrReact.textContent = data.batch.reactivationCount;
+            const hdrCost = document.getElementById('hdr-cost-' + batchId);
+            if (hdrCost) hdrCost.textContent = '₹' + Number(data.batch.totalAmount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const hdrBal = document.getElementById('hdr-bal-' + batchId);
+            if (hdrBal) {
+                hdrBal.textContent = '₹' + Number(data.batch.remainingBalance).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                hdrBal.style.color = data.batch.remainingBalance > 0 ? '#10b981' : (data.batch.remainingBalance < 0 ? '#ef4444' : 'var(--muted)');
+            }
+
+            // Update Table Footer
+            const tfRen = document.getElementById('tfoot-ren-' + batchId);
+            if (tfRen) tfRen.textContent = data.batch.renewalCount;
+            const tfReact = document.getElementById('tfoot-react-' + batchId);
+            if (tfReact) tfReact.textContent = data.batch.reactivationCount;
+            const tfCount = document.getElementById('tfoot-count-' + batchId);
+            if (tfCount) tfCount.textContent = data.batch.totalDevices;
+            const tfTot = document.getElementById('tfoot-total-' + batchId);
+            if (tfTot) tfTot.textContent = '₹' + Number(data.batch.totalAmount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const tfBal = document.getElementById('tfoot-bal-' + batchId);
+            if (tfBal) {
+                tfBal.textContent = '₹' + Number(data.batch.remainingBalance).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                tfBal.style.color = data.batch.remainingBalance > 0 ? '#10b981' : (data.batch.remainingBalance < 0 ? '#ef4444' : 'var(--muted)');
+            }
+            const tfLow = document.getElementById('tfoot-low-' + batchId);
+            if (tfLow) tfLow.style.display = data.batch.isLowBalance ? '' : 'none';
+
+            // Update Top Global KPI Cards
+            if (data.overall) {
+                const kpiCons = document.getElementById('kpi-total-consumed');
+                if (kpiCons) kpiCons.textContent = '₹' + Number(data.overall.totalConsumed).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const kpiDev = document.getElementById('kpi-devices-billed');
+                if (kpiDev) kpiDev.textContent = data.overall.totalDevices + ' devices billed';
+                const kpiBal = document.getElementById('kpi-total-balance');
+                if (kpiBal) kpiBal.textContent = '₹' + Number(data.overall.totalBalance).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const kpiUnits = document.getElementById('kpi-units-processed');
+                if (kpiUnits) kpiUnits.textContent = Number(data.overall.totalDevices).toLocaleString('en-IN');
+            }
+
+            showToast('✓ Device added to batch successfully.');
+        } catch (err) {
+            alert('Network error saving device: ' + err.message);
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            }
+        }
+    }
+
+    function openTransferModal(batchId, poNumber, remainingBalance) {
+        document.getElementById('modalSourceBatchId').value = batchId;
+        document.getElementById('modalSourceBatchPo').textContent = poNumber;
+        document.getElementById('modalAvailableCredit').textContent = '₹' + Number(remainingBalance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        document.getElementById('transferAmount').value = remainingBalance;
+        document.getElementById('transferAmount').max = remainingBalance;
+
+        var select = document.getElementById('targetBatchId');
+        for (var i = 0; i < select.options.length; i++) {
+            var opt = select.options[i];
+            if (opt.getAttribute('data-batch-id') == batchId) {
+                opt.style.display = 'none';
+                opt.disabled = true;
+            } else {
+                opt.style.display = '';
+                opt.disabled = false;
+            }
+        }
+        select.value = '';
+
+        document.getElementById('transferModal').classList.add('active');
+    }
+
+    function closeTransferModal(e) {
+        if (!e || e.target.id === 'transferModal' || e.target.tagName === 'BUTTON') {
+            document.getElementById('transferModal').classList.remove('active');
+        }
+    }
+</script>

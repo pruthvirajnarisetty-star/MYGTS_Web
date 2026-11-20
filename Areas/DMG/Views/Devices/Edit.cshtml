@@ -1,0 +1,840 @@
+@model DeviceFormViewModel
+@{
+    ViewData["Title"] = "Edit device";
+    ViewData["BodyClass"] = "form-background-container";
+    var currentBranch = Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG";
+    var isDeployMode = string.IsNullOrWhiteSpace(Model.VehicleNo) || (ViewBag.ReturnUrl != null && ViewBag.ReturnUrl.ToString().Contains("/Inventory"));
+}
+
+<div class="glass-wrapper">
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Fleet registry / record maintenance</div>
+        <h1>@(isDeployMode ? "Add device" : "Edit device")</h1>
+        <p>@(isDeployMode ? "Complete the deployment details for this activated device." : "Update the operational record while preserving its source identifier.")</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <a class="btn-back" href="@(ViewBag.ReturnUrl ?? Url.Action("Index"))">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+            Back
+        </a>
+    </div>
+</div>
+
+<form class="card form-card" asp-action="Edit" asp-route-returnUrl="@ViewBag.ReturnUrl" method="post">
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="StockStatus" type="hidden" />
+    <input asp-for="HardwareHistory" id="HardwareHistory" type="hidden" />
+    <input asp-for="InstallType" id="InstallType" type="hidden" />
+    <input asp-for="ReplacedDeviceSnapshot" id="ReplacedDeviceSnapshot" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+    @if (currentBranch == "DMG" && !string.IsNullOrWhiteSpace(Model.VehicleNo))
+    {
+        <div id="formReplaceVehicleCard" style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.05), rgba(59, 130, 246, 0.02)); border: 1.5px solid rgba(37, 99, 235, 0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 260px; flex: 1;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(37, 99, 235, 0.1); color: #2563eb; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                </div>
+                <div>
+                    <strong style="color: #1e3a8a; font-size: 0.95rem; display: block;">Replace Vehicle</strong>
+                    <span style="color: #4b5563; font-size: 0.8rem; line-height: 1.4; display: block;">Archive current vehicle (@Model.VehicleNo) &amp; ownership data to history and clear fields to enter new vehicle info. Hardware &amp; lifecycle remain untouched.</span>
+                </div>
+            </div>
+            <button type="button" id="btnReplaceVehicleInForm" class="button" onclick="selectReplaceVehicleOption()" style="background: #2563eb; color: #ffffff; border: none; font-weight: 600; font-size: 0.85rem; padding: 8px 18px; border-radius: 8px; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; white-space: nowrap; transition: background 0.15s ease;">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                <span>Replace Vehicle</span>
+            </button>
+        </div>
+    }
+    
+    <!-- Block 1: Vehicle & Identifiers -->
+    <style>
+        @@media (min-width: 1024px) { .balanced-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+        @@media (min-width: 1440px) { .balanced-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; } }
+    </style>
+    <div style="padding: 24px; border-radius: 12px; background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.1); margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+            <div class="form-section-title" style="margin-top: 0; margin-bottom: 0; color: #3b82f6;">Vehicle &amp; Identifiers</div>
+            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                <label class="cyberpunk-checkbox-label" style="color: #ef4444; font-weight: 600; cursor: pointer;" title="Mute notifications &amp; reminders for devices not in use (e.g. stolen, broken)">
+                    <input asp-for="IsMuted" type="checkbox" class="cyberpunk-checkbox" id="not-in-use-toggle" style="border-color: #ef4444;" />
+                    <span style="display: inline-flex; align-items: center; gap: 6px;">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/></svg>
+                        Not In Use
+                    </span>
+                </label>
+                <label class="cyberpunk-checkbox-label">
+                    <input type="checkbox" class="cyberpunk-checkbox" id="unlock-inventory-fields">
+                    Unlock Source Identifiers
+                </label>
+            </div>
+        </div>
+        <div class="form-grid balanced-grid">
+            <div class="field">
+                <label asp-for="SlNo" class="form-label">Serial number</label>
+                <input asp-for="SlNo" class="input" type="text" />
+                <span asp-validation-for="SlNo" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label asp-for="VehicleNo" class="form-label">Vehicle number</label>
+                    <span id="not-in-use-badge" style="display: @(Model.IsMuted || string.Equals(Model.LifecycleStatus, "Not In Use", StringComparison.OrdinalIgnoreCase) ? "inline-block" : "none"); font-size: 0.72rem; font-weight: 700; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">Muted (Not In Use)</span>
+                </div>
+                <input asp-for="VehicleNo" id="VehicleNo" class="input" placeholder="e.g. CG 10 AB 1234" />
+                <span asp-validation-for="VehicleNo" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="DeviceName" class="form-label">Device name</label>
+                @if (currentBranch == "RTO") {
+                    <input asp-for="DeviceName" id="DeviceName" class="input" value="@(string.IsNullOrEmpty(Model.DeviceName) ? "Bharat101" : Model.DeviceName)" readonly="readonly" style="background: #f1f5f9; color: var(--muted); cursor: not-allowed;" />
+                } else {
+                    <select asp-for="DeviceName" id="DeviceName" class="select" tabindex="-1" style="pointer-events: none; background-color: #f3f4f6; opacity: 0.8;">
+                        <option value="">-- None --</option>
+                        <option value="Teltonika">Teltonika</option>
+                        <option value="Teltonica">Teltonica</option>
+                        <option value="WeTrack">WeTrack</option>
+                        <option value="Bharat101">Bharat101</option>
+                        @if (!string.IsNullOrEmpty(Model.DeviceName) && 
+                             !string.Equals(Model.DeviceName, "Teltonika", StringComparison.OrdinalIgnoreCase) && 
+                             !string.Equals(Model.DeviceName, "Teltonica", StringComparison.OrdinalIgnoreCase) && 
+                             !string.Equals(Model.DeviceName, "WeTrack", StringComparison.OrdinalIgnoreCase) && 
+                             !string.Equals(Model.DeviceName, "Bharat101", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="@Model.DeviceName" selected="selected">@Model.DeviceName</option>
+                        }
+                    </select>
+                }
+                <span asp-validation-for="DeviceName" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="NetworkOperator" class="form-label">Network operator (Optional)</label>
+                <select asp-for="NetworkOperator" id="NetworkOperator" class="select" tabindex="-1" style="pointer-events: none; background-color: #f3f4f6; opacity: 0.8;">
+                    <option value="">-- None --</option>
+                    <option value="Taisys (MYGTS)">Taisys (MYGTS)</option>
+                    <option value="Taisys (BABU)">Taisys (BABU)</option>
+                    <option value="SMT">SMT</option>
+                    <option value="Sensorise">Sensorise</option>
+                </select>
+                <span asp-validation-for="NetworkOperator" class="validation-summary-errors"></span>
+            </div>
+            
+            @if (currentBranch == "RTO")
+            {
+                <div class="field">
+                    <label asp-for="Type" class="form-label">Type</label>
+                    <select asp-for="Type" class="select" data-custom-dropdown="DeviceType" data-custom-title="Device Type">
+                        <option value="NEW">NEW</option>
+                        <option value="OLD">OLD</option>
+                    </select>
+                    <span asp-validation-for="Type" class="validation-summary-errors"></span>
+                </div>
+
+                <div class="field">
+                    <label asp-for="CdacCertificate" class="form-label">CDAC-C</label>
+                    <select asp-for="CdacCertificate" class="select">
+                        <option value="YES">YES</option>
+                        <option value="NO">NO</option>
+                    </select>
+                    <span asp-validation-for="CdacCertificate" class="validation-summary-errors"></span>
+                </div>
+
+                <div class="field">
+                    <label asp-for="VldtCertificate" class="form-label">VLDT-C</label>
+                    <select asp-for="VldtCertificate" class="select">
+                        <option value="YES">YES</option>
+                        <option value="NO">NO</option>
+                    </select>
+                    <span asp-validation-for="VldtCertificate" class="validation-summary-errors"></span>
+                </div>
+            }
+            else
+            {
+                <input type="hidden" asp-for="CdacCertificate" value="NO" />
+                <input type="hidden" asp-for="VldtCertificate" value="NO" />
+            }
+
+            <div class="field">
+                <label asp-for="InvoiceId" class="form-label">Invoice ID</label>
+                <input asp-for="InvoiceId" id="InvoiceId" class="input" placeholder="e.g. INV-001" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                <span asp-validation-for="InvoiceId" class="validation-summary-errors"></span>
+            </div>
+            
+            @if (currentBranch == "RTO")
+            {
+                <div class="field">
+                    <label asp-for="Iccid" class="form-label">ICCID</label>
+                    <input asp-for="Iccid" id="Iccid" class="input" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                    <span asp-validation-for="Iccid" class="validation-summary-errors"></span>
+                </div>
+
+                <div class="field">
+                    <label asp-for="Imei" class="form-label">IMEI</label>
+                    <input asp-for="Imei" id="Imei" class="input" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                    <span asp-validation-for="Imei" class="validation-summary-errors"></span>
+                </div>
+
+                <div class="field">
+                    <label asp-for="DeviceSerialNo" class="form-label">Serial number</label>
+                    <input asp-for="DeviceSerialNo" id="DeviceSerialNo" class="input" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                    <span asp-validation-for="DeviceSerialNo" class="validation-summary-errors"></span>
+                </div>
+
+                <div class="field">
+                    <label asp-for="SimAirtel" class="form-label">Airtel SIM</label>
+                    <input asp-for="SimAirtel" id="SimAirtel" class="input" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                    <span asp-validation-for="SimAirtel" class="validation-summary-errors"></span>
+                </div>
+                
+                <div class="field">
+                    <label asp-for="SimBsnl" class="form-label">BSNL SIM</label>
+                    <input asp-for="SimBsnl" id="SimBsnl" class="input" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                    <span asp-validation-for="SimBsnl" class="validation-summary-errors"></span>
+                </div>
+            }
+            else
+            {
+                <div class="field">
+                    <label asp-for="Imei" class="form-label">IMEI</label>
+                    <input asp-for="Imei" id="Imei" class="input" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                    <span asp-validation-for="Imei" class="validation-summary-errors"></span>
+                </div>
+                
+                <div class="field">
+                    <label asp-for="Iccid" class="form-label">ICCID</label>
+                    <input asp-for="Iccid" id="Iccid" class="input" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                    <span asp-validation-for="Iccid" class="validation-summary-errors"></span>
+                </div>
+                
+                <div class="field">
+                    <label asp-for="SimAirtel" class="form-label">Airtel SIM</label>
+                    <input asp-for="SimAirtel" id="SimAirtel" class="input" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                    <span asp-validation-for="SimAirtel" class="validation-summary-errors"></span>
+                </div>
+                
+                <div class="field">
+                    <label asp-for="SimBsnl" class="form-label">BSNL SIM</label>
+                    <input asp-for="SimBsnl" id="SimBsnl" class="input" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                    <span asp-validation-for="SimBsnl" class="validation-summary-errors"></span>
+                </div>
+            }
+        </div>
+    </div>
+    
+    <!-- Block 2: Ownership & Documentation -->
+    <div style="padding: 24px; border-radius: 12px; background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.1); margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div class="form-section-title" style="margin: 0; color: #10b981;">Ownership &amp; Documentation</div>
+        </div>
+        <div class="form-grid">
+            @if (currentBranch == "RTO")
+            {
+                <div class="field">
+                    <label asp-for="RegistrationDate" class="form-label">Registration Date</label>
+                    <input asp-for="RegistrationDate" class="input" type="date" />
+                    <span asp-validation-for="RegistrationDate" class="validation-summary-errors"></span>
+                </div>
+            }
+
+            <div class="field">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <label asp-for="Vendor" class="form-label" style="margin: 0;">Vendor</label>
+                    <button type="button" onclick="const c=document.getElementById('vendorCustomWrapEdit'); const s=document.getElementById('vendorSelectEdit'); if(c.style.display==='none'){c.style.display='block'; s.value='';}else{c.style.display='none';}" style="background: none; border: none; color: var(--cyan); font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 0;">+ Custom Vendor</button>
+                </div>
+                @{
+                    var knownVendorsEditList = (ViewBag.KnownVendors as IEnumerable<string> ?? Enumerable.Empty<string>()).ToList();
+                    var isKnownVendor = !string.IsNullOrEmpty(Model.Vendor) && knownVendorsEditList.Any(k => string.Equals(k, Model.Vendor, StringComparison.OrdinalIgnoreCase));
+                }
+                <select class="select" id="vendorSelectEdit" onchange="const inp=document.getElementById('vendorInputEdit'); if(this.value){inp.value=this.value; document.getElementById('vendorCustomWrapEdit').style.display='none';}">
+                    <option value="">-- Select Vendor from List --</option>
+                    @foreach (var v in knownVendorsEditList)
+                    {
+                        <option value="@v" selected="@(string.Equals(Model.Vendor, v, StringComparison.OrdinalIgnoreCase))">@v</option>
+                    }
+                </select>
+                <div id="vendorCustomWrapEdit" style="display: @(isKnownVendor || string.IsNullOrEmpty(Model.Vendor) ? "none" : "block"); margin-top: 6px;">
+                    <input asp-for="Vendor" id="vendorInputEdit" class="input" placeholder="Type vendor name..." autocomplete="off" />
+                </div>
+                <span asp-validation-for="Vendor" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="Owner" class="form-label">Owner</label>
+                <input asp-for="Owner" class="input" placeholder="Owner or department" />
+                <span asp-validation-for="Owner" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="CellNo" class="form-label">Contact number</label>
+                <input asp-for="CellNo" class="input" placeholder="10-digit contact" />
+                <span asp-validation-for="CellNo" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="EngineNo" class="form-label">Engine Number</label>
+                <input asp-for="EngineNo" class="input" placeholder="e.g. ENG12345" />
+                <span asp-validation-for="EngineNo" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="ChasisNo" class="form-label">Chassis Number</label>
+                <input asp-for="ChasisNo" class="input" placeholder="e.g. CH12345678" />
+                <span asp-validation-for="ChasisNo" class="validation-summary-errors"></span>
+            </div>
+            
+            @if (currentBranch == "RTO")
+            {
+                <div class="field">
+                    <label asp-for="VehicleMake" class="form-label">Vehicle Manufacture</label>
+                    <input asp-for="VehicleMake" class="input" placeholder="e.g. Tata, Mahindra, Ashok Leyland" />
+                    <span asp-validation-for="VehicleMake" class="validation-summary-errors"></span>
+                </div>
+                
+                <div class="field">
+                    <label asp-for="VehicleModel" class="form-label">Vehicle Model</label>
+                    <input asp-for="VehicleModel" class="input" placeholder="e.g. Ace Gold, Bolero Maxi" />
+                    <span asp-validation-for="VehicleModel" class="validation-summary-errors"></span>
+                </div>
+                
+                <div class="field">
+                    <label asp-for="Rto" class="form-label">RTO (KA-01 to KA-71)</label>
+                    <select asp-for="Rto" class="select" id="rto-select">
+                        @for (int i = 1; i <= 71; i++)
+                        {
+                            var rtoVal = $"KA-{i:D2}";
+                            <option value="@rtoVal">@rtoVal</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Rto" class="validation-summary-errors"></span>
+                </div>
+                
+                <div class="field">
+                    <label asp-for="Address" class="form-label">Address</label>
+                    <input asp-for="Address" class="input" placeholder="Owner / Client address" />
+                    <span asp-validation-for="Address" class="validation-summary-errors"></span>
+                </div>
+            }
+            
+            <div class="field">
+                <label asp-for="ProofOfAddress" class="form-label">Proof of Identity</label>
+                <select asp-for="ProofOfAddress" class="select">
+                    <option value="">(Select Doc Type)</option>
+                    <option value="Aadhar">Aadhar</option>
+                    <option value="PAN">PAN</option>
+                </select>
+                <span asp-validation-for="ProofOfAddress" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="DocumentNumber" class="form-label">ID Number</label>
+                <input asp-for="DocumentNumber" class="input" placeholder="Aadhar / PAN ID Number" />
+                <span asp-validation-for="DocumentNumber" class="validation-summary-errors"></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Block 3: Dates & Status -->
+    <div style="padding: 24px; border-radius: 12px; background: rgba(139, 92, 246, 0.04); border: 1px solid rgba(139, 92, 246, 0.1); margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+            <div class="form-section-title" style="margin-top: 0; margin-bottom: 0; color: #8b5cf6;">Dates &amp; Status</div>
+            <label class="cyberpunk-checkbox-label" style="color: #8b5cf6;">
+                <input type="checkbox" class="cyberpunk-checkbox" id="unlock-activation-date" style="border-color: #8b5cf6;">
+                <style>#unlock-activation-date:before { background-color: #8b5cf6; }</style>
+                Unlock Dates
+            </label>
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="LifecycleStatus" class="form-label">Lifecycle</label>
+                <select asp-for="LifecycleStatus" class="select">
+                    <option value="Active">Active</option>
+                    <option value="Suspension">Suspension</option>
+                    <option value="Terminated">Terminated</option>
+                    <option value="Dead">Dead</option>
+                    <option value="Inventory">Inventory</option>
+                </select>
+                <span asp-validation-for="LifecycleStatus" class="validation-summary-errors"></span>
+            </div>
+
+            @if (User.IsExecutive())
+            {
+                <div class="field">
+                    <label asp-for="Paid" class="form-label">Paid Status (Executive override)</label>
+                    <select asp-for="Paid" class="select">
+                        <option value="">Auto (Follow Transactions)</option>
+                        <option value="Yes">Yes (Paid)</option>
+                        <option value="No">No (Unpaid)</option>
+                    </select>
+                </div>
+            }
+            else
+            {
+                <input type="hidden" asp-for="Paid" />
+            }
+            
+            <div class="field">
+                <label asp-for="ActivationDate" class="form-label">Activation date</label>
+                <input asp-for="ActivationDate" class="input" type="date" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                <span asp-validation-for="ActivationDate" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="LatestExpiryDate" class="form-label">Expiry date</label>
+                <input asp-for="LatestExpiryDate" class="input" type="date" readonly="readonly" style="background-color: #f3f4f6; cursor: not-allowed;" />
+                <span asp-validation-for="LatestExpiryDate" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field">
+                <label asp-for="AdminCost" class="form-label">Admin Cost (Locked for Device)</label>
+                <div style="position: relative;">
+                    <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-weight: 600; color: #d97706;">₹</span>
+                    <input asp-for="AdminCost" class="input" type="number" step="0.01" style="padding-left: 28px;" placeholder="0.00" />
+                </div>
+                <span class="help-text" style="font-size: 0.75rem; color: var(--muted); margin-top: 4px; display: block;">Locked admin cost for this device. Won't be changed when global config updates.</span>
+                <span asp-validation-for="AdminCost" class="validation-summary-errors"></span>
+            </div>
+            
+            <div class="field full">
+                <label asp-for="Notes" class="form-label">Notes</label>
+                <textarea asp-for="Notes" class="textarea" placeholder="Installation, ownership, or operational notes"></textarea>
+                <span asp-validation-for="Notes" class="validation-summary-errors"></span>
+            </div>
+
+            <div class="field full" style="padding-top: 4px;">
+                <label class="cyberpunk-checkbox-label" style="gap: 10px; font-size: 0.9rem; color: var(--text);">
+                    <input asp-for="ExcludeFromUnpaid" type="checkbox" class="cyberpunk-checkbox" id="ExcludeFromUnpaid" />
+                    <span>
+                        <strong>Exclude from Unpaid list</strong>
+                        <span style="display:block; font-size:0.8rem; color:var(--muted); font-weight:400; margin-top:2px;">
+                            Tick this if the vehicle's payment history was not imported. It will be hidden from the Reminders "Unpaid Vehicles" list.
+                        </span>
+                    </span>
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    @if (!string.IsNullOrWhiteSpace(Model.ReplacedDeviceSnapshot))
+    {
+        try
+        {
+            var replacedDevice = System.Text.Json.JsonDocument.Parse(Model.ReplacedDeviceSnapshot).RootElement;
+            <div style="padding: 24px; border-radius: 12px; background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.1); margin-bottom: 24px;">
+                <div class="form-section-title" style="margin-top: 0; margin-bottom: 20px; color: #3b82f6;">Replaced Device Summary</div>
+                <details style="background: white; border: 1px solid var(--line); border-radius: 8px; padding: 16px; cursor: pointer;">
+                    <summary style="font-weight: 600; font-size: 1rem; color: var(--text);">
+                        @(replacedDevice.TryGetProperty("VehicleNo", out var v) ? v.GetString() : "Unknown Vehicle") - @(replacedDevice.TryGetProperty("Vendor", out var vend) ? vend.GetString() : "Unknown Vendor")
+                    </summary>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top:16px;">
+                        <div><strong>Device Name:</strong> @(replacedDevice.TryGetProperty("DeviceName", out var dn) ? dn.GetString() : "-")</div>
+                        <div><strong>Install Type:</strong> @(replacedDevice.TryGetProperty("InstallType", out var it) ? it.GetString() : "-")</div>
+                        <div><strong>Owner:</strong> @(replacedDevice.TryGetProperty("Owner", out var own) ? own.GetString() : "-")</div>
+                        <div><strong>Cell No:</strong> @(replacedDevice.TryGetProperty("CellNo", out var cell) ? cell.GetString() : "-")</div>
+                        <div><strong>Status:</strong> @(replacedDevice.TryGetProperty("Status", out var stat) ? stat.GetString() : "-")</div>
+                        <div><strong>Stock Status:</strong> @(replacedDevice.TryGetProperty("StockStatus", out var stst) ? stst.GetString() : "-")</div>
+                        <div><strong>Engine No:</strong> @(replacedDevice.TryGetProperty("EngineNo", out var eng) ? eng.GetString() : "-")</div>
+                        <div><strong>Chasis No:</strong> @(replacedDevice.TryGetProperty("ChasisNo", out var chas) ? chas.GetString() : "-")</div>
+                        <div><strong>Proof of Address:</strong> @(replacedDevice.TryGetProperty("ProofOfAddress", out var poa) ? poa.GetString() : "-")</div>
+                        <div><strong>Document No:</strong> @(replacedDevice.TryGetProperty("DocumentNumber", out var doc) ? doc.GetString() : "-")</div>
+                        <div><strong>Notes:</strong> @(replacedDevice.TryGetProperty("Notes", out var nts) ? nts.GetString() : "-")</div>
+                    </div>
+                </details>
+            </div>
+        }
+        catch { }
+    }
+
+    <div class="form-actions">
+        <a class="button ghost" href="@(ViewBag.ReturnUrl ?? Url.Action("Index"))">Cancel</a>
+        <button class="btn-primary" type="submit">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+            @(isDeployMode ? "Add device" : "Save changes")
+        </button>
+    </div>
+</form>
+</div>
+
+<style>
+/* Cyberpunk checkbox */
+.cyberpunk-checkbox {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--blue-600, #2563eb);
+  border-radius: 4px;
+  background-color: transparent;
+  display: inline-block;
+  position: relative;
+  margin-right: 8px;
+  cursor: pointer;
+}
+.cyberpunk-checkbox:before {
+  content: "";
+  background-color: var(--blue-600, #2563eb);
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  transition: all 0.2s ease-in-out;
+}
+.cyberpunk-checkbox:checked:before {
+  transform: translate(-50%, -50%) scale(1);
+}
+.cyberpunk-checkbox-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--blue-700, #1d4ed8);
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+}
+</style>
+
+<script>
+    const allDevicesJson = @Html.Raw(ViewBag.DevicesJson ?? "[]");
+</script>
+
+<script>
+(function() {
+    const activationInput = document.getElementById("ActivationDate");
+    const expiryInput = document.getElementById("LatestExpiryDate");
+    
+    function updateExpiry() {
+        if (!activationInput || !expiryInput || !activationInput.value) return;
+        const parts = activationInput.value.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parseInt(parts[2], 10);
+            
+            const date = new Date(year, month, day);
+            let addMonths = parseInt('@((ViewBag.ActivationExpiryMonths as string) ?? "11")', 10) || 11;
+            const addDays = parseInt('@((ViewBag.ActivationExpiryDays as string) ?? "15")', 10) || 15;
+            
+            const branch = '@(Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG")';
+            const typeInput = document.getElementById("Type");
+            if (branch === "RTO" && typeInput && (typeInput.value === "New" || typeInput.value === "NEW")) {
+                addMonths += 12; // 2 years for RTO branch
+            }
+            
+            date.setMonth(date.getMonth() + addMonths);
+            date.setDate(date.getDate() + addDays);
+            
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            
+            expiryInput.value = `${yyyy}-${mm}-${dd}`;
+        }
+    }
+    
+    if (activationInput && expiryInput) {
+        activationInput.addEventListener("change", updateExpiry);
+        activationInput.addEventListener("input", updateExpiry);
+        
+        const typeInput = document.getElementById("Type");
+        if (typeInput) {
+            typeInput.addEventListener("change", updateExpiry);
+        }
+        
+        // Run immediately on script execution and DOM load
+        updateExpiry();
+        document.addEventListener("DOMContentLoaded", updateExpiry);
+    }
+
+    const unlockCheckbox = document.getElementById("unlock-inventory-fields");
+    if (unlockCheckbox) {
+        unlockCheckbox.addEventListener("change", function() {
+            const isUnlocked = this.checked;
+            const fields = ["InvoiceId", "Imei", "Iccid", "DeviceSerialNo", "SimAirtel", "SimBsnl"];
+            fields.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (isUnlocked) {
+                        el.removeAttribute("readonly");
+                        el.style.backgroundColor = "";
+                        el.style.cursor = "";
+                    } else {
+                        el.setAttribute("readonly", "readonly");
+                        el.style.backgroundColor = "#f3f4f6";
+                        el.style.cursor = "not-allowed";
+                    }
+                }
+            });
+            
+            const deviceNameEl = document.getElementById("DeviceName");
+            if (deviceNameEl) {
+                if (isUnlocked) {
+                    deviceNameEl.style.pointerEvents = "auto";
+                    deviceNameEl.style.backgroundColor = "";
+                    deviceNameEl.style.opacity = "1";
+                    deviceNameEl.tabIndex = 0;
+                } else {
+                    deviceNameEl.style.pointerEvents = "none";
+                    deviceNameEl.style.backgroundColor = "#f3f4f6";
+                    deviceNameEl.style.opacity = "0.8";
+                    deviceNameEl.tabIndex = -1;
+                }
+            }
+            
+            const networkOperatorEl = document.getElementById("NetworkOperator");
+            if (networkOperatorEl) {
+                if (isUnlocked) {
+                    networkOperatorEl.style.pointerEvents = "auto";
+                    networkOperatorEl.style.backgroundColor = "";
+                    networkOperatorEl.style.opacity = "1";
+                    networkOperatorEl.tabIndex = 0;
+                } else {
+                    networkOperatorEl.style.pointerEvents = "none";
+                    networkOperatorEl.style.backgroundColor = "#f3f4f6";
+                    networkOperatorEl.style.opacity = "0.8";
+                    networkOperatorEl.tabIndex = -1;
+                }
+            }
+        });
+    }
+
+    
+    // --- Not In Use (Mute) Mode Logic ---
+    const notInUseToggle = document.getElementById("not-in-use-toggle");
+    const notInUseBadge = document.getElementById("not-in-use-badge");
+
+    function applyNotInUseState(isMuted) {
+        if (notInUseBadge) notInUseBadge.style.display = isMuted ? "inline-block" : "none";
+    }
+
+    if (notInUseToggle) {
+        notInUseToggle.addEventListener("change", function() {
+            applyNotInUseState(this.checked);
+        });
+        if (notInUseToggle.checked) {
+            applyNotInUseState(true);
+        }
+    }
+
+    const unlockDateCheckbox = document.getElementById("unlock-activation-date");
+    if (unlockDateCheckbox) {
+        unlockDateCheckbox.addEventListener("change", function() {
+            const isUnlocked = this.checked;
+            const fields = ["ActivationDate", "LatestExpiryDate"];
+            fields.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (isUnlocked) {
+                        el.removeAttribute("readonly");
+                        el.style.backgroundColor = "";
+                        el.style.cursor = "";
+                    } else {
+                        el.setAttribute("readonly", "readonly");
+                        el.style.backgroundColor = "#f3f4f6";
+                        el.style.cursor = "not-allowed";
+                    }
+                }
+            });
+        });
+    }
+
+    const lifecycleSelect = document.getElementById("LifecycleStatus");
+    if (lifecycleSelect && activationInput) {
+        lifecycleSelect.addEventListener("change", function() {
+            if (this.value === "Active" && !activationInput.value) {
+                activationInput.value = new Date().toISOString().split('T')[0];
+                updateExpiry();
+            }
+        });
+    }
+    
+    // Instant S.No Duplicate Validation
+    const slNoInput = document.getElementById("SlNo");
+    if (slNoInput && typeof allDevicesJson !== 'undefined') {
+        const errorSpan = document.querySelector('[data-valmsg-for="SlNo"]');
+        const currentId = '@Model.Id';
+        function validateSlNo() {
+            const val = (slNoInput.value || '').trim().toLowerCase();
+            if (!val) return true;
+            const duplicate = allDevicesJson.find(d => String(d.SlNo || '').trim().toLowerCase() === val && d.Id !== currentId);
+            if (duplicate) {
+                if(errorSpan) {
+                    errorSpan.textContent = "This serial number is already given to another device.";
+                    errorSpan.classList.remove('field-validation-valid');
+                    errorSpan.classList.add('field-validation-error');
+                }
+                return false;
+            } else {
+                if(errorSpan) {
+                    errorSpan.textContent = "";
+                    errorSpan.classList.remove('field-validation-error');
+                    errorSpan.classList.add('field-validation-valid');
+                }
+                return true;
+            }
+        }
+        slNoInput.addEventListener('input', validateSlNo);
+        
+        const form = slNoInput.closest('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                if (!validateSlNo()) {
+                    e.preventDefault();
+                    slNoInput.focus();
+                }
+            });
+        }
+    }
+})();
+</script>
+
+<script>
+// ── Replace Vehicle in Form (DMG Branch) ──
+function selectReplaceVehicleOption() {
+    const vehInput = document.getElementById('VehicleNo');
+    const currentVeh = (vehInput?.value || '').trim();
+    if (!currentVeh) {
+        Swal.fire({
+            icon: 'info',
+            title: 'No Vehicle to Replace',
+            text: 'There is currently no vehicle number entered in the form to replace.',
+            confirmButtonColor: '#2563eb'
+        });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Replace Vehicle?',
+        html: `<div style="text-align: left; font-size: 0.9rem; line-height: 1.55; color: #374151;">
+            <p style="margin-bottom: 8px;">Are you sure you want to replace vehicle <strong>${currentVeh}</strong>?</p>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 0.83rem;">
+                <div><strong>• Moving to History:</strong> Vehicle ${currentVeh} and all ownership details will be archived.</div>
+                <div><strong>• Preserving Untouched:</strong> IMEI, ICCID, SIMs, Invoice, Dates, and Lifecycle remain unchanged.</div>
+            </div>
+            <p style="margin: 0; color: #2563eb; font-weight: 500;">Vehicle and ownership fields will be cleared so you can enter the new vehicle's details right here in this form.</p>
+        </div>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, Push to History & Replace',
+        cancelButtonText: 'Cancel'
+    }).then(result => {
+        if (!result.isConfirmed) return;
+
+        // 1. Snapshot current values
+        const nowStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const owner = (document.getElementById('Owner')?.value || '').trim();
+        const vendor = (document.getElementById('vendorSelectEdit')?.value || document.getElementById('vendorInputEdit')?.value || '').trim();
+        const cell = (document.getElementById('CellNo')?.value || '').trim();
+        const eng = (document.getElementById('EngineNo')?.value || '').trim();
+        const chasis = (document.getElementById('ChasisNo')?.value || '').trim();
+        const vMake = (document.getElementById('VehicleMake')?.value || '').trim();
+        const vModel = (document.getElementById('VehicleModel')?.value || '').trim();
+        const poa = (document.getElementById('ProofOfAddress')?.value || '').trim();
+        const docNum = (document.getElementById('DocumentNumber')?.value || '').trim();
+        const addr = (document.getElementById('Address')?.value || '').trim();
+
+        // Build history log
+        let historyEntry = `Replaced from: ${currentVeh}`;
+        const metaParts = [];
+        if (vendor) metaParts.push(`Vendor: ${vendor}`);
+        if (owner) metaParts.push(`Owner: ${owner}`);
+        if (cell) metaParts.push(`Cell: ${cell}`);
+        if (eng) metaParts.push(`Engine: ${eng}`);
+        if (chasis) metaParts.push(`Chassis: ${chasis}`);
+        metaParts.push(`Date: ${nowStr}`);
+        historyEntry += ` (${metaParts.join(', ')})`;
+
+        // 2. Push to HardwareHistory hidden input
+        const hhInput = document.getElementById('HardwareHistory');
+        if (hhInput) {
+            const prevHh = (hhInput.value || '').trim();
+            hhInput.value = prevHh ? `${prevHh} | ${historyEntry}` : historyEntry;
+        }
+
+        // Set InstallType
+        const installTypeInput = document.getElementById('InstallType');
+        if (installTypeInput) installTypeInput.value = 'Replacement';
+
+        // Set ReplacedDeviceSnapshot
+        const snapInput = document.getElementById('ReplacedDeviceSnapshot');
+        if (snapInput) {
+            const snapObj = {
+                PreviousVehicleNo: currentVeh,
+                PreviousOwner: owner,
+                PreviousVendor: vendor,
+                PreviousCellNo: cell,
+                PreviousEngineNo: eng,
+                PreviousChasisNo: chasis,
+                PreviousProofOfAddress: poa,
+                PreviousDocumentNumber: docNum,
+                PreviousAddress: addr,
+                ReplacedAt: new Date().toISOString()
+            };
+            snapInput.value = JSON.stringify(snapObj);
+        }
+
+        // 3. Clear Vehicle Number & Ownership Section fields
+        vehInput.value = '';
+        if (document.getElementById('Owner')) document.getElementById('Owner').value = '';
+        if (document.getElementById('CellNo')) document.getElementById('CellNo').value = '';
+        if (document.getElementById('EngineNo')) document.getElementById('EngineNo').value = '';
+        if (document.getElementById('ChasisNo')) document.getElementById('ChasisNo').value = '';
+        if (document.getElementById('VehicleMake')) document.getElementById('VehicleMake').value = '';
+        if (document.getElementById('VehicleModel')) document.getElementById('VehicleModel').value = '';
+        if (document.getElementById('ProofOfAddress')) document.getElementById('ProofOfAddress').value = '';
+        if (document.getElementById('DocumentNumber')) document.getElementById('DocumentNumber').value = '';
+        if (document.getElementById('Address')) document.getElementById('Address').value = '';
+        if (document.getElementById('vendorSelectEdit')) document.getElementById('vendorSelectEdit').value = '';
+        if (document.getElementById('vendorInputEdit')) document.getElementById('vendorInputEdit').value = '';
+        if (document.getElementById('vendorCustomWrapEdit')) document.getElementById('vendorCustomWrapEdit').style.display = 'none';
+
+        // 4. Update the option card in the form to reflect replacement state
+        const card = document.getElementById('formReplaceVehicleCard');
+        if (card) {
+            card.style.background = '#f0fdf4';
+            card.style.borderColor = '#86efac';
+            card.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                    <div style="width: 34px; height: 34px; border-radius: 50%; background: #16a34a; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <strong style="color: #166534; font-size: 0.92rem;">✓ Pushed to History:</strong>
+                            <code style="background: #dcfce7; color: #166534; padding: 2px 7px; border-radius: 4px; font-size: 0.8rem;">${historyEntry}</code>
+                        </div>
+                        <span style="color: #15803d; font-size: 0.8rem; display: block; margin-top: 2px;">
+                            Old vehicle &amp; ownership data archived. Enter the <strong>new vehicle number</strong> and <strong>ownership details</strong> below and click <strong>Save changes</strong>.
+                        </span>
+                    </div>
+                    <span style="background: #16a34a; color: #ffffff; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 10px; border-radius: 20px; white-space: nowrap;">Replacement Active</span>
+                </div>
+            `;
+        }
+
+        // 5. Highlight & Focus the Vehicle Number input
+        vehInput.focus();
+        vehInput.style.borderColor = '#2563eb';
+        vehInput.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.2)';
+        setTimeout(() => {
+            vehInput.style.borderColor = '';
+            vehInput.style.boxShadow = '';
+        }, 3000);
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Pushed to History!',
+            text: `Vehicle ${currentVeh} details saved. Enter new vehicle number & ownership details below and save.`,
+            timer: 2200,
+            showConfirmButton: false
+        });
+    });
+}
+</script>
+

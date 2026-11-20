@@ -1,0 +1,564 @@
+@model MygtsMvc.Models.ExpenditureFormViewModel
+@{
+    ViewData["Title"] = "ADD EXPENDITURE ENTRY";
+}
+
+<style>
+    .exp-form-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 28px;
+        max-width: 900px;
+        margin: 0 auto;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .exp-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+
+    .exp-form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .exp-form-group.full-width {
+        grid-column: span 2;
+    }
+
+    .exp-form-label {
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: #334155;
+        letter-spacing: 0.5px;
+    }
+
+    .exp-form-input, .exp-form-select, .exp-form-textarea {
+        height: 42px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 0 12px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        background: #f8fafc;
+        color: #0f172a;
+        width: 100%;
+        outline: none;
+        transition: all 0.15s ease;
+    }
+
+    .exp-form-textarea {
+        height: 80px;
+        padding: 10px 12px;
+        resize: vertical;
+    }
+
+    .exp-form-input:focus, .exp-form-select:focus, .exp-form-textarea:focus {
+        border-color: #0ea5e9;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+    }
+
+    .field-validation-error {
+        color: #dc2626;
+        font-size: 0.74rem;
+        font-weight: 700;
+        margin-top: 2px;
+    }
+
+    /* CUSTOM DYNAMIC DROPDOWN WITH BOTTOM ADD */
+    .custom-select-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .custom-select-trigger {
+        height: 42px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 0 12px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        background: #f8fafc;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .custom-select-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        z-index: 100;
+        display: none;
+        max-height: 280px;
+        flex-direction: column;
+    }
+
+    .custom-select-dropdown.open {
+        display: flex;
+    }
+
+    .dropdown-search-box {
+        padding: 8px 10px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .dropdown-search-input {
+        width: 100%;
+        height: 32px;
+        padding: 0 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        font-size: 0.80rem;
+        font-weight: 600;
+        outline: none;
+    }
+
+    .dropdown-options-list {
+        overflow-y: auto;
+        max-height: 180px;
+        padding: 4px 0;
+    }
+
+    .dropdown-opt {
+        padding: 8px 12px;
+        font-size: 0.84rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.1s;
+    }
+
+    .dropdown-opt:hover {
+        background: #f1f5f9;
+        color: #0ea5e9;
+    }
+
+    .dropdown-add-bottom {
+        border-top: 1px solid #e2e8f0;
+        padding: 8px 12px;
+        background: #f8fafc;
+    }
+
+    .btn-add-option-trigger {
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: #0ea5e9;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+    }
+
+    .btn-add-option-trigger:hover {
+        color: #0284c7;
+    }
+
+    .inline-add-container {
+        display: none;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .inline-add-input {
+        flex: 1;
+        height: 30px;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        padding: 0 8px;
+        font-size: 0.80rem;
+        font-weight: 600;
+        outline: none;
+    }
+
+    .inline-add-btn {
+        height: 30px;
+        padding: 0 10px;
+        background: #0f172a;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.76rem;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    /* CONVERT TO INVOICE BOX */
+    .conversion-panel {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 6px;
+    }
+</style>
+
+<div class="page-heading" style="max-width: 900px; margin: 0 auto 20px auto;">
+    <div>
+        <div class="eyebrow">FINANCIAL RECORD ENTRY</div>
+        <h1 style="font-size: 1.55rem; font-weight: 900; letter-spacing: -0.5px; margin: 2px 0 4px 0;">ADD NEW EXPENDITURE ENTRY</h1>
+        <p style="color: var(--muted); font-size: 0.85rem; font-weight: 600; margin: 0;">CREATE A NEW PI OR INVOICE BOOKKEEPING TRANSACTION</p>
+    </div>
+    <div class="page-heading-actions">
+        <a href="/Expenditure/Expenses" class="button btn-secondary" style="font-weight: 800; font-size: 0.82rem; padding: 8px 16px; text-decoration: none;">
+            ← BACK TO BOOKKEEPING
+        </a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 900px; margin: 0 auto; border-radius: 12px; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+    <form method="post" action="/Expenditure/Expenses/Create">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="field-validation-error" style="margin-bottom: 16px;"></div>
+
+        <div class="exp-form-grid">
+            <!-- 1. DATE -->
+            <div class="exp-form-group">
+                <label class="exp-form-label">DATE *</label>
+                <input type="date" asp-for="Record.RecordDate" class="exp-form-input" required />
+                <span asp-validation-for="Record.RecordDate" class="field-validation-error"></span>
+            </div>
+
+            <!-- 2. DOCUMENT TYPE -->
+            <div class="exp-form-group">
+                <label class="exp-form-label">DOCUMENT TYPE *</label>
+                <select asp-for="Record.DocumentType" id="docTypeSelect" class="exp-form-select" onchange="toggleConversionSection()">
+                    <option value="PI">PI (PROFORMA INVOICE)</option>
+                    <option value="INVOICE">INVOICE</option>
+                </select>
+                <span asp-validation-for="Record.DocumentType" class="field-validation-error"></span>
+            </div>
+
+            <!-- 3. REFERENCE NUMBER -->
+            <div class="exp-form-group">
+                <label class="exp-form-label" id="refNumberLabel">REFERENCE NUMBER / PI NUMBER *</label>
+                <input type="text" asp-for="Record.ReferenceNumber" placeholder="E.G. PI-2026-001 OR INV-9840" class="exp-form-input" required />
+                <span asp-validation-for="Record.ReferenceNumber" class="field-validation-error"></span>
+            </div>
+
+            <!-- 4. COMPANY -->
+            <div class="exp-form-group">
+                <label class="exp-form-label">COMPANY *</label>
+                <input type="text" asp-for="Record.Company" placeholder="E.G. TAISYS / SENSORISE / AIRTEL" class="exp-form-input" required />
+                <span asp-validation-for="Record.Company" class="field-validation-error"></span>
+            </div>
+
+            <!-- 5. FOR (PURPOSE) -->
+            <div class="exp-form-group full-width">
+                <label class="exp-form-label">FOR (PURPOSE / ITEM DESCRIPTION) *</label>
+                <input type="text" asp-for="Record.Purpose" placeholder="E.G. 200 AIS-140 GPS UNITS / ANNUAL SIM RECHARGE" class="exp-form-input" required />
+                <span asp-validation-for="Record.Purpose" class="field-validation-error"></span>
+            </div>
+
+            <!-- PAYMENT STATUS OPTION: UNPAID (YET TO PAY) -->
+            <div class="exp-form-group full-width" style="margin-bottom: 6px;">
+                <div class="unpaid-option-box" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; font-weight: 800; font-size: 0.88rem; color: #991b1b;">
+                        <input type="checkbox" asp-for="Record.IsUnpaid" id="chkIsUnpaid" onchange="toggleUnpaidOption()" style="width: 18px; height: 18px; cursor: pointer;" />
+                        <span>MARK AS UNPAID (YET TO PAY)</span>
+                    </label>
+                    <span id="unpaidNotice" style="font-size: 0.74rem; font-weight: 700; color: #b91c1c; display: none;">
+                        PAYMENT PENDING: BANKING DETAILS (BANK, PAYMENT MODE, UTR, PAYMENT DATE) ARE OPTIONAL
+                    </span>
+                </div>
+            </div>
+
+            <!-- 6. BANK (DYNAMIC DROPDOWN) -->
+            <div class="exp-form-group">
+                <label class="exp-form-label">BANK *</label>
+                <input type="hidden" asp-for="Record.Bank" id="hiddenBank" required />
+                <div class="custom-select-container" id="bankDropdownContainer">
+                    <div class="custom-select-trigger" onclick="toggleDropdown('bankDropdownContainer')">
+                        <span id="bankTriggerText">SELECT BANK...</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div class="custom-select-dropdown">
+                        <div class="dropdown-search-box" style="@(Model.AvailableBanks.Count > 5 ? "" : "display:none;")">
+                            <input type="text" class="dropdown-search-input" placeholder="SEARCH BANK..." oninput="filterDropdownOptions(this)" />
+                        </div>
+                        <div class="dropdown-options-list">
+                            @foreach (var b in Model.AvailableBanks)
+                            {
+                                <div class="dropdown-opt" onclick="selectOption('hiddenBank', 'bankTriggerText', '@b', 'bankDropdownContainer')">@b</div>
+                            }
+                        </div>
+                        <div class="dropdown-add-bottom">
+                            <button type="button" class="btn-add-option-trigger" onclick="showInlineAdd(this)">
+                                <span>➕ ADD NEW BANK...</span>
+                            </button>
+                            <div class="inline-add-container">
+                                <input type="text" class="inline-add-input" placeholder="NEW BANK NAME" />
+                                <button type="button" class="inline-add-btn" onclick="saveNewOption(this, 'Bank', 'hiddenBank', 'bankTriggerText', 'bankDropdownContainer')">SAVE</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <span asp-validation-for="Record.Bank" class="field-validation-error"></span>
+            </div>
+
+            <!-- 7. PAYMENT TYPE (DYNAMIC DROPDOWN) -->
+            <div class="exp-form-group">
+                <label class="exp-form-label">PAYMENT TYPE *</label>
+                <input type="hidden" asp-for="Record.PaymentType" id="hiddenPaymentType" required />
+                <div class="custom-select-container" id="paymentTypeDropdownContainer">
+                    <div class="custom-select-trigger" onclick="toggleDropdown('paymentTypeDropdownContainer')">
+                        <span id="paymentTypeTriggerText">SELECT PAYMENT TYPE...</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div class="custom-select-dropdown">
+                        <div class="dropdown-search-box" style="@(Model.AvailablePaymentTypes.Count > 5 ? "" : "display:none;")">
+                            <input type="text" class="dropdown-search-input" placeholder="SEARCH PAYMENT TYPE..." oninput="filterDropdownOptions(this)" />
+                        </div>
+                        <div class="dropdown-options-list">
+                            @foreach (var p in Model.AvailablePaymentTypes)
+                            {
+                                <div class="dropdown-opt" onclick="selectOption('hiddenPaymentType', 'paymentTypeTriggerText', '@p', 'paymentTypeDropdownContainer')">@p</div>
+                            }
+                        </div>
+                        <div class="dropdown-add-bottom">
+                            <button type="button" class="btn-add-option-trigger" onclick="showInlineAdd(this)">
+                                <span>➕ ADD NEW PAYMENT TYPE...</span>
+                            </button>
+                            <div class="inline-add-container">
+                                <input type="text" class="inline-add-input" placeholder="NEW PAYMENT TYPE" />
+                                <button type="button" class="inline-add-btn" onclick="saveNewOption(this, 'PaymentType', 'hiddenPaymentType', 'paymentTypeTriggerText', 'paymentTypeDropdownContainer')">SAVE</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <span asp-validation-for="Record.PaymentType" class="field-validation-error"></span>
+            </div>
+
+            <!-- 8. CASH FLOW (IN/OUT) -->
+            <div class="exp-form-group">
+                <label class="exp-form-label">CASH FLOW *</label>
+                <select asp-for="Record.CashFlow" class="exp-form-select">
+                    <option value="DEBITED">DEBITED (OUTFLOW / EXPENSE)</option>
+                    <option value="CREDITED">CREDITED (INFLOW / RECEIPT)</option>
+                </select>
+                <span asp-validation-for="Record.CashFlow" class="field-validation-error"></span>
+            </div>
+
+            <!-- 9. UTR -->
+            <div class="exp-form-group">
+                <label class="exp-form-label">UTR / TRANSACTION REFERENCE</label>
+                <input type="text" asp-for="Record.Utr" placeholder="E.G. UTR8374920194" class="exp-form-input" />
+                <span asp-validation-for="Record.Utr" class="field-validation-error"></span>
+            </div>
+
+            <!-- 10. AMOUNT -->
+            <div class="exp-form-group">
+                <label class="exp-form-label">AMOUNT (₹) *</label>
+                <input type="number" step="0.01" asp-for="Record.Amount" placeholder="E.G. 25000.00" class="exp-form-input" required />
+                <span asp-validation-for="Record.Amount" class="field-validation-error"></span>
+            </div>
+
+            <!-- 11. PAYMENT DATE -->
+            <div class="exp-form-group">
+                <label class="exp-form-label">PAYMENT DATE</label>
+                <input type="date" asp-for="Record.PaymentDate" class="exp-form-input" />
+                <span asp-validation-for="Record.PaymentDate" class="field-validation-error"></span>
+            </div>
+
+            <!-- CONVERT TO INVOICE SECTION (VISIBLE WHEN PI) -->
+            <div class="exp-form-group full-width" id="conversionContainer">
+                <div class="conversion-option-box" style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 14px 16px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; font-weight: 800; font-size: 0.86rem; color: #9a3412;">
+                        <input type="checkbox" asp-for="ConvertToInvoice" id="chkConvertToInvoice" onchange="toggleConversionFields()" style="width: 18px; height: 18px; cursor: pointer;" />
+                        <span>CONVERT TO INVOICE</span>
+                    </label>
+
+                    <div id="conversionFields" style="display: none; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #fdba74;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="exp-form-group">
+                                <label class="exp-form-label">INVOICE NUMBER *</label>
+                                <input type="text" asp-for="Record.InvoiceNumber" placeholder="E.G. INV-2026-9921" class="exp-form-input" />
+                                <span asp-validation-for="Record.InvoiceNumber" class="field-validation-error"></span>
+                            </div>
+                            <div class="exp-form-group">
+                                <label class="exp-form-label">INVOICE DATE *</label>
+                                <input type="date" asp-for="Record.InvoiceDate" class="exp-form-input" />
+                                <span asp-validation-for="Record.InvoiceDate" class="field-validation-error"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOTES -->
+            <div class="exp-form-group full-width">
+                <label class="exp-form-label">NOTES / REMARKS</label>
+                <textarea asp-for="Record.Notes" placeholder="ADDITIONAL NOTES..." class="exp-form-textarea"></textarea>
+                <span asp-validation-for="Record.Notes" class="field-validation-error"></span>
+            </div>
+        </div>
+
+        <div style="margin-top: 28px; display: flex; justify-content: flex-end; gap: 12px;">
+            <a href="/Expenditure/Expenses" class="exp-btn exp-btn-secondary">CANCEL</a>
+            <button type="submit" class="exp-btn exp-btn-primary" style="padding: 0 28px;">SAVE RECORD</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+    function toggleConversionSection() {
+        const docType = document.getElementById('docTypeSelect').value;
+        const convBox = document.getElementById('conversionContainer');
+        const refLabel = document.getElementById('refNumberLabel');
+
+        if (docType === 'PI') {
+            convBox.style.display = 'block';
+            refLabel.innerText = 'REFERENCE NUMBER / PI NUMBER *';
+        } else {
+            convBox.style.display = 'none';
+            document.getElementById('chkConvertToInvoice').checked = false;
+            toggleConversionFields();
+            refLabel.innerText = 'INVOICE NUMBER *';
+        }
+    }
+
+    function toggleConversionFields() {
+        const chk = document.getElementById('chkConvertToInvoice');
+        const fields = document.getElementById('conversionFields');
+        fields.style.display = chk.checked ? 'block' : 'none';
+    }
+
+    function toggleUnpaidOption() {
+        const chk = document.getElementById('chkIsUnpaid');
+        const isUnpaid = chk && chk.checked;
+        const hiddenBank = document.getElementById('hiddenBank');
+        const hiddenPaymentType = document.getElementById('hiddenPaymentType');
+        const bankGroup = document.getElementById('bankDropdownContainer')?.closest('.exp-form-group');
+        const ptGroup = document.getElementById('paymentTypeDropdownContainer')?.closest('.exp-form-group');
+        const bankLabel = bankGroup?.querySelector('.exp-form-label');
+        const ptLabel = ptGroup?.querySelector('.exp-form-label');
+        const unpaidNotice = document.getElementById('unpaidNotice');
+
+        if (isUnpaid) {
+            if (hiddenBank) hiddenBank.removeAttribute('required');
+            if (hiddenPaymentType) hiddenPaymentType.removeAttribute('required');
+            if (bankLabel) bankLabel.innerText = 'BANK (OPTIONAL - UNPAID)';
+            if (ptLabel) ptLabel.innerText = 'PAYMENT TYPE (OPTIONAL - UNPAID)';
+            if (unpaidNotice) unpaidNotice.style.display = 'inline-block';
+        } else {
+            if (hiddenBank) hiddenBank.setAttribute('required', 'required');
+            if (hiddenPaymentType) hiddenPaymentType.setAttribute('required', 'required');
+            if (bankLabel) bankLabel.innerText = 'BANK *';
+            if (ptLabel) ptLabel.innerText = 'PAYMENT TYPE *';
+            if (unpaidNotice) unpaidNotice.style.display = 'none';
+        }
+    }
+
+    // Dynamic Searchable Dropdown Logic
+    function toggleDropdown(containerId) {
+        const container = document.getElementById(containerId);
+        const dropdown = container.querySelector('.custom-select-dropdown');
+        const isOpen = dropdown.classList.contains('open');
+
+        // Close any other open dropdowns
+        document.querySelectorAll('.custom-select-dropdown.open').forEach(d => d.classList.remove('open'));
+
+        if (!isOpen) {
+            dropdown.classList.add('open');
+            const searchInput = dropdown.querySelector('.dropdown-search-input');
+            if (searchInput && searchInput.parentElement.style.display !== 'none') {
+                searchInput.focus();
+            }
+        }
+    }
+
+    function selectOption(hiddenInputId, triggerTextId, value, containerId) {
+        document.getElementById(hiddenInputId).value = value;
+        document.getElementById(triggerTextId).innerText = value;
+        document.getElementById(containerId).querySelector('.custom-select-dropdown').classList.remove('open');
+    }
+
+    function filterDropdownOptions(input) {
+        const q = input.value.toUpperCase();
+        const list = input.closest('.custom-select-dropdown').querySelector('.dropdown-options-list');
+        const opts = list.querySelectorAll('.dropdown-opt');
+        opts.forEach(opt => {
+            opt.style.display = opt.innerText.toUpperCase().includes(q) ? 'block' : 'none';
+        });
+    }
+
+    function showInlineAdd(btn) {
+        btn.style.display = 'none';
+        const container = btn.parentElement.querySelector('.inline-add-container');
+        container.style.display = 'flex';
+        container.querySelector('.inline-add-input').focus();
+    }
+
+    async function saveNewOption(btn, category, hiddenInputId, triggerTextId, containerId) {
+        const inlineBox = btn.parentElement;
+        const input = inlineBox.querySelector('.inline-add-input');
+        const val = input.value.trim().toUpperCase();
+
+        if (!val) {
+            alert('PLEASE ENTER A VALID OPTION NAME.');
+            return;
+        }
+
+        try {
+            const resp = await fetch('/Expenditure/Expenses/AddOption', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: category, value: val })
+            });
+            const data = await resp.json();
+
+            if (data.success) {
+                // Add to options list
+                const list = inlineBox.closest('.custom-select-dropdown').querySelector('.dropdown-options-list');
+                const newOpt = document.createElement('div');
+                newOpt.className = 'dropdown-opt';
+                newOpt.innerText = data.value;
+                newOpt.onclick = () => selectOption(hiddenInputId, triggerTextId, data.value, containerId);
+                list.appendChild(newOpt);
+
+                // Select it
+                selectOption(hiddenInputId, triggerTextId, data.value, containerId);
+
+                // Reset inline add
+                input.value = '';
+                inlineBox.style.display = 'none';
+                inlineBox.parentElement.querySelector('.btn-add-option-trigger').style.display = 'flex';
+            } else {
+                alert(data.message || 'COULD NOT SAVE OPTION.');
+            }
+        } catch (e) {
+            alert('NETWORK ERROR WHILE SAVING OPTION.');
+        }
+    }
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.custom-select-container')) {
+            document.querySelectorAll('.custom-select-dropdown.open').forEach(d => d.classList.remove('open'));
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        toggleConversionSection();
+        toggleUnpaidOption();
+    });
+</script>
+}
+

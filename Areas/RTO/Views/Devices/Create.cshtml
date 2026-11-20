@@ -1,0 +1,997 @@
+@model DeviceFormViewModel
+
+@{
+
+    ViewData["Title"] = "Add device";
+
+    ViewData["BodyClass"] = "form-background-container";
+
+    var currentBranch = Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG";
+
+}
+
+
+
+<div class="glass-wrapper">
+
+<div class="page-heading">
+
+    <div>
+
+        <div class="eyebrow">Fleet registry / new record</div>
+
+        <h1>Add device</h1>
+
+        <p>Create a traceable device record and make it visible in the operational dashboard.</p>
+
+    </div>
+
+    <a class="btn-back" href="@(ViewBag.ReturnUrl ?? Url.Action("Index"))">
+
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+
+        Back
+
+    </a>
+
+</div>
+
+
+
+<form class="form-card" asp-action="Create" method="post">
+
+    @if (!string.IsNullOrEmpty(ViewBag.ReturnUrl as string))
+
+    {
+
+        <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+
+    }
+
+    <input asp-for="StockStatus" type="hidden" />
+
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+    
+
+    <!-- Block 1: Vehicle & Identifiers -->
+
+    <style>
+
+        @@media (min-width: 1024px) { .balanced-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+
+        @@media (min-width: 1440px) { .balanced-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; } }
+
+    </style>
+
+    <div style="padding: 24px; border-radius: 12px; background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.1); margin-bottom: 24px;">
+
+        <div class="form-section-title" style="margin-top: 0; margin-bottom: 20px; color: #3b82f6;">Vehicle &amp; Identifiers</div>
+
+        <div class="form-grid balanced-grid">
+
+            <div class="field">
+
+                <label asp-for="SlNo" class="form-label">Serial number</label>
+
+                <input asp-for="SlNo" class="input" type="text" placeholder="e.g. 1" />
+
+                <span asp-validation-for="SlNo" class="validation-summary-errors"></span>
+
+            </div>
+
+
+
+            <div class="field">
+
+                <label asp-for="VehicleNo" class="form-label">Vehicle number</label>
+
+                <input asp-for="VehicleNo" class="input" placeholder="e.g. CG 10 AB 1234" />
+
+                <span asp-validation-for="VehicleNo" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="DeviceName" class="form-label">Device name</label>
+
+                @if (currentBranch == "RTO") {
+
+                    <input asp-for="DeviceName" class="input" value="Bharat101" readonly style="background: #f1f5f9; color: var(--muted); pointer-events: none;" />
+
+                } else {
+
+                    <select asp-for="DeviceName" class="select">
+
+                        <option value="">-- None --</option>
+
+                        <option value="Teltonika">Teltonika</option>
+
+                        <option value="Teltonica">Teltonica</option>
+
+                        <option value="WeTrack">WeTrack</option>
+
+                        <option value="Bharat101">Bharat101</option>
+
+                    </select>
+
+                }
+
+                <span asp-validation-for="DeviceName" class="validation-summary-errors"></span>
+
+            </div>
+
+
+
+            <div class="field">
+
+                <label asp-for="NetworkOperator" class="form-label">Network operator</label>
+
+                <select asp-for="NetworkOperator" class="select">
+                    <option value="Taisys (MYGTS)" selected>Taisys (MYGTS)</option>
+                    <option value="Sensorise">Sensorise</option>
+                </select>
+
+                <span asp-validation-for="NetworkOperator" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            @if (currentBranch == "RTO")
+
+            {
+
+                <div class="field">
+
+                    <label asp-for="Type" class="form-label">Type</label>
+
+                    <select asp-for="Type" class="select" data-custom-dropdown="DeviceType" data-custom-title="Device Type">
+
+                        <option value="NEW">NEW</option>
+
+                        <option value="OLD">OLD</option>
+
+                    </select>
+
+                    <span asp-validation-for="Type" class="validation-summary-errors"></span>
+
+                </div>
+
+
+
+                <div class="field">
+
+                    <label asp-for="CdacCertificate" class="form-label">CDAC-C</label>
+
+                    <select asp-for="CdacCertificate" class="select">
+
+                        <option value="YES">YES</option>
+
+                        <option value="NO">NO</option>
+
+                    </select>
+
+                    <span asp-validation-for="CdacCertificate" class="validation-summary-errors"></span>
+
+                </div>
+
+
+
+                <div class="field">
+
+                    <label asp-for="VldtCertificate" class="form-label">VLDT-C</label>
+
+                    <select asp-for="VldtCertificate" class="select">
+
+                        <option value="YES">YES</option>
+
+                        <option value="NO">NO</option>
+
+                    </select>
+
+                    <span asp-validation-for="VldtCertificate" class="validation-summary-errors"></span>
+
+                </div>
+
+            }
+
+            else
+
+            {
+
+                <input type="hidden" asp-for="CdacCertificate" value="NO" />
+
+                <input type="hidden" asp-for="VldtCertificate" value="NO" />
+
+            }
+
+
+
+            <div class="field">
+
+                <label asp-for="InvoiceId" class="form-label">Invoice ID</label>
+
+                <input asp-for="InvoiceId" class="input" placeholder="e.g. INV-001" />
+
+                <span asp-validation-for="InvoiceId" class="validation-summary-errors"></span>
+
+            </div>
+
+        </div>
+
+
+
+        <div style="margin-top: 16px; margin-bottom: 8px;">
+
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); cursor: pointer;">
+
+                <input type="checkbox" id="unlockIdentifiers" style="width: 14px; height: 14px; margin: 0; cursor: pointer;">
+
+                <span>Unlock Source Identifiers (IMEI, ICCID, SIMs)</span>
+
+            </label>
+
+        </div>
+
+
+
+        <div class="form-grid balanced-grid">
+
+            @if (currentBranch == "RTO")
+
+            {
+
+                <div class="field">
+
+                    <label asp-for="Iccid" class="form-label">ICCID</label>
+
+                    <input asp-for="Iccid" class="input identifier-input" placeholder="e.g. 899185123456789" />
+
+                    <span asp-validation-for="Iccid" class="validation-summary-errors"></span>
+
+                </div>
+
+
+
+                <div class="field">
+
+                    <label asp-for="Imei" class="form-label">IMEI</label>
+
+                    <input asp-for="Imei" class="input identifier-input" placeholder="e.g. 865432041234567" />
+
+                    <span asp-validation-for="Imei" class="validation-summary-errors"></span>
+
+                </div>
+
+
+
+                <div class="field">
+
+                    <label asp-for="DeviceSerialNo" class="form-label">Serial number</label>
+
+                    <input asp-for="DeviceSerialNo" class="input identifier-input" placeholder="e.g. SN-RTO-1001" />
+
+                    <span asp-validation-for="DeviceSerialNo" class="validation-summary-errors"></span>
+
+                </div>
+
+
+
+                <div class="field">
+
+                    <label asp-for="SimAirtel" class="form-label">Airtel SIM</label>
+
+                    <input asp-for="SimAirtel" class="input identifier-input" placeholder="e.g. 9876543210" />
+
+                    <span asp-validation-for="SimAirtel" class="validation-summary-errors"></span>
+
+                </div>
+
+                
+
+                <div class="field">
+
+                    <label asp-for="SimBsnl" class="form-label">BSNL SIM</label>
+
+                    <input asp-for="SimBsnl" class="input identifier-input" placeholder="e.g. 9422012345" />
+
+                    <span asp-validation-for="SimBsnl" class="validation-summary-errors"></span>
+
+                </div>
+
+            }
+
+            else
+
+            {
+
+                <div class="field">
+
+                    <label asp-for="Imei" class="form-label">IMEI</label>
+
+                    <input asp-for="Imei" class="input identifier-input" placeholder="e.g. 865432041234567" />
+
+                    <span asp-validation-for="Imei" class="validation-summary-errors"></span>
+
+                </div>
+
+                
+
+                <div class="field">
+
+                    <label asp-for="Iccid" class="form-label">ICCID</label>
+
+                    <input asp-for="Iccid" class="input identifier-input" placeholder="e.g. 899185123456789" />
+
+                    <span asp-validation-for="Iccid" class="validation-summary-errors"></span>
+
+                </div>
+
+                
+
+                <div class="field">
+
+                    <label asp-for="SimAirtel" class="form-label">Airtel SIM</label>
+
+                    <input asp-for="SimAirtel" class="input identifier-input" placeholder="e.g. 9876543210" />
+
+                    <span asp-validation-for="SimAirtel" class="validation-summary-errors"></span>
+
+                </div>
+
+                
+
+                <div class="field">
+
+                    <label asp-for="SimBsnl" class="form-label">BSNL SIM</label>
+
+                    <input asp-for="SimBsnl" class="input identifier-input" placeholder="e.g. 9422012345" />
+
+                    <span asp-validation-for="SimBsnl" class="validation-summary-errors"></span>
+
+                </div>
+
+            }
+
+        </div>
+
+    </div>
+
+    
+
+    <!-- Block 2: Ownership & Documentation -->
+
+    <div style="padding: 24px; border-radius: 12px; background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.1); margin-bottom: 24px;">
+
+        <div class="form-section-title" style="margin-top: 0; margin-bottom: 20px; color: #10b981;">Ownership &amp; Documentation</div>
+
+        <div class="form-grid">
+
+            @if (currentBranch == "RTO")
+
+            {
+
+                <div class="field">
+
+                    <label asp-for="RegistrationDate" class="form-label">Registration Date</label>
+
+                    <input asp-for="RegistrationDate" class="input" type="date" />
+
+                    <span asp-validation-for="RegistrationDate" class="validation-summary-errors"></span>
+
+                </div>
+
+            }
+
+
+
+            <div class="field">
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+
+                    <label asp-for="Vendor" class="form-label" style="margin: 0;">Vendor</label>
+
+                    <button type="button" onclick="const c=document.getElementById('vendorCustomWrap'); const s=document.getElementById('vendorSelect'); if(c.style.display==='none'){c.style.display='block'; s.value='';}else{c.style.display='none';}" style="background: none; border: none; color: var(--cyan); font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 0;">+ Custom Vendor</button>
+
+                </div>
+
+                @{
+
+                    var knownVendorsList = (ViewBag.KnownVendors as IEnumerable<string> ?? Enumerable.Empty<string>()).ToList();
+
+                }
+
+                <select class="select" id="vendorSelect" onchange="const inp=document.getElementById('vendorInput'); if(this.value){inp.value=this.value; document.getElementById('vendorCustomWrap').style.display='none';}">
+
+                    <option value="">-- Select Vendor from List --</option>
+
+                    @foreach (var v in knownVendorsList)
+
+                    {
+
+                        <option value="@v">@v</option>
+
+                    }
+
+                </select>
+
+                <div id="vendorCustomWrap" style="display: none; margin-top: 6px;">
+
+                    <input asp-for="Vendor" id="vendorInput" class="input" placeholder="Type vendor name..." autocomplete="off" />
+
+                </div>
+
+                <span asp-validation-for="Vendor" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="Owner" class="form-label">Owner</label>
+
+                <input asp-for="Owner" class="input" placeholder="Owner or department" />
+
+                <span asp-validation-for="Owner" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="CellNo" class="form-label">Contact number</label>
+
+                <input asp-for="CellNo" class="input" placeholder="10-digit contact" />
+
+                <span asp-validation-for="CellNo" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="EngineNo" class="form-label">Engine Number</label>
+
+                <input asp-for="EngineNo" class="input" placeholder="e.g. ENG12345" />
+
+                <span asp-validation-for="EngineNo" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="ChasisNo" class="form-label">Chassis Number</label>
+
+                <input asp-for="ChasisNo" class="input" placeholder="e.g. CH12345678" />
+
+                <span asp-validation-for="ChasisNo" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            @if (currentBranch == "RTO")
+
+            {
+
+                <div class="field">
+
+                    <label asp-for="VehicleMake" class="form-label">Vehicle Manufacture</label>
+
+                    <input asp-for="VehicleMake" class="input" placeholder="e.g. Tata, Mahindra, Ashok Leyland" />
+
+                    <span asp-validation-for="VehicleMake" class="validation-summary-errors"></span>
+
+                </div>
+
+                
+
+                <div class="field">
+
+                    <label asp-for="VehicleModel" class="form-label">Vehicle Model</label>
+
+                    <input asp-for="VehicleModel" class="input" placeholder="e.g. Ace Gold, Bolero Maxi" />
+
+                    <span asp-validation-for="VehicleModel" class="validation-summary-errors"></span>
+
+                </div>
+
+                
+
+                <div class="field">
+
+                    <label asp-for="Rto" class="form-label">RTO (KA-01 to KA-71)</label>
+
+                    <select asp-for="Rto" class="select" id="rto-select">
+
+                        @for (int i = 1; i <= 71; i++)
+
+                        {
+
+                            var rtoVal = $"KA-{i:D2}";
+
+                            <option value="@rtoVal">@rtoVal</option>
+
+                        }
+
+                    </select>
+
+                    <span asp-validation-for="Rto" class="validation-summary-errors"></span>
+
+                </div>
+
+                
+
+                <div class="field">
+
+                    <label asp-for="Address" class="form-label">Address</label>
+
+                    <input asp-for="Address" class="input" placeholder="Owner / Client address" />
+
+                    <span asp-validation-for="Address" class="validation-summary-errors"></span>
+
+                </div>
+
+            }
+
+            
+
+            <div class="field">
+
+                <label asp-for="ProofOfAddress" class="form-label">Proof of Identity</label>
+
+                <select asp-for="ProofOfAddress" class="select">
+
+                    <option value="">(Select Doc Type)</option>
+
+                    <option value="Aadhar">Aadhar</option>
+
+                    <option value="PAN">PAN</option>
+
+                </select>
+
+                <span asp-validation-for="ProofOfAddress" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="DocumentNumber" class="form-label">ID Number</label>
+
+                <input asp-for="DocumentNumber" class="input" placeholder="Aadhar / PAN ID Number" />
+
+                <span asp-validation-for="DocumentNumber" class="validation-summary-errors"></span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    
+
+    <!-- Block 3: Dates & Status -->
+
+    <div style="padding: 24px; border-radius: 12px; background: rgba(139, 92, 246, 0.04); border: 1px solid rgba(139, 92, 246, 0.1); margin-bottom: 24px;">
+
+        <div class="form-section-title" style="margin-top: 0; margin-bottom: 20px; color: #8b5cf6;">Dates &amp; Status</div>
+
+        <div class="form-grid">
+
+            <div class="field">
+
+                <label asp-for="LifecycleStatus" class="form-label">Lifecycle</label>
+
+                <select asp-for="LifecycleStatus" class="select">
+
+                    <option value="Active">Active</option>
+
+                    <option value="Suspension">Suspension</option>
+
+                    <option value="Terminated">Terminated</option>
+
+                    <option value="Dead">Dead</option>
+
+                    <option value="Inventory">Inventory</option>
+
+                </select>
+
+                <span asp-validation-for="LifecycleStatus" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="ActivationDate" class="form-label">Activation date</label>
+
+                <input asp-for="ActivationDate" class="input" type="date" />
+
+                <span asp-validation-for="ActivationDate" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="LatestExpiryDate" class="form-label">Expiry date</label>
+
+                <input asp-for="LatestExpiryDate" class="input" type="date" />
+
+                <span asp-validation-for="LatestExpiryDate" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field">
+
+                <label asp-for="AdminCost" class="form-label">Admin Cost (Defaults from Config)</label>
+
+                <div style="position: relative;">
+
+                    <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-weight: 600; color: #d97706;">₹</span>
+
+                    <input asp-for="AdminCost" class="input" type="number" step="0.01" style="padding-left: 28px;" placeholder="Leave empty for config default" />
+
+                </div>
+
+                <span class="help-text" style="font-size: 0.75rem; color: var(--muted); margin-top: 4px; display: block;">Once set, this value remains locked for this device even if global config changes.</span>
+
+                <span asp-validation-for="AdminCost" class="validation-summary-errors"></span>
+
+            </div>
+
+            
+
+            <div class="field full">
+
+                <label asp-for="Notes" class="form-label">Notes</label>
+
+                <textarea asp-for="Notes" class="textarea" placeholder="Installation, ownership, or operational notes"></textarea>
+
+                <span asp-validation-for="Notes" class="validation-summary-errors"></span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    
+
+    <div class="form-actions">
+
+        <a class="button ghost" href="@(ViewBag.ReturnUrl ?? Url.Action("Index"))">Cancel</a>
+
+        <button class="btn-primary" type="submit">
+
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+
+            Save device
+
+        </button>
+
+    </div>
+
+    
+
+    <div id="replacedDeviceSummaryContainer" style="display: none; padding: 24px; border-radius: 12px; background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.1); margin-top: 24px;">
+
+        <div class="form-section-title" style="margin-top: 0; margin-bottom: 20px; color: #3b82f6;">Replaced Device Summary</div>
+
+        <div id="replacedDeviceSummaryContent"></div>
+
+    </div>
+
+</form>
+
+</div>
+
+
+
+<style>
+
+    /* Styling for the radio button inside the TomSelect dropdown */
+
+    .ts-dropdown .option.selected .ts-radio-circle {
+
+        border-color: #3b82f6 !important;
+
+    }
+
+    .ts-dropdown .option.selected .ts-radio-dot {
+
+        background-color: #3b82f6 !important;
+
+    }
+
+</style>
+
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
+<script>
+
+    const allDevicesJson = @Html.Raw(ViewBag.DevicesJson ?? "[]");
+
+</script>
+
+
+
+<script>
+
+(function() {
+
+    const activationInput = document.getElementById("ActivationDate");
+
+    const expiryInput = document.getElementById("LatestExpiryDate");
+
+    
+
+    function updateExpiry() {
+
+        if (!activationInput || !expiryInput || !activationInput.value) return;
+
+        const parts = activationInput.value.split('-');
+
+        if (parts.length === 3) {
+
+            const year = parseInt(parts[0], 10);
+
+            const month = parseInt(parts[1], 10) - 1;
+
+            const day = parseInt(parts[2], 10);
+
+            
+
+            const date = new Date(year, month, day);
+
+            let addMonths = parseInt('@((ViewBag.ActivationExpiryMonths as string) ?? "11")', 10) || 11;
+
+            const addDays = parseInt('@((ViewBag.ActivationExpiryDays as string) ?? "15")', 10) || 15;
+
+            
+
+            const branch = '@(Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG")';
+
+            const typeInput = document.getElementById("Type");
+
+            if (branch === "RTO" && typeInput && (typeInput.value === "New" || typeInput.value === "NEW")) {
+
+                addMonths += 12; // 2 years for RTO branch
+
+            }
+
+            
+
+            date.setMonth(date.getMonth() + addMonths);
+
+            date.setDate(date.getDate() + addDays);
+
+            
+
+            const yyyy = date.getFullYear();
+
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+
+            const dd = String(date.getDate()).padStart(2, '0');
+
+            
+
+            expiryInput.value = `${yyyy}-${mm}-${dd}`;
+
+        }
+
+    }
+
+    
+
+    if (activationInput && expiryInput) {
+
+        activationInput.addEventListener("change", updateExpiry);
+
+        activationInput.addEventListener("input", updateExpiry);
+
+        
+
+        const typeInput = document.getElementById("Type");
+
+        if (typeInput) {
+
+            typeInput.addEventListener("change", updateExpiry);
+
+        }
+
+        
+
+        updateExpiry();
+
+        document.addEventListener("DOMContentLoaded", updateExpiry);
+
+    }
+
+
+
+    const identifierInputs = document.querySelectorAll('.identifier-input');
+
+    const unlockIdentifiersCb = document.getElementById('unlockIdentifiers');
+
+    const deviceNameSelect = document.getElementById('DeviceName');
+
+
+
+    function lockIdentifiers(lock) {
+
+        if (!unlockIdentifiersCb.checked && lock) {
+
+            identifierInputs.forEach(input => {
+
+                input.readOnly = true;
+
+                // Removed grey background as requested
+
+            });
+
+            deviceNameSelect.style.pointerEvents = 'none';
+
+            deviceNameSelect.style.opacity = '0.6';
+
+            deviceNameSelect.tabIndex = -1;
+
+        } else {
+
+            identifierInputs.forEach(input => {
+
+                input.readOnly = false;
+
+            });
+
+            deviceNameSelect.style.pointerEvents = 'auto';
+
+            deviceNameSelect.style.opacity = '1';
+
+            deviceNameSelect.tabIndex = 0;
+
+        }
+
+    }
+
+
+
+    unlockIdentifiersCb.addEventListener('change', () => {
+
+        // Unlocks identifier fields manually when toggled
+
+        lockIdentifiers(false);
+
+    });
+
+
+
+    // Instant S.No Duplicate Validation
+
+    const slNoInput = document.getElementById("SlNo");
+
+    if (slNoInput && typeof allDevicesJson !== 'undefined') {
+
+        const errorSpan = document.querySelector('[data-valmsg-for="SlNo"]');
+
+        function validateSlNo() {
+
+            const val = parseInt(slNoInput.value);
+
+            if (!val) return true;
+
+            const duplicate = allDevicesJson.find(d => d.SlNo === val);
+
+            if (duplicate) {
+
+                if(errorSpan) {
+
+                    errorSpan.textContent = "This serial number is already given to another device.";
+
+                    errorSpan.classList.remove('field-validation-valid');
+
+                    errorSpan.classList.add('field-validation-error');
+
+                }
+
+                return false;
+
+            } else {
+
+                if(errorSpan) {
+
+                    errorSpan.textContent = "";
+
+                    errorSpan.classList.remove('field-validation-error');
+
+                    errorSpan.classList.add('field-validation-valid');
+
+                }
+
+                return true;
+
+            }
+
+        }
+
+        slNoInput.addEventListener('input', validateSlNo);
+
+        
+
+        const form = slNoInput.closest('form');
+
+        if (form) {
+
+            form.addEventListener('submit', function(e) {
+
+                if (!validateSlNo()) {
+
+                    e.preventDefault();
+
+                    slNoInput.focus();
+
+                }
+
+            });
+
+        }
+
+    }
+
+
+
+    const vehInput = document.querySelector('input[name="VehicleNo"]');
+
+    const rtoSelect = document.getElementById('rto-select');
+
+    if (vehInput && rtoSelect) {
+
+        vehInput.addEventListener('blur', function() {
+
+            if (!rtoSelect.value) {
+
+                const clean = (vehInput.value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+
+                const m = clean.match(/^KA(\d{1,2})/);
+
+                if (m) {
+
+                    const num = parseInt(m[1], 10);
+
+                    if (num >= 1 && num <= 71) {
+
+                        const target = 'KA-' + (num < 10 ? '0' + num : num);
+
+                        rtoSelect.value = target;
+
+                    }
+
+                }
+
+            }
+
+        });
+
+    }
+
+})();
+
+</script>
+

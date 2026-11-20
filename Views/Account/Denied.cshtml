@@ -1,0 +1,10 @@
+@{
+    ViewData["Title"] = "Access denied";
+}
+
+<div class="card error-panel">
+    <div class="eyebrow">MYGTS / permission boundary</div>
+    <h1 style="margin: 14px 0 8px; font-size: 2.4rem; letter-spacing: -.06em;">Access denied.</h1>
+    <p class="muted">Your account is authenticated, but this control is reserved for Executive users.</p>
+    <a class="button" asp-controller="Dashboard" asp-action="Index">Return to dashboard</a>
+</div>

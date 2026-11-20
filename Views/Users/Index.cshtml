@@ -1,0 +1,667 @@
+@model UserListViewModel
+@{
+    ViewData["Title"] = "Users";
+    var isCurrentUserAdmin = Model.IsAdmin;
+}
+
+<div class="page-heading">
+    <div>
+        @if (Model.AllowedRoles.Count == 0)
+        {
+            <div class="eyebrow">Personal Account Settings</div>
+            <h1>My Profile</h1>
+            <p>Manage your account credentials, password, and WhatsApp preferences.</p>
+        }
+        else
+        {
+            <div class="eyebrow">Executive &amp; Admin controls</div>
+            <h1>Users &amp; Roles</h1>
+            <p>Manage subordinate user accounts, live credentials, roles, and branch privileges.</p>
+        }
+    </div>
+    <div class="page-heading-actions">
+        @if (Model.AllowedRoles.Count > 0)
+        {
+            <button class="button btn-primary" type="button" onclick="openCreateUserModal()" data-testid="open-create-user-modal">+ Create user</button>
+        }
+    </div>
+</div>
+
+<section class="card" style="margin-top: 16px; overflow: visible;">
+    <div class="section-heading" style="padding: 0 20px; margin-top: 16px; margin-bottom: 12px;">
+        <div>
+            <h2>@Model.Users.Count @(Model.AllowedRoles.Count == 0 ? "account" : "users")</h2>
+            <p>Only active users are permitted console sign-in privileges.</p>
+        </div>
+    </div>
+    
+    <div class="table-wrap" style="overflow: visible;">
+        <table class="data-table" style="min-width: 760px;">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Credentials</th>
+                    <th>Branches</th>
+                    <th>Status</th>
+                    <th style="width: 50px; min-width: 50px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in Model.Users)
+                {
+                    var isTargetAdmin = user.Role == "Admin";
+                    var myId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    var myEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? User.Identity?.Name;
+                    var isSelf = (!string.IsNullOrEmpty(myId) && user.Id == myId) ||
+                                 string.Equals(user.Email, myEmail, StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(user.DisplayName, User.Identity?.Name, StringComparison.OrdinalIgnoreCase);
+                    var canManage = User.CanManageUser(user);
+
+                    <tr>
+                        <td>
+                            <strong>@user.DisplayName</strong>
+                            @if (isTargetAdmin)
+                            {
+                                <span title="Master Administrator" style="margin-left: 4px; font-size: 0.85rem;">👑</span>
+                            }
+                            @if (isSelf)
+                            {
+                                <span class="badge neutral" style="font-size: 0.65rem; margin-left: 6px; padding: 2px 6px;">You</span>
+                            }
+                        </td>
+                        <td class="user-email">@user.Email</td>
+                        <td>
+                            <span class="badge @(user.Role == "Admin" ? "active" : (user.Role == "Executive" ? "active" : "neutral"))" style="@(user.Role == "Admin" ? "background: #7c3aed; color: #fff;" : "")">@user.Role</span>
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(user.PlainPassword))
+                            {
+                                var pwdId = "pwd_" + user.Id;
+                                <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.04); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);">
+                                    <input type="password" id="@pwdId" value="@user.PlainPassword" readonly="readonly" style="background: none; border: none; font-size: 0.78rem; font-family: monospace; color: var(--text-main); width: 85px; outline: none; cursor: default;" />
+                                    <button type="button" onclick="togglePlainPwd('@pwdId', this)" style="background: none; border: none; cursor: pointer; padding: 0; color: var(--muted); display: flex; align-items: center;" title="Show/Hide Password">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    </button>
+                                    <button type="button" onclick="copyUserPwd('@pwdId')" style="background: none; border: none; cursor: pointer; padding: 0; color: var(--muted); display: flex; align-items: center;" title="Copy Password">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <span style="color: var(--muted); font-size: 0.75rem;">(Protected Hash)</span>
+                            }
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                @if (user.Role == "Admin")
+                                {
+                                    <span style="font-size: 0.68rem; font-weight: 800; background: #ede9fe; color: #6d28d9; padding: 2px 7px; border-radius: 4px; border: 1px solid #ddd6fe;">ALL (DMG, RTO, EXP)</span>
+                                }
+                                else
+                                {
+                                    var branches = user.GetAllowedBranchesList();
+                                    foreach (var b in branches)
+                                    {
+                                        var bg = b == "Expenditure" ? "#e0f2fe" : (b == "RTO" ? "#fef3c7" : "#dcfce7");
+                                        var col = b == "Expenditure" ? "#0369a1" : (b == "RTO" ? "#b45309" : "#15803d");
+                                        var border = b == "Expenditure" ? "#bae6fd" : (b == "RTO" ? "#fde68a" : "#bbf7d0");
+                                        <span style="font-size: 0.68rem; font-weight: 800; background: @bg; color: @col; padding: 2px 7px; border-radius: 4px; border: 1px solid @border;">@b</span>
+                                    }
+                                }
+                            </div>
+                        </td>
+                        <td>
+                            @if (isSelf)
+                            {
+                                <span class="badge active" style="cursor: not-allowed;" title="You cannot deactivate your own logged-in account">Active</span>
+                            }
+                            else if (canManage)
+                            {
+                                <form asp-action="Toggle" method="post" style="display: inline; margin: 0;">
+                                    <input type="hidden" name="id" value="@user.Id" />
+                                    <button type="submit" class="badge-btn @(user.IsActive ? "active" : "dead")" title="Click to @(user.IsActive ? "disable" : "activate") @user.DisplayName">
+                                        @(user.IsActive ? "Active" : "Disabled")
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="badge @(user.IsActive ? "active" : "dead")" style="cursor: default;">@(user.IsActive ? "Active" : "Disabled")</span>
+                            }
+                        </td>
+                        <td style="overflow: visible;">
+                            <label class="popup">
+                                <input type="checkbox">
+                                <div class="burger" tabindex="0">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </div>
+                                <nav class="popup-window">
+                                    <legend>Actions</legend>
+                                    <ul>
+                                        @if (isSelf || canManage)
+                                        {
+                                            <li>
+                                                <a asp-action="Edit" asp-route-id="@user.Id">
+                                                    <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg">
+                                                        <polygon points="16 3 21 8 8 21 3 21 3 16 16 3"></polygon>
+                                                    </svg>
+                                                    <span>Edit &amp; Password</span>
+                                                </a>
+                                            </li>
+                                        }
+                                        @if (!isSelf && canManage)
+                                        {
+                                            <li>
+                                                <form asp-action="Toggle" method="post" style="margin: 0; width: 100%;">
+                                                    <input type="hidden" name="id" value="@user.Id" />
+                                                    <button type="submit">
+                                                        <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line>
+                                                        </svg>
+                                                        <span>@(user.IsActive ? "Disable User" : "Activate User")</span>
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            <hr>
+                                            <li>
+                                                <form asp-action="Delete" method="post" style="margin: 0; width: 100%;">
+                                                    <input type="hidden" name="id" value="@user.Id" />
+                                                    <button type="submit" onclick="return confirm('Permanently remove user @user.DisplayName?')">
+                                                        <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg">
+                                                            <line y2="18" x2="6" y1="6" x1="18"></line>
+                                                            <line y2="18" x2="18" y1="6" x1="6"></line>
+                                                        </svg>
+                                                        <span>Delete</span>
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        }
+                                    </ul>
+                                </nav>
+                            </label>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Create User Modal -->
+<div id="createUserModal" class="custom-modal-backdrop" style="display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
+    <div class="custom-modal-dialog" style="background: #ffffff; color: var(--ink); width: 950px; max-width: 95vw; margin: auto; border-radius: 14px; padding: 24px 30px; box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08); position: relative; z-index: 100000; box-sizing: border-box;">
+        <div class="custom-modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line);">
+            <div>
+                <h2 style="margin: 0 0 2px; font-size: 1.25rem; font-weight: 700; color: var(--ink);">Create user</h2>
+                <p class="muted" style="margin: 0; font-size: 0.82rem;">Set credentials and permissions across both DMG &amp; RTO branches.</p>
+            </div>
+            <button type="button" class="custom-modal-close" onclick="closeCreateUserModal()" style="background: transparent; border: none; font-size: 1.6rem; color: var(--muted); cursor: pointer; padding: 2px 8px; line-height: 1; border-radius: 6px;" title="Close dialog">&times;</button>
+        </div>
+
+        <form asp-action="Create" method="post" style="margin: 0;">
+            <div class="modal-form-grid" style="display: grid; grid-template-columns: 1fr 1.35fr; gap: 28px; align-items: start; width: 100%;">
+                <!-- Left Column: User Credentials -->
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div class="field">
+                        <label class="form-label" for="DisplayName">Display name</label>
+                        <input class="input" id="DisplayName" name="DisplayName" required placeholder="e.g. Alex Miller" autocomplete="off" />
+                    </div>
+                    
+                    <div class="field">
+                        <label class="form-label" for="Email">Email</label>
+                        <input class="input user-email" id="Email" name="Email" type="email" required placeholder="user@company.com" autocomplete="new-password" />
+                    </div>
+                    
+                    <div class="field">
+                        <label class="form-label" for="Role">Role</label>
+                        <select class="select" id="Role" name="Role" onchange="toggleRolePermissions(this.value, 'createRoleInfo')">
+                            <option value="" disabled selected>Select a role...</option>
+                            @if (Model.AllowedRoles.Contains("Admin"))
+                            {
+                                <option value="Admin">Admin (Absolute Master Authority)</option>
+                            }
+                            @if (Model.AllowedRoles.Contains("Executive"))
+                            {
+                                <option value="Executive">Executive (Full Management Administrator)</option>
+                            }
+                            @if (Model.AllowedRoles.Contains("Team"))
+                            {
+                                <option value="Team">Team (Custom edit &amp; view permissions)</option>
+                            }
+                            @if (Model.AllowedRoles.Contains("User"))
+                            {
+                                <option value="User">User (Read-only viewer with page checkboxes)</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label class="form-label" for="Password">Password</label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <input class="input user-password" id="Password" name="Password" type="password" minlength="8" required placeholder="Minimum 8 characters" autocomplete="new-password" style="padding-right: 40px;" />
+                            <button type="button" class="btn-pwd-eye" onclick="toggleInputPassword('Password', this)" title="Show/Hide password" style="position: absolute; right: 8px; background: transparent; border: none; cursor: pointer; color: var(--muted); padding: 4px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Branch Access Checkboxes -->
+                    <div class="field" id="createBranchAccessBox" style="background: var(--soft); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--line);">
+                        <label class="form-label" style="font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; display: block; color: var(--ink);">
+                            Branch Access Checkboxes *
+                        </label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.80rem; font-weight: 700; background: var(--paper); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer;">
+                                <input type="checkbox" name="Branches" value="DMG" checked class="chk-create-branch" style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--primary);" />
+                                <span>DMG</span>
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.80rem; font-weight: 700; background: var(--paper); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer;">
+                                <input type="checkbox" name="Branches" value="RTO" checked class="chk-create-branch" style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--primary);" />
+                                <span>RTO</span>
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.80rem; font-weight: 700; background: var(--paper); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer;">
+                                <input type="checkbox" name="Branches" value="Expenditure" checked class="chk-create-branch" style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--primary);" />
+                                <span>Expenditure</span>
+                            </label>
+                        </div>
+                        <div class="muted" style="font-size: 0.70rem; margin-top: 5px;">
+                            Executives and Teams will have access to work on the selected branches.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Page Permissions / Role Description -->
+                <div style="display: flex; flex-direction: column; justify-content: flex-start;">
+                    <div id="createRoleInfo" class="muted" style="font-size: 0.85rem; display: none; padding: 18px; background: rgba(var(--primary-rgb), 0.06); border: 1px solid rgba(var(--primary-rgb), 0.18); border-radius: 10px; line-height: 1.55;"></div>
+
+                    <!-- User Role: Read-only Checkboxes -->
+                    <div id="createUserCheckboxesBox" style="background: var(--soft); padding: 14px 16px; border-radius: 10px; border: 1px solid var(--line);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px;">
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.78rem; color: var(--ink); text-transform: uppercase; letter-spacing: 0.04em;">Allowed Pages (Read-Only)</div>
+                                <div class="muted" style="font-size: 0.72rem; margin-top: 1px;">Check pages this user can view in DMG &amp; RTO.</div>
+                            </div>
+                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                <button type="button" class="btn-perm-preset" onclick="applyUserCheckboxes('create', 'all')" title="Select all pages">Select All</button>
+                                <button type="button" class="btn-perm-preset" onclick="applyUserCheckboxes('create', 'fleet')" title="Select fleet &amp; reminders only">Fleet Only</button>
+                                <button type="button" class="btn-perm-preset" onclick="applyUserCheckboxes('create', 'none')" title="Deselect all">Deselect All</button>
+                            </div>
+                        </div>
+
+                        <div class="perm-checkbox-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            @foreach (var mod in AppModules.All)
+                            {
+                                <label class="perm-checkbox-card" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; transition: all 0.15s ease;">
+                                    <input type="checkbox" name="Permissions[@mod]" value="Read" class="chk-create-user-mod" id="chk_create_@mod" style="width: 17px; height: 17px; cursor: pointer; accent-color: var(--primary);" />
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="font-weight: 600; font-size: 0.82rem; color: var(--ink);">@mod</div>
+                                        <div class="muted" style="font-size: 0.7rem;">Read-only view</div>
+                                    </div>
+                                    <span class="badge neutral" style="font-size: 0.65rem; padding: 2px 6px;">View</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Team Role: Custom Edit/Read/None Table -->
+                    <div id="createTeamPermissionsBox" style="display: none; background: var(--soft); padding: 14px 16px; border-radius: 10px; border: 1px solid var(--line);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px;">
+                            <div style="font-weight: 700; font-size: 0.78rem; color: var(--ink); text-transform: uppercase; letter-spacing: 0.04em;">Module View &amp; Edit Rights</div>
+                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                <button type="button" class="btn-perm-preset" onclick="applyPreset('create', 'read')" title="Grant read-only view on all pages">View All</button>
+                                <button type="button" class="btn-perm-preset" onclick="applyPreset('create', 'fleet')" title="View fleet &amp; reminders only">Fleet Only</button>
+                                <button type="button" class="btn-perm-preset" onclick="applyPreset('create', 'edit')" title="Grant edit on all pages">Edit All</button>
+                                <button type="button" class="btn-perm-preset" onclick="applyPreset('create', 'none')" title="Revoke access to all">No Access</button>
+                            </div>
+                        </div>
+
+                        <table style="width: 100%; font-size: 0.82rem; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--line); text-align: left; color: var(--muted);">
+                                    <th style="padding: 5px 6px; font-weight: 600;">Module</th>
+                                    <th style="padding: 5px 6px; text-align: center; font-weight: 600;">Edit</th>
+                                    <th style="padding: 5px 6px; text-align: center; font-weight: 600;">Read Only</th>
+                                    <th style="padding: 5px 6px; text-align: center; font-weight: 600;">No Access</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var mod in AppModules.All)
+                                {
+                                    <tr style="border-bottom: 1px solid rgba(0,0,0,0.04);">
+                                        <td style="padding: 6px 6px; font-weight: 600; color: var(--ink);">
+                                            @mod
+                                            @if (mod == "Inventory")
+                                            {
+                                                <div class="muted" style="font-size: 0.68rem; font-weight: normal; margin-top: 1px;">Users with Devices Edit can view &amp; update device actions</div>
+                                            }
+                                        </td>
+                                        <td style="padding: 6px 6px; text-align: center;">
+                                            <input type="radio" name="Permissions[@mod]" value="Edit" id="perm_create_@(mod)_edit" style="cursor: pointer; width: 16px; height: 16px;" />
+                                        </td>
+                                        <td style="padding: 6px 6px; text-align: center;">
+                                            <input type="radio" name="Permissions[@mod]" value="Read" id="perm_create_@(mod)_read" style="cursor: pointer; width: 16px; height: 16px;" />
+                                        </td>
+                                        <td style="padding: 6px 6px; text-align: center;">
+                                            <input type="radio" name="Permissions[@mod]" value="None" id="perm_create_@(mod)_none" style="cursor: pointer; width: 16px; height: 16px;" />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px;">
+                <button class="button secondary" type="button" onclick="closeCreateUserModal()">Cancel</button>
+                <button class="button btn-primary" type="submit">Create user</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .badge-btn {
+        border: none;
+        cursor: pointer;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        transition: all 0.15s ease;
+    }
+    .badge-btn.active {
+        background: rgba(16, 185, 129, 0.12);
+        color: #059669;
+    }
+    .badge-btn.active:hover {
+        background: rgba(239, 68, 68, 0.15);
+        color: #dc2626;
+    }
+    .badge-btn.dead {
+        background: rgba(239, 68, 68, 0.12);
+        color: #dc2626;
+    }
+    .badge-btn.dead:hover {
+        background: rgba(16, 185, 129, 0.15);
+        color: #059669;
+    }
+    .btn-icon-tiny {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--muted);
+        padding: 2px 4px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        transition: color 0.15s;
+    }
+    .btn-icon-tiny:hover {
+        color: var(--blue-600);
+        background: var(--surface-hover);
+    }
+    .perm-checkbox-card:hover {
+        border-color: var(--blue-500) !important;
+        background: var(--surface-hover) !important;
+    }
+    .btn-perm-preset {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text-main);
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.12s ease;
+    }
+    .btn-perm-preset:hover {
+        background: var(--surface-hover);
+        border-color: var(--blue-500);
+        color: var(--blue-600);
+    }
+    .custom-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.75);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .custom-modal-dialog {
+        background: #ffffff !important;
+        color: var(--ink);
+        width: 950px !important;
+        max-width: 95vw !important;
+        margin: auto;
+        border-radius: 14px;
+        padding: 24px 30px;
+        box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08);
+        position: relative;
+        z-index: 100000;
+        animation: customModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        box-sizing: border-box;
+    }
+
+    .modal-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1.35fr;
+        gap: 28px;
+        align-items: start;
+        width: 100%;
+    }
+
+    @@media (max-width: 768px) {
+        .modal-form-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        .perm-checkbox-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+
+    body:has(#theme:checked) .custom-modal-dialog {
+        background: #1e293b !important;
+        color: #f8fafc;
+        border: 1px solid #334155;
+    }
+    body:has(#theme:checked) .custom-modal-dialog h2 {
+        color: #f8fafc !important;
+    }
+    body:has(#theme:checked) .custom-modal-dialog #createUserCheckboxesBox,
+    body:has(#theme:checked) .custom-modal-dialog #createTeamPermissionsBox {
+        background: #0f172a !important;
+        border-color: #334155 !important;
+    }
+    body:has(#theme:checked) .perm-checkbox-card {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+    }
+    body:has(#theme:checked) .custom-modal-dialog th,
+    body:has(#theme:checked) .custom-modal-dialog td {
+        color: #e2e8f0 !important;
+    }
+    body:has(#theme:checked) .custom-modal-dialog .custom-modal-close {
+        color: #94a3b8;
+    }
+    body:has(#theme:checked) .custom-modal-dialog .custom-modal-close:hover {
+        color: #ffffff;
+        background: rgba(255,255,255,0.08);
+    }
+
+    .custom-modal-close:hover {
+        color: var(--ink);
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    @@keyframes customModalPop {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(-12px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+</style>
+
+<script>
+    const allModulesList = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(AppModules.All));
+
+    function toggleInputPassword(inputId, btn) {
+        const inp = document.getElementById(inputId);
+        if (!inp) return;
+        if (inp.type === 'password') {
+            inp.type = 'text';
+            btn.style.color = 'var(--blue-600)';
+        } else {
+            inp.type = 'password';
+            btn.style.color = 'var(--muted)';
+        }
+    }
+
+    function applyUserCheckboxes(prefix, type) {
+        allModulesList.forEach(mod => {
+            const chk = document.getElementById(`chk_${prefix}_${mod}`);
+            if (!chk) return;
+            if (type === 'all') chk.checked = true;
+            else if (type === 'none') chk.checked = false;
+            else if (type === 'fleet') {
+                chk.checked = (mod === 'Devices' || mod === 'Inventory' || mod === 'Reminders' || mod === 'Dashboard');
+            }
+        });
+    }
+
+    function applyPreset(prefix, type) {
+        allModulesList.forEach(mod => {
+            let targetVal = 'Read';
+            if (type === 'edit') targetVal = 'Edit';
+            else if (type === 'none') targetVal = 'None';
+            else if (type === 'fleet') {
+                targetVal = (mod === 'Devices' || mod === 'Inventory' || mod === 'Reminders' || mod === 'Dashboard') ? 'Read' : 'None';
+            }
+            const radio = document.getElementById(`perm_${prefix}_${mod}_${targetVal.toLowerCase()}`);
+            if (radio) radio.checked = true;
+        });
+    }
+
+    function openCreateUserModal() {
+        const modal = document.getElementById('createUserModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            const nameInput = document.getElementById('DisplayName');
+            if (nameInput) setTimeout(() => nameInput.focus(), 60);
+        }
+    }
+
+    function closeCreateUserModal() {
+        const modal = document.getElementById('createUserModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    }
+
+    // Close on backdrop click
+    document.getElementById('createUserModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeCreateUserModal();
+        }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeCreateUserModal();
+        }
+    });
+
+    function toggleRolePermissions(role, infoId) {
+        const userBox = document.getElementById('createUserCheckboxesBox');
+        const teamBox = document.getElementById('createTeamPermissionsBox');
+        const info = document.getElementById(infoId);
+
+        document.querySelectorAll('.chk-create-user-mod').forEach(el => el.disabled = true);
+        document.querySelectorAll('#createTeamPermissionsBox input[type="radio"]').forEach(el => el.disabled = true);
+
+        if (role === 'Admin') {
+            document.querySelectorAll('.chk-create-branch').forEach(el => { el.checked = true; el.disabled = true; });
+            if (userBox) userBox.style.display = 'none';
+            if (teamBox) teamBox.style.display = 'none';
+            if (info) {
+                info.innerHTML = '<strong>👑 Admin Role (Absolute Master Authority):</strong> Unrestricted access across all branches (DMG, RTO, Expenditure), configurations, backups, and user management.';
+                info.style.display = 'block';
+            }
+        } else if (role === 'Executive') {
+            document.querySelectorAll('.chk-create-branch').forEach(el => { el.disabled = false; });
+            if (userBox) userBox.style.display = 'none';
+            if (teamBox) teamBox.style.display = 'none';
+            if (info) {
+                info.innerHTML = '<strong>⭐ Executive Role:</strong> Full operational management across selected branches. Check the branch checkboxes to permit working in DMG, RTO, and/or Expenditure.';
+                info.style.display = 'block';
+            }
+        } else if (role === 'Team') {
+            document.querySelectorAll('.chk-create-branch').forEach(el => { el.disabled = false; });
+            if (userBox) userBox.style.display = 'none';
+            if (teamBox) {
+                teamBox.style.display = 'block';
+                document.querySelectorAll('#createTeamPermissionsBox input[type="radio"]').forEach(el => el.disabled = false);
+            }
+            if (info) info.style.display = 'none';
+        } else {
+            document.querySelectorAll('.chk-create-branch').forEach(el => { el.disabled = false; });
+            if (userBox) {
+                userBox.style.display = 'block';
+                document.querySelectorAll('.chk-create-user-mod').forEach(el => el.disabled = false);
+            }
+            if (teamBox) teamBox.style.display = 'none';
+            if (info) info.style.display = 'none';
+        }
+    }
+
+    function togglePlainPwd(id, btn) {
+        const inp = document.getElementById(id);
+        if (!inp) return;
+        if (inp.type === 'password') {
+            inp.type = 'text';
+            btn.style.color = '#2563eb';
+        } else {
+            inp.type = 'password';
+            btn.style.color = 'var(--muted)';
+        }
+    }
+
+    function copyUserPwd(id) {
+        const inp = document.getElementById(id);
+        if (!inp) return;
+        navigator.clipboard.writeText(inp.value).then(() => {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Password copied to clipboard',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
+        });
+    }
+</script>

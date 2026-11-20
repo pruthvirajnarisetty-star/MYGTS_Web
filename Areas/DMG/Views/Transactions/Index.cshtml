@@ -1,0 +1,2267 @@
+@model TransactionFilterViewModel
+
+@{
+
+    ViewData["Title"] = "Transactions";
+
+    string SortDir(string col) => Model.SortColumn == col && Model.SortDirection == "asc" ? "desc" : "asc";
+
+    string SortIcon(string col) => Model.SortColumn == col ? (Model.SortDirection == "desc" ? " ↓" : " ↑") : " ↑↓";
+
+    var currentBranch = "DMG";
+
+    string PaymentModeClass(string? mode)
+    {
+        if (string.IsNullOrWhiteSpace(mode)) return "badge-mode-default";
+        var m = mode.Trim().ToUpperInvariant();
+        if (m.Contains("UPI")) return "badge-mode-upi";
+        if (m.Contains("CASH")) return "badge-mode-cash";
+        if (m.Contains("BANK") || m.Contains("IMPS") || m.Contains("NEFT") || m.Contains("RTGS") || m.Contains("ONLINE")) return "badge-mode-bank";
+        if (m.Contains("CHEQUE") || m.Contains("CHECK")) return "badge-mode-cheque";
+        return "badge-mode-default";
+    }
+
+
+
+
+    string PaymentForClass(string? pfor)
+    {
+        if (string.IsNullOrWhiteSpace(pfor)) return "badge-for-default";
+        var p = pfor.Trim().ToUpperInvariant();
+        if (p.Contains("RECHARGE")) return "badge-for-recharge";
+        if (p.Contains("ACTIVATION") && !p.Contains("REACTIVATION")) return "badge-for-activation";
+        if (p.Contains("REACTIVATION")) return "badge-for-reactivation";
+        if (p.Contains("RENEWAL")) return "badge-for-renewal";
+        return "badge-for-default";
+    }
+
+}
+
+
+
+<style>
+
+    .content-area { max-width: none !important; padding-left: 20px !important; padding-right: 20px !important; }
+
+</style>
+
+
+
+<div class="page-heading">
+
+    <div>
+
+        <div class="eyebrow">Financial operations / ledger</div>
+
+        <h1>Transactions</h1>
+
+        <p>Record device payments, recharges, expiry changes, and vendor movement with source-level clarity.</p>
+
+    </div>
+
+    
+
+    <div class="page-heading-actions">
+
+        <a class="button secondary" asp-action="DownloadSample" asp-route-branch="@currentBranch" title="Download sample transactions Excel template (.xlsx)">📥 Sample sheet</a>
+
+        @if (User.CanEditModule("Transactions"))
+
+        {
+
+            <a class="button secondary" asp-action="Import" data-testid="transactions-import">↑ Import transactions</a>
+
+            <button type="button" class="button secondary" id="btnOpenVendorCreditsDrawer" title="View Vendor Advance & Credit Balances" onclick="window.openVendorCreditsDrawer && window.openVendorCreditsDrawer()" style="display: inline-flex; align-items: center; gap: 8px;">
+                <span>💳 Vendor Credits</span>
+                <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); font-weight: 700; padding: 2px 8px; border-radius: 999px; font-size: 0.8rem;">
+                    ₹@(ViewBag.TotalActiveCredit != null ? ((decimal)ViewBag.TotalActiveCredit).ToString("N2") : "0.00")
+                </span>
+            </button>
+
+            <a class="button secondary" asp-action="ExportAll" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-FromDate="@Model.FromDate" asp-route-ToDate="@Model.ToDate" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection" data-testid="transactions-export">↓ Export transactions</a>
+            <a class="button secondary" asp-action="ExportAll" asp-route-TransactionType="Bulk" asp-route-FromDate="@Model.FromDate" asp-route-ToDate="@Model.ToDate" title="Export only bulk split transactions with breakdown">📊 Export Bulk</a>
+
+            <a class="button btn-primary" asp-action="Create" data-testid="transaction-add">+ Add transaction</a>
+
+        }
+
+        else
+
+        {
+
+            <button type="button" class="button secondary" id="btnOpenVendorCreditsDrawer" title="View Vendor Advance & Credit Balances" onclick="window.openVendorCreditsDrawer && window.openVendorCreditsDrawer()" style="display: inline-flex; align-items: center; gap: 8px;">
+                <span>💳 Vendor Credits</span>
+                <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); font-weight: 700; padding: 2px 8px; border-radius: 999px; font-size: 0.8rem;">
+                    ₹@(ViewBag.TotalActiveCredit != null ? ((decimal)ViewBag.TotalActiveCredit).ToString("N2") : "0.00")
+                </span>
+            </button>
+
+            <a class="button secondary" asp-action="ExportAll" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-FromDate="@Model.FromDate" asp-route-ToDate="@Model.ToDate" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection" data-testid="transactions-export">↓ Export transactions</a>
+            <a class="button secondary" asp-action="ExportAll" asp-route-TransactionType="Bulk" asp-route-FromDate="@Model.FromDate" asp-route-ToDate="@Model.ToDate" title="Export only bulk split transactions with breakdown">📊 Export Bulk</a>
+
+        }
+
+    </div>
+
+</div>
+
+
+
+<form class="card toolbar" method="get" asp-action="Index">
+
+    <div class="filter-grid" style="align-items: flex-end;">
+
+        <div class="field toolbar-search">
+
+            <label for="QueryInput" class="form-label" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">SEARCH</label>
+
+            <div style="position: relative; width: 100%;">
+
+                <button type="button" style="position: absolute; top: 50%; transform: translateY(-50%); left: 16px; padding: 0; background: transparent; border: none; display: flex; align-items: center; justify-content: center;">
+
+                    <svg width="17" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; color: #4b5563;">
+
+                        <path d="M7.667 12.667A5.333 5.333 0 107.667 2a5.333 5.333 0 000 10.667zM14.334 14l-2.9-2.9" stroke="currentColor" stroke-width="1.333" stroke-linecap="round" stroke-linejoin="round"></path>
+
+                    </svg>
+
+                </button>
+
+                <input type="hidden" asp-for="Query" id="Query" />
+
+                <input type="hidden" asp-for="SortColumn" />
+
+                <input type="hidden" asp-for="SortDirection" />
+
+                <input id="QueryInput" name="QueryInput" class="input shadow-md w-full" style="padding: 0 44px; border-radius: 9999px; height: 42px; width: 100%; border: 1px solid var(--line); outline: none; transition: all 0.3s; font-size: 14px;" placeholder="Add a filter..." type="text" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--line)'" />
+
+                <button type="button" onclick="document.getElementById('QueryInput').value=''; document.getElementById('Query').value=''; this.closest('form').submit();" style="position: absolute; top: 50%; transform: translateY(-50%); right: 12px; padding: 0; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+
+                    <svg xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; color: #4b5563;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+
+                    </svg>
+
+                </button>
+
+            </div>
+
+        </div>
+
+        
+
+        
+        <div class="field">
+            <label asp-for="TransactionType" class="form-label">Type</label>
+            <select asp-for="TransactionType" class="select @(!string.IsNullOrEmpty(Model.TransactionType) ? "filter-active" : "")">
+                <option value="">All types</option>
+                <option value="Bulk">Bulk Split only</option>
+                <option value="Merge">Merge Payment only</option>
+                <option value="Standard">Normal only</option>
+            </select>
+        </div>
+
+        <div class="field">
+
+            <label asp-for="PaymentMode" class="form-label">Payment mode</label>
+
+            <select asp-for="PaymentMode" class="select @(!string.IsNullOrEmpty(Model.PaymentMode) ? "filter-active" : "")">
+
+                <option value="">All modes</option>
+
+                @foreach (var option in Model.PaymentModeOptions)
+
+                {
+
+                    <option value="@option">@option</option>
+
+                }
+
+            </select>
+
+        </div>
+
+        
+
+        <div class="field">
+
+            <label asp-for="PaymentFor" class="form-label">Payment for</label>
+
+            <select asp-for="PaymentFor" class="select @(!string.IsNullOrEmpty(Model.PaymentFor) ? "filter-active" : "")">
+
+                <option value="">All types</option>
+
+                @foreach (var option in Model.PaymentForOptions)
+
+                {
+
+                    <option value="@option">@option</option>
+
+                }
+
+            </select>
+
+        </div>
+
+        
+
+        <div class="field">
+
+            <label asp-for="FilterVendor" class="form-label">Vendor</label>
+
+            <select asp-for="FilterVendor" asp-items="Model.VendorOptions" class="select @(!string.IsNullOrEmpty(Model.FilterVendor) ? "filter-active" : "")">
+
+                <option value="">All vendors</option>
+
+            </select>
+
+        </div>
+
+        <div class="field" style="min-width: 140px; flex: 0 0 auto;">
+            <label class="form-label" for="FromDate" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">From Date</label>
+            <input type="date" id="FromDate" name="FromDate" value="@Model.FromDate" class="input @(!string.IsNullOrEmpty(Model.FromDate) ? "filter-active" : "")" style="height: 42px; border-radius: 8px; width: 100%; font-size: 13px;" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()" />
+        </div>
+
+        <div class="field" style="min-width: 140px; flex: 0 0 auto;">
+            <label class="form-label" for="ToDate" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">To Date</label>
+            <input type="date" id="ToDate" name="ToDate" value="@Model.ToDate" class="input @(!string.IsNullOrEmpty(Model.ToDate) ? "filter-active" : "")" style="height: 42px; border-radius: 8px; width: 100%; font-size: 13px;" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()" />
+        </div>
+
+        <div class="field">
+
+            <label class="form-label" asp-for="PageSize">Rows per page</label>
+
+            <select class="select" asp-for="PageSize" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
+
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="1000000">All</option>
+            </select>
+
+        </div>
+
+
+
+        <div class="field" style="min-width: 140px;">
+
+            <label class="form-label" for="PageSelect" style="margin-bottom: 4px; display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">Page</label>
+
+            <div style="display: flex; align-items: center; gap: 4px;">
+
+                <button type="button" class="button secondary" title="Previous Page" @(Model.Page <= 1 ? "disabled" : "") onclick="goToTopPage(@(Model.Page - 1))" style="padding: 0 8px; height: 42px; border-radius: 8px; min-width: 34px; display: inline-flex; align-items: center; justify-content: center; @(Model.Page <= 1 ? "opacity: 0.4; cursor: not-allowed;" : "")">
+
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+
+                </button>
+
+                <select class="select" id="PageSelect" name="Page" onchange="goToTopPage(this.value)" style="height: 42px; border-radius: 8px; padding: 0 26px 0 10px; font-weight: 600; width: auto;">
+
+                    @for (int p = 1; p <= Math.Max(1, Model.TotalPages); p++)
+
+                    {
+
+                        if (p == Model.Page)
+
+                        {
+
+                            <option value="@p" selected>@p / @(Model.TotalPages == 0 ? 1 : Model.TotalPages)</option>
+
+                        }
+
+                        else
+
+                        {
+
+                            <option value="@p">@p / @(Model.TotalPages == 0 ? 1 : Model.TotalPages)</option>
+
+                        }
+
+                    }
+
+                </select>
+
+                <button type="button" class="button secondary" title="Next Page" @(Model.Page >= Model.TotalPages ? "disabled" : "") onclick="goToTopPage(@(Model.Page + 1))" style="padding: 0 8px; height: 42px; border-radius: 8px; min-width: 34px; display: inline-flex; align-items: center; justify-content: center; @(Model.Page >= Model.TotalPages ? "opacity: 0.4; cursor: not-allowed;" : "")">
+
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="field toolbar-actions">
+
+            <button class="button btn-primary" type="submit" style="height: 42px; border-radius: 8px; padding: 0 20px; white-space: nowrap;">Apply filters</button>
+
+            <a asp-action="Index" asp-route-clear="true" class="button secondary" style="height: 42px; border-radius: 8px; padding: 0 16px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; white-space: nowrap;" title="Reset all filters">
+
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+
+                <span>Clear filters</span>
+
+            </a>
+
+        </div>
+
+    </div>
+
+    @{
+
+        var queryTerms = string.IsNullOrWhiteSpace(Model.Query) ? Array.Empty<string>() : Model.Query.Trim().Split('|', StringSplitOptions.RemoveEmptyEntries);
+        var hasDateRange = !string.IsNullOrEmpty(Model.FromDate) || !string.IsNullOrEmpty(Model.ToDate);
+
+    }
+
+    @if (queryTerms.Length > 0 || hasDateRange)
+
+    {
+
+        <div class="flex flex-wrap gap-2 mt-4" style="padding-bottom: 8px; width: 100%;">
+
+            @foreach (var term in queryTerms)
+
+            {
+
+                <span class="filter-chip inline-flex items-center gap-1 px-3 py-1 text-sm rounded-full">
+
+                    @term
+
+                    <button type="button" onclick="removeChip('@term')" class="text-gray-400 hover:text-gray-700">
+
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+
+                    </button>
+
+                </span>
+
+            }
+
+            @if (hasDateRange)
+            {
+                <span class="filter-chip inline-flex items-center gap-1 px-3 py-1 text-sm rounded-full">
+                    Date: @(Model.FromDate ?? "...") to @(Model.ToDate ?? "...")
+                    <button type="button" onclick="clearDateFields()" class="text-gray-400 hover:text-gray-700">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </span>
+            }
+
+        </div>
+
+    }
+
+</form>
+
+
+
+<script>
+
+    function goToTopPage(pageNum) {
+        if (!pageNum || pageNum < 1) pageNum = 1;
+        var form = document.querySelector('form.toolbar');
+        if (!form) return;
+        var pageSelect = document.getElementById('PageSelect');
+        if (pageSelect) pageSelect.value = pageNum;
+        var queryInput = document.getElementById('QueryInput');
+        if (queryInput && queryInput.value.trim() === '') {
+            queryInput.disabled = true;
+        }
+        window._isPageChange = true;
+        if (form.requestSubmit) {
+            form.requestSubmit();
+        } else {
+            form.submit();
+        }
+    }
+
+
+
+    document.querySelector('form.toolbar').addEventListener('submit', function(e) {
+
+        var queryInput = document.getElementById('QueryInput');
+
+        var queryHidden = document.getElementById('Query');
+
+        if (queryInput && queryInput.value.trim() !== '') {
+
+            var current = queryHidden.value ? queryHidden.value + '|' : '';
+
+            queryHidden.value = current + queryInput.value.trim();
+
+            queryInput.value = ''; // Don't submit the visual input
+
+        }
+
+        if (!window._isPageChange) {
+
+            var pageSelect = document.getElementById('PageSelect');
+
+            if (pageSelect) pageSelect.value = '1';
+
+            var pageInput = this.querySelector('input[name="Page"]');
+
+            if (pageInput) pageInput.value = '1';
+
+        }
+
+        window._isPageChange = false;
+
+    });
+
+
+
+    function removeChip(term) {
+
+        var queryHidden = document.getElementById('Query');
+
+        var terms = queryHidden.value.split('|').filter(t => t !== '' && t !== term);
+
+        queryHidden.value = terms.join('|');
+
+        window._isPageChange = false;
+
+        document.querySelector('form.toolbar').submit();
+
+    }
+
+    function clearDateFields() {
+        var fd = document.getElementById('FromDate');
+        var td = document.getElementById('ToDate');
+        if (fd) fd.value = '';
+        if (td) td.value = '';
+        window._isPageChange = false;
+        var form = document.querySelector('form.toolbar');
+        if (form) (form.requestSubmit ? form.requestSubmit() : form.submit());
+    }
+
+</script>
+
+
+
+<div class="tx-kpi-container">
+    <div class="tx-kpi-card tx-kpi-inflow">
+        <div class="tx-kpi-icon-wrap tx-kpi-icon-inflow">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2"/>
+                <line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+        </div>
+        <div class="tx-kpi-content">
+            <div class="tx-kpi-label">Filtered Amount</div>
+            <div class="tx-kpi-value tx-val-inflow">@Model.TotalFilteredAmount.ToString("C")</div>
+            <div class="tx-kpi-meta">
+                <span class="tx-kpi-dot tx-dot-inflow"></span>
+                <span>@Model.TotalItems.ToString("N0") records in view</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="tx-kpi-card tx-kpi-profit">
+        <div class="tx-kpi-icon-wrap tx-kpi-icon-profit">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                <polyline points="17 6 23 6 23 12"/>
+            </svg>
+        </div>
+        <div class="tx-kpi-content">
+            <div class="tx-kpi-label">Filtered Profit</div>
+            <div class="tx-kpi-value tx-val-profit">@Model.TotalFilteredProfit.ToString("C")</div>
+            <div class="tx-kpi-meta">
+                <span class="tx-kpi-dot tx-dot-profit"></span>
+                <span>Total net margin across filtered records</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<section class="card tx-table-card" style="width: 100%; overflow: hidden;">
+
+    @if (Model.TotalPages > 1)
+
+    {
+
+        <div style="padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); flex-wrap: wrap; gap: 12px;">
+
+            <div style="font-size: 0.85rem; color: var(--muted);">
+
+                Showing @((Model.Page - 1) * Model.PageSize + 1) to @Math.Min(Model.Page * Model.PageSize, Model.TotalItems) of @Model.TotalItems transactions (Page @Model.Page of @Model.TotalPages)
+
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px;">
+
+                <span style="font-size: 0.82rem; color: var(--muted); font-weight: 500;">Jump to page:</span>
+
+                <button type="button" class="button secondary" title="Previous Page" @(Model.Page <= 1 ? "disabled" : "") onclick="goToTopPage(@(Model.Page - 1))" style="padding: 0 8px; height: 32px; min-width: 32px; display: inline-flex; align-items: center; justify-content: center; @(Model.Page <= 1 ? "opacity: 0.4; cursor: not-allowed;" : "")">
+
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+
+                </button>
+
+                <select class="select page-jump-select" data-pagination="true" onchange="goToTopPage(this.value)" style="height: 32px; padding: 0 24px 0 8px; font-size: 0.82rem; font-weight: 600; width: auto; background-image: none !important;">
+
+                    @for (int p = 1; p <= Model.TotalPages; p++)
+
+                    {
+
+                        <option value="@p" selected="@(p == Model.Page)">Page @p of @Model.TotalPages</option>
+
+                    }
+
+                </select>
+
+                <button type="button" class="button secondary" title="Next Page" @(Model.Page >= Model.TotalPages ? "disabled" : "") onclick="goToTopPage(@(Model.Page + 1))" style="padding: 0 8px; height: 32px; min-width: 32px; display: inline-flex; align-items: center; justify-content: center; @(Model.Page >= Model.TotalPages ? "opacity: 0.4; cursor: not-allowed;" : "")">
+
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+
+                </button>
+
+            </div>
+
+        </div>
+
+    }
+
+    <div class="table-wrap" style="width: 100%;">
+
+        <table class="data-table" style="width: 100%; min-width: 1800px;">
+
+            <thead>
+
+                <tr>
+
+                    <th style="width: 50px; min-width: 50px;"></th>
+
+                    <th style="width: 70px; min-width: 70px;"><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="slno" asp-route-SortDirection="@SortDir("slno")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">S.No. @SortIcon("slno")</a></th>
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="vehicle" asp-route-SortDirection="@SortDir("vehicle")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Vehicle No @SortIcon("vehicle")</a></th>
+                    <th style="min-width: 140px;"><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="imei" asp-route-SortDirection="@SortDir("imei")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">IMEI @SortIcon("imei")</a></th>
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="date" asp-route-SortDirection="@SortDir("date")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Date @SortIcon("date")</a></th>
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="vendor" asp-route-SortDirection="@SortDir("vendor")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Vendor @SortIcon("vendor")</a></th>
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="mode" asp-route-SortDirection="@SortDir("mode")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Payment Mode @SortIcon("mode")</a></th>
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="payment" asp-route-SortDirection="@SortDir("payment")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Payment For @SortIcon("payment")</a></th>
+
+                    <th style="white-space: nowrap;">Network Operator</th>
+
+                    <th class="numeric"><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="amount" asp-route-SortDirection="@SortDir("amount")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Amount @SortIcon("amount")</a></th>
+
+                    <th>UTR / Transaction ID</th>
+
+                    <th>Paid To</th>
+
+                    @if (currentBranch != "RTO")
+
+                    {
+
+                        <th>Extras</th>
+
+                    }
+
+                    <th>Activation Date</th>
+
+                    <th>New Expiry Date</th>
+
+                    <th class="numeric"><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="profit" asp-route-SortDirection="@SortDir("profit")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Profits @SortIcon("profit")</a></th>
+
+                    <th><a style="color:inherit; text-decoration:none;" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="batch" asp-route-SortDirection="@SortDir("batch")" asp-route-PageSize="@Model.PageSize" asp-route-Page="1">Batch ID @SortIcon("batch")</a></th>
+
+                    <th>Notes</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                @if (Model.Transactions.Count == 0)
+
+                {
+
+                    <tr>
+
+                        <td colspan="@(currentBranch == "RTO" ? 17 : 18)">
+
+                            <div class="empty-state">No transactions match this filter set.</div>
+
+                        </td>
+
+                    </tr>
+
+                }
+
+                else
+
+                {
+
+                    var sno = (Model.Page - 1) * Model.PageSize + 1;
+
+                    @foreach (var item in Model.Transactions)
+
+                    {
+                        var mergeParts = TxnMergeHelper.ParseMergeParts(item.Notes, item.Utr, item.PaymentMode, item.PaidTo, item.Amount);
+                        bool isMerged = mergeParts != null && mergeParts.Count > 1;
+                        var bulkParts = TxnBulkHelper.ParseBulkParts(item.Notes, item.Amount, item.Profit);
+                        bool isBulk = bulkParts != null && bulkParts.Count > 1;
+
+                        
+                        <tr class="tx-row @(isMerged ? "has-merged-payments" : "") @(isBulk ? "has-bulk-allocation" : "")">
+
+                            <td style="overflow: visible;">
+
+                                @if (User.CanEditModule("Transactions"))
+
+                                {
+
+                                    <label class="popup">
+
+                                          <input type="checkbox">
+
+                                          <div class="burger" tabindex="0">
+
+                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+
+                                              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+
+                                            </svg>
+
+                                          </div>
+
+                                          <nav class="popup-window">
+
+                                            <legend>Actions</legend>
+
+                                            <ul>
+
+                                              <li>
+
+                                                <a asp-action="Edit" asp-route-id="@item.Id" style="display: flex; align-items: center; justify-content: flex-start; gap: var(--nav-button-distance); padding: var(--nav-button-padding-y) var(--nav-button-padding-x); text-decoration: none; color: inherit;">
+
+                                                  <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg">
+
+                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+
+                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+
+                                                  </svg>
+
+                                                  <span>Edit</span>
+
+                                                </a>
+
+                                              </li>
+
+                                              <li>
+
+                                                <form asp-action="Delete" method="post" style="margin: 0; width: 100%;">
+
+                                                  <input type="hidden" name="id" value="@item.Id" />
+
+                                                  <button type="submit" onclick="return confirm('Delete this transaction?')" style="width: 100%; display: flex; align-items: center; justify-content: flex-start; gap: var(--nav-button-distance); padding: var(--nav-button-padding-y) var(--nav-button-padding-x); background: transparent; border: none; color: var(--danger); font-family: var(--nav-font-family); font-size: var(--nav-button-font-size); border-radius: var(--nav-button-border-radius); cursor: pointer; text-decoration: none; transition: var(--burger-transition);">
+
+                                                    <svg stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="currentColor" fill="none" viewBox="0 0 24 24" height="14" width="14" xmlns="http://www.w3.org/2000/svg">
+
+                                                      <line x1="18" y1="6" x2="6" y2="18"></line>
+
+                                                      <line x1="6" y1="6" x2="18" y2="18"></line>
+
+                                                    </svg>
+
+                                                    <span>Delete</span>
+
+                                                  </button>
+
+                                                </form>
+
+                                              </li>
+
+                                            </ul>
+
+                                          </nav>
+
+                                        </label>
+
+                                }
+
+                            </td>
+
+                            <td style="color: var(--muted); font-size: 0.75rem; min-width: 70px; white-space: nowrap;">
+                                @(sno++)
+                                @if (isMerged)
+                                {
+                                    <button type="button" onclick="toggleDetails('merge-@item.Id', this)" title="Expand all transactions for this merged payment" style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 4px; padding: 1px 4px; margin-left: 4px; color: var(--blue-600); cursor: pointer; vertical-align: middle; display: inline-flex; align-items: center;">
+                                        <svg style="width:11px;height:11px;transition: transform 0.2s ease;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </button>
+                                }
+                                else if (isBulk)
+                                {
+                                    <button type="button" onclick="toggleDetails('bulk-@item.Id', this)" title="Expand bulk allocation vehicle breakdown" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 4px; padding: 1px 4px; margin-left: 4px; color: #10b981; cursor: pointer; vertical-align: middle; display: inline-flex; align-items: center;">
+                                        <svg style="width:11px;height:11px;transition: transform 0.2s ease;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </button>
+                                }
+                            </td>
+
+                            <td style="white-space: nowrap;">
+                                @if (isBulk && bulkParts != null)
+                                {
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <div class="vehicle-title">@bulkParts[0].VehicleNo</div>
+                                        <button type="button" onclick="toggleDetails('bulk-@item.Id', this)" class="tx-badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); cursor: pointer; font-size: 0.72rem; font-weight: 700;">+@(bulkParts.Count - 1) Vehicles</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="vehicle-title">@(string.IsNullOrWhiteSpace(item.VehicleNo) ? "—" : item.VehicleNo)</div>
+                                }
+                            </td>
+                            <td style="white-space: nowrap;">
+                                @{
+                                    var rowImei = !string.IsNullOrWhiteSpace(item.Imei) 
+                                        ? item.Imei 
+                                        : (ViewBag.VehicleImeiMap is Dictionary<string, string> vImeiMap && !string.IsNullOrWhiteSpace(item.VehicleNo) && vImeiMap.TryGetValue(item.VehicleNo.Replace(" ", "").Trim(), out var lImei) ? lImei : null);
+                                }
+                                @if (!string.IsNullOrWhiteSpace(rowImei))
+                                {
+                                    <span class="imei-pill" style="font-size: 0.8rem; font-family: monospace; font-weight: 500;">@rowImei</span>
+                                }
+                                else
+                                {
+                                    <span style="color: var(--muted);">—</span>
+                                }
+                            </td>
+
+                            @{
+                                
+                            }
+                            <td style="white-space: nowrap;">
+                                @if (mergeParts != null && mergeParts.Count > 1 && mergeParts.Any(p => !string.IsNullOrWhiteSpace(p.Date) && p.Date != "—"))
+                                {
+                                    var distinctDates = mergeParts.Where(p => !string.IsNullOrWhiteSpace(p.Date) && p.Date != "—").Select(p => DateValue.Short(p.Date)).Distinct().ToList();
+                                    if (distinctDates.Count > 1)
+                                    {
+                                        <div style="font-weight: 600;">@distinctDates.Last()</div>
+                                        <div style="font-size: 0.7rem; color: var(--muted);" title="Split installment dates">@string.Join(" + ", distinctDates)</div>
+                                    }
+                                    else if (distinctDates.Count == 1)
+                                    {
+                                        <span>@distinctDates[0]</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@(string.IsNullOrWhiteSpace(item.Date) ? "—" : DateValue.Short(item.Date))</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span>@(string.IsNullOrWhiteSpace(item.Date) ? "—" : DateValue.Short(item.Date))</span>
+                                }
+                            </td>
+                            <td style="white-space: nowrap;">@(string.IsNullOrWhiteSpace(item.Vendor) ? "—" : item.Vendor)</td>
+                            <td>
+                                @if (mergeParts != null && mergeParts.Count > 1)
+                                {
+                                    <div style="display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                        @for (int mi = 0; mi < mergeParts.Count; mi++)
+                                        {
+                                            if (mi > 0)
+                                            {
+                                                <span style="font-weight: 700; color: var(--muted); font-size: 0.72rem;">+</span>
+                                            }
+                                            <span class="tx-badge @PaymentModeClass(mergeParts[mi].Mode)" style="text-transform: uppercase;">@mergeParts[mi].Mode</span>
+                                        }
+                                    </div>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(item.PaymentMode))
+                                {
+                                    var modes = item.PaymentMode.Split('+', System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries);
+                                    if (modes.Length > 1)
+                                    {
+                                        <div style="display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                            @for (int mi = 0; mi < modes.Length; mi++)
+                                            {
+                                                if (mi > 0)
+                                                {
+                                                    <span style="font-weight: 700; color: var(--muted); font-size: 0.72rem;">+</span>
+                                                }
+                                                <span class="tx-badge @PaymentModeClass(modes[mi])" style="text-transform: uppercase;">@modes[mi]</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="tx-badge @PaymentModeClass(item.PaymentMode)" style="text-transform: uppercase;">@item.PaymentMode</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
+                            </td>
+
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(item.PaymentFor))
+                                {
+                                    <span class="tx-badge @PaymentForClass(item.PaymentFor)">@item.PaymentFor</span>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
+                            </td>
+
+                            <td style="white-space: nowrap;">
+                                @{
+                                    var devOps = ViewBag.DeviceOperators as Dictionary<string, string>;
+                                    var vClean = (item.VehicleNo ?? "").Replace(" ", "").Trim();
+                                    var op = !string.IsNullOrWhiteSpace(item.NetworkOperator) 
+                                        ? item.NetworkOperator 
+                                        : (devOps != null && devOps.TryGetValue(vClean, out var foundOp) ? foundOp : "");
+                                }
+                                @if (!string.IsNullOrWhiteSpace(op) && op != "—")
+                                {
+                                    <span class="tx-badge" style="background: rgba(14, 165, 233, 0.12); color: #0284c7; font-weight: 700; border: 1px solid rgba(14, 165, 233, 0.3);">@op</span>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
+                            </td>
+
+                            <td class="numeric" style="white-space: nowrap;">
+                                <strong style="font-size: 0.88rem; font-weight: 700; font-feature-settings: 'tnum';">@(item.Amount.HasValue ? item.Amount.Value.ToString("C") : "—")</strong>
+                                @if (isMerged && mergeParts != null && mergeParts.Count > 1)
+                                {
+                                    <div style="font-size: 0.72rem; color: var(--blue-600); font-weight: 600; margin-top: 2px; font-feature-settings: 'tnum';">
+                                        @string.Join(" + ", mergeParts.Select(p => p.Amount > 0 ? $"{p.Amount:C} ({p.Mode})" : p.Mode))
+                                    </div>
+                                }
+                            </td>
+
+                            <td style="white-space: nowrap;">
+                                @if (isMerged && mergeParts != null)
+                                {
+                                    <button type="button" onclick="toggleDetails('merge-@item.Id', this)" class="btn-merge-accordion-toggle" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700; color: var(--blue-600); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease; box-shadow: 0 1px 2px rgba(59,130,246,0.1);" title="Click to expand full merged payment breakdown">
+                                        <span>Merged (@mergeParts.Count Payments)</span>
+                                        <svg style="width:11px;height:11px;transition: transform 0.2s ease;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </button>
+                                }
+                                else if (isBulk && bulkParts != null)
+                                {
+                                    <button type="button" onclick="toggleDetails('bulk-@item.Id', this)" class="btn-merge-accordion-toggle" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700; color: #10b981; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;" title="Click to view bulk vehicle breakdown">
+                                        <span>Bulk (@bulkParts.Count Vehicles)</span>
+                                        <svg style="width:11px;height:11px;transition: transform 0.2s ease;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </button>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(item.Utr))
+                                {
+                                    if (item.Utr.Contains('+'))
+                                    {
+                                        var utrParts = item.Utr.Split('+', System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries);
+                                        <div style="display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                            @for (int ui = 0; ui < utrParts.Length; ui++)
+                                            {
+                                                if (ui > 0)
+                                                {
+                                                    <span style="font-weight: 800; color: #38bdf8; font-size: 0.85rem; padding: 0 1px;" title="Multiple payments / UTRs">+</span>
+                                                }
+                                                <span class="tx-utr-code">@utrParts[ui]</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="tx-utr-code">@item.Utr</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="tx-utr-code">—</span>
+                                }
+                            </td>
+
+                            <td style="white-space: nowrap;">@(string.IsNullOrWhiteSpace(item.PaidTo) ? "—" : item.PaidTo)</td>
+
+                            @if (currentBranch != "RTO")
+
+                            {
+
+                                <td style="white-space: nowrap;">
+
+                                    @if (!string.IsNullOrWhiteSpace(item.Extras) && item.Extras != "0" && !string.Equals(item.Extras, "None", StringComparison.OrdinalIgnoreCase))
+
+                                    {
+
+                                        <span class="tx-badge" style="background: rgba(14, 116, 144, 0.12); color: #0891b2; border-color: rgba(14, 116, 144, 0.28); font-weight: 700;">@item.Extras</span>
+
+                                    }
+
+                                    else
+
+                                    {
+
+                                        <span class="badge neutral" style="background: rgba(100, 116, 139, 0.1); color: var(--muted);">None</span>
+
+                                    }
+
+                                </td>
+
+                            }
+
+                            <td style="white-space: nowrap;">@(string.IsNullOrWhiteSpace(item.ActivationDate) ? "—" : DateValue.Short(item.ActivationDate))</td>
+
+                            <td style="white-space: nowrap;">@(string.IsNullOrWhiteSpace(item.NewExpiryDate) ? "—" : DateValue.Short(item.NewExpiryDate))</td>
+
+                            <td class="numeric">
+
+                                @if (item.Profit.HasValue)
+
+                                {
+
+                                    if (item.Profit.Value > 0)
+
+                                    {
+
+                                        <span class="tx-profit-positive">+@item.Profit.Value.ToString("C")</span>
+
+                                    }
+
+                                    else if (item.Profit.Value < 0)
+
+                                    {
+
+                                        <span class="tx-profit-negative">@item.Profit.Value.ToString("C")</span>
+
+                                    }
+
+                                    else
+
+                                    {
+
+                                        <span class="tx-profit-zero">@item.Profit.Value.ToString("C")</span>
+
+                                    }
+
+                                }
+
+                                else
+
+                                {
+
+                                    <span class="tx-profit-zero">—</span>
+
+                                }
+
+                            </td>
+
+                            <td style="white-space: nowrap;">
+
+                                @if (!string.IsNullOrWhiteSpace(item.BatchId) && item.BatchId != "-")
+
+                                {
+
+                                    <span class="tx-batch-badge">
+
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+
+                                        @item.BatchId
+
+                                    </span>
+
+                                }
+
+                                else
+
+                                {
+
+                                    <span class="muted">—</span>
+
+                                }
+
+                            </td>
+
+                            <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="@item.Notes">@item.Notes</td>
+
+                        </tr>
+                        @if (isMerged && mergeParts != null)
+                        {
+                            <tr id="merge-@item.Id" class="merge-breakdown-row" style="display: none; background: rgba(59, 130, 246, 0.025);">
+                                <td colspan="@(currentBranch != "RTO" ? 17 : 16)" style="padding: 10px 18px; border-bottom: 2px solid rgba(59, 130, 246, 0.2);">
+                                    <div style="background: var(--surface, #ffffff); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid var(--line, #e2e8f0); padding-bottom: 6px;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span style="font-size: 0.82rem; font-weight: 700; color: var(--blue-600);">💳 Merged Payment Transactions (@mergeParts.Count Parts)</span>
+                                                <span class="tx-badge" style="background: rgba(59, 130, 246, 0.1); color: var(--blue-600); font-weight: 600;">@item.VehicleNo</span>
+                                            </div>
+                                            <div style="display: flex; align-items: center; gap: 12px;">
+                                                <span style="font-size: 0.82rem; font-weight: 700; color: var(--text);">Total: <strong style="color: var(--blue-600); font-size: 0.92rem;">@(item.Amount.HasValue ? item.Amount.Value.ToString("C") : "—")</strong></span>
+                                                <button type="button" onclick="toggleDetails('merge-@item.Id')" style="background: none; border: none; font-size: 0.8rem; color: var(--muted); cursor: pointer; padding: 2px 6px;">✕ Close</button>
+                                            </div>
+                                        </div>
+                                        <div style="overflow-x: auto;">
+                                            <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
+                                                <thead>
+                                                    <tr style="background: rgba(0,0,0,0.02); border-bottom: 1px solid var(--line, #e2e8f0); text-align: left; color: var(--muted);">
+                                                        <th style="padding: 6px 10px;">#</th>
+                                                        <th style="padding: 6px 10px;">Payment Mode</th>
+                                                        <th style="padding: 6px 10px; text-align: right;">Amount (₹)</th>
+                                                        <th style="padding: 6px 10px;">UTR / Transaction ID</th>
+                                                        <th style="padding: 6px 10px;">Paid To</th>
+                                                        <th style="padding: 6px 10px;">Date</th>
+                                                        <th style="padding: 6px 10px;">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @for (int pIdx = 0; pIdx < mergeParts.Count; pIdx++)
+                                                    {
+                                                        var part = mergeParts[pIdx];
+                                                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.04);">
+                                                            <td style="padding: 7px 10px; font-weight: 700; color: var(--text);">#@(pIdx + 1)</td>
+                                                            <td style="padding: 7px 10px;">
+                                                                <span class="tx-badge @PaymentModeClass(part.Mode)" style="text-transform: uppercase; font-size: 0.72rem;">@part.Mode</span>
+                                                            </td>
+                                                            <td style="padding: 7px 10px; text-align: right;">
+                                                                <strong style="color: var(--blue-600); font-size: 0.84rem; font-feature-settings: 'tnum';">@(part.Amount > 0 ? part.Amount.ToString("C") : "—")</strong>
+                                                            </td>
+                                                            <td style="padding: 7px 10px; font-family: ui-monospace, monospace; font-weight: 600;">@(string.IsNullOrWhiteSpace(part.Utr) ? "—" : part.Utr)</td>
+                                                            <td style="padding: 7px 10px; font-weight: 600;">@(string.IsNullOrWhiteSpace(part.PaidTo) ? "—" : part.PaidTo)</td>
+                                                            <td style="padding: 7px 10px; color: var(--muted);">@(!string.IsNullOrWhiteSpace(part.Date) && part.Date != "—" ? DateValue.Short(part.Date) : (string.IsNullOrWhiteSpace(item.Date) ? "—" : DateValue.Short(item.Date)))</td>
+                                                            <td style="padding: 7px 10px;">
+                                                                <span class="badge success" style="font-size: 0.68rem; padding: 1px 6px;">Recorded</span>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        @if (isBulk && bulkParts != null)
+                        {
+                            <tr id="bulk-@item.Id" class="bulk-breakdown-row" style="display: none; background: rgba(16, 185, 129, 0.025);">
+                                <td colspan="@(currentBranch != "RTO" ? 17 : 16)" style="padding: 10px 18px; border-bottom: 2px solid rgba(16, 185, 129, 0.2);">
+                                    <div style="background: var(--surface, #ffffff); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid var(--line, #e2e8f0); padding-bottom: 6px;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span style="font-size: 0.82rem; font-weight: 700; color: #10b981;">📦 Bulk Allocation Breakdown (@bulkParts.Count Vehicles)</span>
+                                                <span class="tx-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; font-weight: 600;">@(string.IsNullOrWhiteSpace(item.BatchId) ? "Bulk Batch" : item.BatchId)</span>
+                                            </div>
+                                            <div style="display: flex; align-items: center; gap: 12px;">
+                                                <span style="font-size: 0.82rem; font-weight: 700; color: var(--text);">Total: <strong style="color: #10b981; font-size: 0.92rem;">@(item.Amount.HasValue ? item.Amount.Value.ToString("C") : "—")</strong></span>
+                                                <span style="font-size: 0.82rem; font-weight: 700; color: var(--text);">Total Profit: <strong style="color: #10b981; font-size: 0.92rem;">@(item.Profit.HasValue ? item.Profit.Value.ToString("C") : "—")</strong></span>
+                                                <button type="button" onclick="toggleDetails('bulk-@item.Id')" style="background: none; border: none; font-size: 0.8rem; color: var(--muted); cursor: pointer; padding: 2px 6px;">✕ Close</button>
+                                            </div>
+                                        </div>
+                                        <div style="overflow-x: auto;">
+                                            <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
+                                                <thead>
+                                                    <tr style="background: rgba(0,0,0,0.02); border-bottom: 1px solid var(--line, #e2e8f0); text-align: left; color: var(--muted);">
+                                                        <th style="padding: 6px 10px;">#</th>
+                                                        <th style="padding: 6px 10px;">Vehicle No</th>
+                                                        <th style="padding: 6px 10px;">IMEI</th>
+                                                        <th style="padding: 6px 10px;">Operator</th>
+                                                        <th style="padding: 6px 10px;">Activation Date</th>
+                                                        <th style="padding: 6px 10px;">New Expiry Date</th>
+                                                        <th style="padding: 6px 10px; text-align: right;">Amount (₹)</th>
+                                                        <th style="padding: 6px 10px; text-align: right;">Individual Profit (₹)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @{ int bPartIdx = 1; }
+                                                    @foreach (var bp in bulkParts)
+                                                    {
+                                                        <tr style="border-bottom: 1px solid var(--line, #e2e8f0);">
+                                                            <td style="padding: 6px 10px; color: var(--muted);">@(bPartIdx++)</td>
+                                                            <td style="padding: 6px 10px; font-weight: 600;">@bp.VehicleNo</td>
+                                                            <td style="padding: 6px 10px; font-family: monospace;">@(string.IsNullOrWhiteSpace(bp.Imei) ? "—" : bp.Imei)</td>
+                                                            <td style="padding: 6px 10px;">@(string.IsNullOrWhiteSpace(bp.Operator) ? "—" : bp.Operator)</td>
+                                                            <td style="padding: 6px 10px; white-space: nowrap; min-width: 100px;">@(string.IsNullOrWhiteSpace(bp.ActivationDate) ? "—" : DateValue.Short(bp.ActivationDate))</td>
+                                                            <td style="padding: 6px 10px; white-space: nowrap; min-width: 100px;">@(string.IsNullOrWhiteSpace(bp.NewExpiryDate) ? "—" : DateValue.Short(bp.NewExpiryDate))</td>
+                                                            <td style="padding: 6px 10px; text-align: right; font-weight: 600;">@bp.Amount.ToString("C")</td>
+                                                            <td style="padding: 6px 10px; text-align: right; font-weight: 700; color: @(bp.Profit >= 0 ? "#16a34a" : "#dc2626");">
+                                                                @(bp.Profit >= 0 ? "+" : "")@bp.Profit.ToString("C")
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+
+                    }
+
+                }
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    
+
+    @if (Model.TotalItems > 0)
+
+    {
+
+        <div style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(0,0,0,0.05);">
+
+            <div style="font-size: 0.9rem; color: var(--muted);">
+
+                Showing @((Model.Page - 1) * Model.PageSize + 1) to @Math.Min(Model.Page * Model.PageSize, Model.TotalItems) of @Model.TotalItems entries
+
+            </div>
+
+        <div style="display: flex; gap: 4px; align-items: center;">
+
+            @{
+
+                var startPage = Math.Max(1, Model.Page - 2);
+
+                var endPage = Math.Min(Model.TotalPages, Model.Page + 2);
+
+                
+
+                if (startPage > 1) {
+
+                    <a class="button secondary" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection" asp-route-PageSize="@Model.PageSize" asp-route-Page="1" style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">1</a>
+
+                    if (startPage > 2) {
+
+                        <span style="padding: 4px 8px; color: var(--muted);">...</span>
+
+                    }
+
+                }
+
+                
+
+                for (int i = startPage; i <= endPage; i++)
+
+                {
+
+                    if (i == Model.Page) {
+
+                        <button class="button primary" disabled style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">@i</button>
+
+                    } else {
+
+                        <a class="button secondary" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection" asp-route-PageSize="@Model.PageSize" asp-route-Page="@i" style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">@i</a>
+
+                    }
+
+                }
+
+                
+
+                if (endPage < Model.TotalPages) {
+
+                    if (endPage < Model.TotalPages - 1) {
+
+                        <span style="padding: 4px 8px; color: var(--muted);">...</span>
+
+                    }
+
+                    <a class="button secondary" asp-action="Index" asp-route-Query="@Model.Query" asp-route-PaymentMode="@Model.PaymentMode" asp-route-FilterVendor="@Model.FilterVendor" asp-route-PaymentFor="@Model.PaymentFor" asp-route-TransactionType="@Model.TransactionType" asp-route-SortColumn="@Model.SortColumn" asp-route-SortDirection="@Model.SortDirection" asp-route-PageSize="@Model.PageSize" asp-route-Page="@Model.TotalPages" style="padding: 4px 10px; min-width: auto; height: 32px; font-size: 13px;">@Model.TotalPages</a>
+
+                }
+
+            }
+
+        </div>
+
+        </div>
+
+    }
+
+</section>
+
+
+
+<style>
+
+/* --- TRANSACTIONS PAGE COLOR & POLISH ENHANCEMENTS --- */
+.tx-kpi-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+.tx-kpi-card {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 20px 24px;
+    border-radius: 14px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.tx-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.07);
+}
+.tx-kpi-inflow {
+    background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+    border: 1px solid #bfdbfe;
+    border-left: 5px solid #2563eb;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08);
+}
+.tx-kpi-profit {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+    border: 1px solid #bbf7d0;
+    border-left: 5px solid #10b981;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.08);
+}
+.tx-kpi-icon-wrap {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.tx-kpi-icon-inflow {
+    background: #dbeafe;
+    color: #1d4ed8;
+    box-shadow: 0 2px 6px rgba(29, 78, 216, 0.15);
+}
+.tx-kpi-icon-profit {
+    background: #dcfce7;
+    color: #15803d;
+    box-shadow: 0 2px 6px rgba(21, 128, 61, 0.15);
+}
+.tx-kpi-content {
+    flex: 1;
+    min-width: 0;
+}
+.tx-kpi-label {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.tx-kpi-inflow .tx-kpi-label { color: #1e40af; }
+.tx-kpi-profit .tx-kpi-label { color: #166534; }
+
+.tx-kpi-value {
+    font-size: 1.85rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 4px;
+    font-feature-settings: "tnum";
+}
+.tx-val-inflow { color: #0f172a; }
+.tx-val-profit { color: #047857; }
+
+.tx-kpi-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 500;
+}
+.tx-kpi-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.tx-dot-inflow { background: #3b82f6; box-shadow: 0 0 6px #60a5fa; }
+.tx-dot-profit { background: #10b981; box-shadow: 0 0 6px #34d399; }
+
+/* Branch RTO Theme Adaptations */
+.branch-rto .tx-kpi-inflow {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
+    border: 1px solid #fed7aa;
+    border-left: 5px solid #ea580c;
+}
+.branch-rto .tx-kpi-icon-inflow {
+    background: #ffedd5;
+    color: #c2410c;
+}
+.branch-rto .tx-kpi-inflow .tx-kpi-label {
+    color: #9a3412;
+}
+.branch-rto .tx-dot-inflow {
+    background: #f97316;
+    box-shadow: 0 0 6px #fb923c;
+}
+
+/* Dark Mode for KPI */
+body:has(#theme:checked) .tx-kpi-inflow {
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, #0f172a 100%);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    border-left: 5px solid #3b82f6;
+}
+body:has(#theme:checked) .tx-kpi-profit {
+    background: linear-gradient(135deg, rgba(6, 78, 59, 0.3) 0%, #0f172a 100%);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    border-left: 5px solid #10b981;
+}
+body:has(#theme:checked) .tx-kpi-inflow .tx-kpi-label { color: #93c5fd; }
+body:has(#theme:checked) .tx-kpi-profit .tx-kpi-label { color: #86efac; }
+body:has(#theme:checked) .tx-val-inflow { color: #f8fafc; }
+body:has(#theme:checked) .tx-val-profit { color: #34d399; }
+body:has(#theme:checked) .tx-kpi-icon-inflow { background: rgba(59, 130, 246, 0.25); color: #93c5fd; }
+body:has(#theme:checked) .tx-kpi-icon-profit { background: rgba(16, 185, 129, 0.25); color: #86efac; }
+body:has(#theme:checked) .tx-kpi-meta { color: #94a3b8; }
+
+/* Table and Row Polish */
+.tx-table-card {
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+}
+.data-table thead tr th {
+    background: linear-gradient(to bottom, #f8fafc, #f1f5f9) !important;
+    color: #334155 !important;
+    font-weight: 700 !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.05em !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+}
+
+/* Zebra row striping & hover */
+.data-table tbody tr:nth-child(even) td {
+    background-color: #fafbfd;
+}
+.data-table tbody tr:nth-child(odd) td {
+    background-color: #ffffff;
+}
+.data-table tbody tr:hover td {
+    background-color: #f0f7ff !important;
+}
+
+body:has(#theme:checked) .data-table thead tr th {
+    background: #1e293b !important;
+    color: #94a3b8 !important;
+    border-bottom: 2px solid #334155 !important;
+}
+body:has(#theme:checked) .data-table tbody tr:nth-child(even) td {
+    background-color: #0b0f19;
+}
+body:has(#theme:checked) .data-table tbody tr:nth-child(odd) td {
+    background-color: #0f172a;
+}
+body:has(#theme:checked) .data-table tbody tr:hover td {
+    background-color: #1e293b !important;
+}
+
+/* Frozen columns sync */
+.data-table tbody tr:nth-child(even) td:nth-child(1),
+.data-table tbody tr:nth-child(even) td:nth-child(2),
+.data-table tbody tr:nth-child(even) td:nth-child(3) {
+    background-color: #fafbfd !important;
+}
+.data-table tbody tr:nth-child(odd) td:nth-child(1),
+.data-table tbody tr:nth-child(odd) td:nth-child(2),
+.data-table tbody tr:nth-child(odd) td:nth-child(3) {
+    background-color: #ffffff !important;
+}
+.data-table tbody tr:hover td:nth-child(1),
+.data-table tbody tr:hover td:nth-child(2),
+.data-table tbody tr:hover td:nth-child(3) {
+    background-color: #f0f7ff !important;
+}
+
+body:has(#theme:checked) .data-table tbody tr:nth-child(even) td:nth-child(1),
+body:has(#theme:checked) .data-table tbody tr:nth-child(even) td:nth-child(2),
+body:has(#theme:checked) .data-table tbody tr:nth-child(even) td:nth-child(3) {
+    background-color: #0b0f19 !important;
+}
+body:has(#theme:checked) .data-table tbody tr:nth-child(odd) td:nth-child(1),
+body:has(#theme:checked) .data-table tbody tr:nth-child(odd) td:nth-child(2),
+body:has(#theme:checked) .data-table tbody tr:nth-child(odd) td:nth-child(3) {
+    background-color: #0f172a !important;
+}
+body:has(#theme:checked) .data-table tbody tr:hover td:nth-child(1),
+body:has(#theme:checked) .data-table tbody tr:hover td:nth-child(2),
+body:has(#theme:checked) .data-table tbody tr:hover td:nth-child(3) {
+    background-color: #1e293b !important;
+}
+
+/* Badge Styles */
+.tx-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+/* Payment Mode Badges */
+.badge-mode-upi {
+    background: #ede9fe;
+    color: #5b21b6;
+    border-color: #c4b5fd;
+    box-shadow: 0 1px 2px rgba(124, 58, 237, 0.08);
+}
+.badge-mode-cash {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: #86efac;
+    box-shadow: 0 1px 2px rgba(22, 163, 74, 0.08);
+}
+.badge-mode-bank {
+    background: #e0f2fe;
+    color: #0369a1;
+    border-color: #7dd3fc;
+    box-shadow: 0 1px 2px rgba(2, 132, 199, 0.08);
+}
+.badge-mode-cheque {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+    box-shadow: 0 1px 2px rgba(217, 119, 6, 0.08);
+}
+.badge-mode-default {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
+/* Payment For Badges */
+.badge-for-recharge {
+    background: #ccfbf1;
+    color: #0f766e;
+    border-color: #5eead4;
+}
+.badge-for-activation {
+    background: #e0e7ff;
+    color: #3730a3;
+    border-color: #a5b4fc;
+}
+.badge-for-reactivation {
+    background: #fae8ff;
+    color: #86198f;
+    border-color: #f0abfc;
+}
+.badge-for-renewal {
+    background: #ffedd5;
+    color: #9a3412;
+    border-color: #fdba74;
+}
+.badge-for-default {
+    background: #f8fafc;
+    color: #64748b;
+    border-color: #e2e8f0;
+}
+
+/* Dark Mode for Badges */
+body:has(#theme:checked) .badge-mode-upi {
+    background: rgba(139, 92, 246, 0.2);
+    color: #c4b5fd;
+    border-color: rgba(139, 92, 246, 0.4);
+}
+body:has(#theme:checked) .badge-mode-cash {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    border-color: rgba(16, 185, 129, 0.4);
+}
+body:has(#theme:checked) .badge-mode-bank {
+    background: rgba(14, 165, 233, 0.2);
+    color: #7dd3fc;
+    border-color: rgba(14, 165, 233, 0.4);
+}
+body:has(#theme:checked) .badge-mode-cheque {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.4);
+}
+body:has(#theme:checked) .badge-mode-default {
+    background: #1e293b;
+    color: #94a3b8;
+    border-color: #334155;
+}
+
+body:has(#theme:checked) .badge-for-recharge {
+    background: rgba(20, 184, 166, 0.2);
+    color: #5eead4;
+    border-color: rgba(20, 184, 166, 0.4);
+}
+body:has(#theme:checked) .badge-for-activation {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+    border-color: rgba(99, 102, 241, 0.4);
+}
+body:has(#theme:checked) .badge-for-reactivation {
+    background: rgba(217, 70, 239, 0.2);
+    color: #f0abfc;
+    border-color: rgba(217, 70, 239, 0.4);
+}
+body:has(#theme:checked) .badge-for-renewal {
+    background: rgba(249, 115, 22, 0.2);
+    color: #fdba74;
+    border-color: rgba(249, 115, 22, 0.4);
+}
+body:has(#theme:checked) .badge-for-default {
+    background: #1e293b;
+    color: #94a3b8;
+    border-color: #334155;
+}
+
+/* Vehicle / Monospace Pills */
+.vehicle-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: 0.03em;
+}
+body:has(#theme:checked) .vehicle-title {
+    color: #f1f5f9;
+}
+.imei-pill {
+    display: inline-block;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #475569;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-top: 3px;
+    letter-spacing: 0.04em;
+}
+body:has(#theme:checked) .imei-pill {
+    background: #1e293b;
+    color: #94a3b8;
+    border-color: #334155;
+}
+
+.tx-utr-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem;
+    color: #475569;
+    font-weight: 500;
+}
+body:has(#theme:checked) .tx-utr-code {
+    color: #94a3b8;
+}
+
+/* Profit Badge */
+.tx-profit-positive {
+    display: inline-block;
+    font-weight: 700;
+    color: #047857;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-feature-settings: "tnum";
+}
+.tx-profit-zero {
+    color: #94a3b8;
+    font-weight: 500;
+}
+.tx-profit-negative {
+    display: inline-block;
+    font-weight: 700;
+    color: #b91c1c;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-feature-settings: "tnum";
+}
+body:has(#theme:checked) .tx-profit-positive {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.35);
+}
+body:has(#theme:checked) .tx-profit-negative {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+/* Batch ID Badge */
+.tx-batch-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    letter-spacing: 0.02em;
+}
+body:has(#theme:checked) .tx-batch-badge {
+    background: rgba(37, 99, 235, 0.2);
+    color: #93c5fd;
+    border-color: rgba(37, 99, 235, 0.4);
+}
+
+/* Freeze table header */
+
+.data-table th {
+
+    position: sticky;
+
+    top: 0;
+
+    z-index: 10;
+
+    background: #f8fafc;
+
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+
+}
+
+
+
+/* Freeze 1st column (Action Menu) */
+
+.data-table th:nth-child(1),
+
+.data-table td:nth-child(1) {
+
+    position: sticky;
+
+    left: 0;
+
+    width: 50px;
+
+    min-width: 50px;
+
+    max-width: 50px;
+
+    z-index: 5;
+
+    background-color: #ffffff !important;
+
+    border-right: 1px solid rgba(0,0,0,0.08);
+
+}
+
+
+
+/* Elevate z-index when popup is open so it overlaps rows below and right */
+
+.data-table td:nth-child(1):has(.popup input:checked),
+
+.data-table td:nth-child(1):focus-within,
+
+.data-table td:nth-child(1):hover {
+
+    z-index: 35 !important;
+
+}
+
+
+
+/* Freeze 2nd column (SLNo) */
+
+.data-table th:nth-child(2),
+
+.data-table td:nth-child(2) {
+
+    position: sticky;
+
+    left: 50px;
+
+    width: 70px;
+
+    min-width: 70px;
+
+    max-width: 70px;
+
+    z-index: 5;
+
+    background-color: #ffffff !important;
+
+    border-right: 1px solid rgba(0,0,0,0.08);
+
+}
+
+
+
+/* Freeze 3rd column (Date) */
+
+.data-table th:nth-child(3),
+
+.data-table td:nth-child(3) {
+
+    position: sticky;
+
+    left: 120px;
+
+    width: 140px;
+
+    min-width: 140px;
+
+    max-width: 140px;
+
+    z-index: 5;
+
+    background-color: #ffffff !important;
+
+    border-right: 2px solid #cbd5e1 !important;
+
+    box-shadow: 4px 0 8px -2px rgba(0, 0, 0, 0.12) !important;
+
+}
+
+
+
+/* Ensure frozen headers stay above frozen columns */
+
+.data-table th:nth-child(1),
+
+.data-table th:nth-child(2),
+
+.data-table th:nth-child(3) {
+
+    z-index: 25 !important;
+
+    background-color: #f1f5f9 !important;
+
+}
+
+
+
+/* Dark mode support - 100% OPAQUE backgrounds so NO scrolling content bleeds through */
+
+body:has(#theme:checked) .data-table th,
+
+body:has(#theme:checked) .data-table th:nth-child(1),
+
+body:has(#theme:checked) .data-table th:nth-child(2),
+
+body:has(#theme:checked) .data-table th:nth-child(3) {
+
+    background-color: #0b0f19 !important;
+
+    color: #38bdf8 !important;
+
+    border-color: #1e293b !important;
+
+}
+
+body:has(#theme:checked) .data-table th:nth-child(3) {
+
+    border-right: 2px solid #334155 !important;
+
+    box-shadow: 5px 0 10px -2px rgba(0, 0, 0, 0.6) !important;
+
+}
+
+
+
+body:has(#theme:checked) .data-table td:nth-child(1),
+
+body:has(#theme:checked) .data-table td:nth-child(2),
+
+body:has(#theme:checked) .data-table td:nth-child(3) {
+
+    background-color: #0f172a !important;
+
+    color: #f8fafc !important;
+
+    border-right: 1px solid #1e293b !important;
+
+}
+
+body:has(#theme:checked) .data-table td:nth-child(3) {
+
+    border-right: 2px solid #334155 !important;
+
+    box-shadow: 5px 0 10px -2px rgba(0, 0, 0, 0.6) !important;
+
+}
+
+
+
+/* Preserve subtle batch row tint over solid background without ANY transparency bleed */
+
+body:has(#theme:checked) .data-table tr.batch-row td:nth-child(1),
+
+body:has(#theme:checked) .data-table tr.batch-row td:nth-child(2),
+
+body:has(#theme:checked) .data-table tr.batch-row td:nth-child(3) {
+
+    background-color: #0f172a !important;
+
+    background-image: linear-gradient(var(--batch-bg, rgba(255,255,255,0.06)), var(--batch-bg, rgba(255,255,255,0.06))) !important;
+
+}
+
+
+
+body:has(#theme:checked) .data-table tr:hover td:nth-child(1),
+
+body:has(#theme:checked) .data-table tr:hover td:nth-child(2),
+
+body:has(#theme:checked) .data-table tr:hover td:nth-child(3) {
+
+    background-color: #1e293b !important;
+
+    background-image: none !important;
+
+}
+
+.data-table tr:hover td:nth-child(1),
+.data-table tr:hover td:nth-child(2),
+.data-table tr:hover td:nth-child(3) {
+    background-color: var(--soft, #f8fbff) !important;
+}
+
+body:has(#theme:checked) .data-table tr:hover td:nth-child(1),
+body:has(#theme:checked) .data-table tr:hover td:nth-child(2),
+body:has(#theme:checked) .data-table tr:hover td:nth-child(3) {
+    background-color: #1e293b !important;
+}
+
+
+
+/* Override Popup variables to use white bg and dark lines (as requested) */
+
+.popup {
+
+  --burger-line-width: 0.25em;
+
+  --burger-line-height: 0.25em;
+
+  --burger-offset: 0.6em;
+
+  --burger-bg: #fff;
+
+  --burger-color: #333;
+
+  --burger-line-border-radius: 50%;
+
+  --burger-diameter: 2.125em;
+
+  --burger-btn-border-radius: calc(var(--burger-diameter) / 2);
+
+  --burger-line-transition: .3s;
+
+  --burger-transition: all .1s ease-in-out;
+
+  --burger-hover-scale: 1.1;
+
+  --burger-active-scale: .95;
+
+  --burger-enable-outline-color: var(--burger-bg);
+
+  --burger-enable-outline-width: 0.125em;
+
+  --burger-enable-outline-offset: var(--burger-enable-outline-width);
+
+  --nav-padding-x: 0.25em;
+
+  --nav-padding-y: 0.625em;
+
+  --nav-border-radius: 0.375em;
+
+  --nav-border-color: #ccc;
+
+  --nav-border-width: 0.0625em;
+
+  --nav-shadow-color: rgba(0, 0, 0, .2);
+
+  --nav-shadow-width: 0 1px 5px;
+
+  --nav-bg: #fff;
+
+  --nav-font-family: inherit;
+
+  --nav-default-scale: .8;
+
+  --nav-active-scale: 1;
+
+  --nav-position-left: 0;
+
+  --nav-position-right: unset;
+
+  --nav-title-size: 0.625em;
+
+  --nav-title-color: #777;
+
+  --nav-title-padding-x: 1rem;
+
+  --nav-title-padding-y: 0.25em;
+
+  --nav-button-padding-x: 1rem;
+
+  --nav-button-padding-y: 0.375em;
+
+  --nav-button-border-radius: 0.375em;
+
+  --nav-button-font-size: 12px;
+
+  --nav-button-hover-bg: #6495ed;
+
+  --nav-button-hover-text-color: #fff;
+
+  --nav-button-distance: 0.875em;
+
+  --underline-border-width: 0.0625em;
+
+  --underline-border-color: #ccc;
+
+  --underline-margin-y: 0.3125em;
+
+}
+
+
+
+.popup { display: inline-block; text-rendering: optimizeLegibility; position: relative; }
+
+.popup input { display: none; }
+
+.burger { display: flex; align-items: center; justify-content: center; background: transparent; width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer; color: #64748b; transition: background 0.2s; outline: none; }
+
+.burger:hover { background: rgba(0,0,0,0.05); color: #334155; }
+
+
+
+.popup-window { transform: scale(var(--nav-default-scale)); visibility: hidden; opacity: 0; position: absolute; padding: var(--nav-padding-y) var(--nav-padding-x); background: var(--nav-bg); font-family: var(--nav-font-family); color: var(--text); border-radius: var(--nav-border-radius); box-shadow: var(--nav-shadow-width) var(--nav-shadow-color); border: var(--nav-border-width) solid var(--nav-border-color); top: calc(32px + var(--burger-enable-outline-width) + var(--burger-enable-outline-offset)); left: 0; right: auto; z-index: 10; }
+
+.popup-window legend { padding: var(--nav-title-padding-y) var(--nav-title-padding-x); margin: 0; color: var(--nav-title-color); font-size: var(--nav-title-size); text-transform: uppercase; }
+
+.popup-window ul { margin: 0; padding: 0; list-style-type: none; }
+
+.popup-window ul a, .popup-window ul button { outline: none; width: 100%; border: none; background: none; display: flex; align-items: center; color: var(--burger-color); font-size: var(--nav-button-font-size); padding: var(--nav-button-padding-y) var(--nav-button-padding-x); white-space: nowrap; border-radius: var(--nav-button-border-radius); cursor: pointer; column-gap: var(--nav-button-distance); text-decoration: none; font-family: inherit; }
+
+.popup-window hr { margin: var(--underline-margin-y) 0; border: none; border-bottom: var(--underline-border-width) solid var(--underline-border-color); }
+
+.popup-window ul a:hover, .popup-window ul a:focus-visible, .popup-window ul a:hover svg, .popup-window ul a:focus-visible svg, .popup-window ul button:hover, .popup-window ul button:focus-visible, .popup-window ul button:hover svg, .popup-window ul button:focus-visible svg { color: var(--nav-button-hover-text-color); background: var(--nav-button-hover-bg); }
+
+.burger:focus:not(:hover) { outline-color: var(--burger-enable-outline-color); outline-offset: var(--burger-enable-outline-offset); }
+
+.popup input:checked~nav { transform: scale(var(--nav-active-scale)); visibility: visible; opacity: 1; }
+
+
+
+body:has(#theme:checked) .popup {
+
+  --nav-bg: #1e293b;
+
+  --nav-border-color: #334155;
+
+  --nav-title-color: #94a3b8;
+
+  --underline-border-color: #334155;
+
+}
+
+body:has(#theme:checked) .burger { color: #94a3b8; }
+
+body:has(#theme:checked) .burger:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+
+</style>
+
+
+
+@section Scripts {
+
+<script>
+
+    function toggleDetails(id, btn) {
+
+        const row = document.getElementById(id);
+
+        if (!row) return;
+
+        if (row.style.display === "none" || row.style.display === "") {
+
+            row.style.display = "table-row";
+
+            if (btn) {
+
+                var svg = btn.querySelector('svg');
+
+                if (svg) svg.style.transform = 'rotate(180deg)';
+
+            }
+
+        } else {
+
+            row.style.display = "none";
+
+            if (btn) {
+
+                var svg = btn.querySelector('svg');
+
+                if (svg) svg.style.transform = 'rotate(0deg)';
+
+            }
+
+        }
+
+    }
+
+
+    function openInlineExpiryEdit(btn, id, batchId) {
+        const cell = btn.closest('.expiry-cell');
+        if (!cell || cell.querySelector('.expiry-edit-container')) return;
+
+        const currentIso = cell.dataset.date || '';
+        const hasBatch = batchId && batchId.trim() !== '' && batchId.trim() !== '-';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'expiry-edit-container';
+        wrap.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; background: var(--surface); padding: 4px 6px; border-radius: 6px; border: 1px solid #3b82f6; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10; position: relative;';
+
+        wrap.innerHTML = `
+            <input type="date" class="quick-exp-input" value="${currentIso}" style="padding: 2px 6px; font-size: 0.78rem; height: 26px; border-radius: 4px; border: 1px solid var(--line); background: var(--bg); color: var(--text);" />
+            ${hasBatch ? `<label style="font-size: 0.72rem; color: var(--muted); display: inline-flex; align-items: center; gap: 3px; cursor: pointer; white-space: nowrap;" title="Apply to all transactions in batch ${batchId}"><input type="checkbox" class="quick-exp-batch-cb" checked /> Batch</label>` : ''}
+            <button type="button" class="quick-exp-save-btn" title="Save" style="background: #2563eb; color: #fff; border: none; border-radius: 4px; padding: 2px 8px; height: 26px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">✓</button>
+            <button type="button" class="quick-exp-cancel-btn" title="Cancel" style="background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 4px; padding: 2px 6px; height: 26px; font-size: 0.75rem; cursor: pointer;">✕</button>
+        `;
+
+        const originalContent = cell.innerHTML;
+        cell.innerHTML = '';
+        cell.appendChild(wrap);
+
+        const input = wrap.querySelector('.quick-exp-input');
+        const saveBtn = wrap.querySelector('.quick-exp-save-btn');
+        const cancelBtn = wrap.querySelector('.quick-exp-cancel-btn');
+        const batchCb = wrap.querySelector('.quick-exp-batch-cb');
+
+        input.focus();
+
+        cancelBtn.onclick = function() {
+            cell.innerHTML = originalContent;
+        };
+
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveBtn.click();
+            } else if (e.key === 'Escape') {
+                cell.innerHTML = originalContent;
+            }
+        });
+
+        saveBtn.onclick = function() {
+            const val = input.value;
+            if (!val) {
+                alert('Please select a valid expiry date.');
+                return;
+            }
+            saveBtn.disabled = true;
+            saveBtn.textContent = '...';
+
+            const applyToBatch = batchCb ? batchCb.checked : false;
+
+            fetch('/@currentBranch/Transactions/QuickUpdateExpiry', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id: id,
+                    newExpiryDate: val,
+                    applyToBatch: applyToBatch
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.success) {
+                    const formattedShort = data.displayDate || val;
+                    if (applyToBatch && hasBatch) {
+                        document.querySelectorAll(`.expiry-cell[data-batch="${batchId}"]`).forEach(c => {
+                            c.dataset.date = data.newExpiryDate || val;
+                            const dSpan = c.querySelector('.expiry-display');
+                            if (dSpan) dSpan.textContent = formattedShort;
+                            c.style.backgroundColor = 'rgba(34, 197, 94, 0.2)';
+                            setTimeout(() => { c.style.backgroundColor = ''; }, 1800);
+                        });
+                    }
+                    cell.innerHTML = originalContent;
+                    cell.dataset.date = data.newExpiryDate || val;
+                    const dSpan = cell.querySelector('.expiry-display');
+                    if (dSpan) dSpan.textContent = formattedShort;
+                    cell.style.backgroundColor = 'rgba(34, 197, 94, 0.2)';
+                    setTimeout(() => { cell.style.backgroundColor = ''; }, 1800);
+                } else {
+                    alert(data.message || 'Failed to update expiry date.');
+                    cell.innerHTML = originalContent;
+                }
+            })
+            .catch(err => {
+                console.error('Quick update expiry error:', err);
+                alert('Error updating expiry date: ' + err);
+                cell.innerHTML = originalContent;
+            });
+        };
+    }
+
+    // Vendor Credits Slide-Out Drawer Handlers
+    window.openVendorCreditsDrawer = function() {
+        const overlay = document.getElementById('vendorCreditsDrawerOverlay');
+        const drawer = document.getElementById('vendorCreditsDrawer');
+        if (overlay) overlay.style.display = 'block';
+        if (drawer) {
+            drawer.style.transform = 'translateX(0)';
+            document.body.style.overflow = 'hidden';
+        }
+    };
+
+    window.closeVendorCreditsDrawer = function() {
+        const overlay = document.getElementById('vendorCreditsDrawerOverlay');
+        const drawer = document.getElementById('vendorCreditsDrawer');
+        if (drawer) {
+            drawer.style.transform = 'translateX(100%)';
+            document.body.style.overflow = '';
+        }
+        if (overlay) overlay.style.display = 'none';
+    };
+
+    window.filterVendorCredits = function(query) {
+        const q = (query || '').toLowerCase().trim();
+        const items = document.querySelectorAll('.credit-card-item');
+        let visibleCount = 0;
+        items.forEach(item => {
+            const v = item.getAttribute('data-vendor') || '';
+            const u = item.getAttribute('data-utr') || '';
+            const d = item.getAttribute('data-date') || '';
+            const match = !q || v.includes(q) || u.includes(q) || d.includes(q);
+            item.style.display = match ? 'flex' : 'none';
+            if (match) visibleCount++;
+        });
+        const emptyMsg = document.getElementById('emptyCreditsMsg');
+        if (emptyMsg) {
+            emptyMsg.style.display = (items.length > 0 && visibleCount === 0) ? 'block' : 'none';
+        }
+    };
+
+</script>
+
+<!-- Slide-Out Drawer for Vendor Credits & Balances -->
+<div id="vendorCreditsDrawerOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); z-index: 9998;" onclick="window.closeVendorCreditsDrawer()"></div>
+<div id="vendorCreditsDrawer" style="position: fixed; top: 0; right: 0; bottom: 0; width: min(540px, 95vw); background: #0b1120; border-left: 1px solid rgba(255,255,255,0.12); box-shadow: -10px 0 36px rgba(0,0,0,0.7); z-index: 9999; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+    <!-- Drawer Header -->
+    <div style="padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: flex-start; background: rgba(15, 23, 42, 0.6);">
+        <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.25rem;">💳</span>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #fff;">Vendor Advance Credits</h3>
+            </div>
+            <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #94a3b8;">
+                Unspent balances & advances from bulk/part payments
+            </p>
+        </div>
+        <button type="button" onclick="window.closeVendorCreditsDrawer()" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #94a3b8; font-size: 1.1rem; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            ✕
+        </button>
+    </div>
+
+    <!-- Drawer Sub-bar with Live Summary -->
+    <div style="padding: 12px 24px; background: rgba(16, 185, 129, 0.08); border-bottom: 1px solid rgba(16, 185, 129, 0.2); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.85rem; color: #cbd5e1; font-weight: 500;">Active Available Balance:</span>
+        <span id="drawerTotalActiveBadge" style="font-size: 1.2rem; font-weight: 800; color: #34d399;">
+            ₹@(ViewBag.TotalActiveCredit != null ? ((decimal)ViewBag.TotalActiveCredit).ToString("N2") : "0.00")
+        </span>
+    </div>
+
+    <!-- Drawer Search Input -->
+    <div style="padding: 12px 24px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <input type="text" id="drawerCreditSearch" placeholder="Search vendor name, UTR, or date..." class="input" style="width: 100%; height: 38px; font-size: 0.85rem; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.12);" oninput="window.filterVendorCredits(this.value)" />
+    </div>
+
+    <!-- Drawer Scrollable Content -->
+    <div id="drawerCreditsList" style="flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;">
+        @{
+            var creditsList = ViewBag.VendorCredits as List<VendorCreditRecord> ?? new List<VendorCreditRecord>();
+        }
+        @if (creditsList.Count == 0)
+        {
+            <div id="emptyCreditsMsg" style="text-align: center; padding: 48px 20px; color: #64748b;">
+                <div style="font-size: 2.5rem; margin-bottom: 12px; opacity: 0.6;">💳</div>
+                <div style="font-size: 1rem; font-weight: 600; color: #94a3b8;">No Vendor Credits Recorded</div>
+                <p style="font-size: 0.82rem; margin-top: 6px;">When a bulk payment exceeds allocated device amounts (e.g. ₹40,000 paid for 3 devices @@ ₹10,500), the remaining ₹8,500 balance is automatically saved here.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var c in creditsList)
+            {
+                var isActive = c.Status == "Active" && c.RemainingBalance > 0;
+                <div class="credit-card-item" data-vendor="@c.Vendor.ToLowerInvariant()" data-utr="@c.Utr.ToLowerInvariant()" data-date="@c.Date" style="background: rgba(255,255,255,0.03); border: 1px solid @(isActive ? "rgba(16, 185, 129, 0.3)" : "rgba(255,255,255,0.08)"); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <strong style="font-size: 1rem; color: #f8fafc;">@c.Vendor</strong>
+                                <span class="badge" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; background: @(isActive ? "rgba(16, 185, 129, 0.2)" : "rgba(148, 163, 184, 0.15)"); color: @(isActive ? "#34d399" : "#94a3b8");">
+                                    @(isActive ? "Active Credit" : "Settled")
+                                </span>
+                            </div>
+                            <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 3px;">
+                                Original Amount: <strong>₹@c.Amount.ToString("N2")</strong>
+                            </div>
+                        </div>
+
+                        <!-- Prominent side amount: "show the amount on the side to see how much is there" -->
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; display: block;">Balance</span>
+                            <span style="font-size: 1.25rem; font-weight: 800; color: @(isActive ? "#34d399" : "#94a3b8");">
+                                ₹@c.RemainingBalance.ToString("N2")
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.78rem; color: #cbd5e1; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06);">
+                        <span style="padding: 2px 7px; background: rgba(255,255,255,0.04); border-radius: 4px;">📅 @c.Date</span>
+                        <span style="padding: 2px 7px; background: rgba(255,255,255,0.04); border-radius: 4px;">🏦 @c.PaymentMode</span>
+                        <span style="padding: 2px 7px; background: rgba(255,255,255,0.04); border-radius: 4px;">👤 @c.PaidTo</span>
+                        @if (!string.IsNullOrWhiteSpace(c.Utr))
+                        {
+                            <span style="padding: 2px 7px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border-radius: 4px; font-family: monospace;">UTR: @c.Utr</span>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(c.Notes))
+                    {
+                        <div style="font-size: 0.75rem; color: #94a3b8; font-style: italic;">
+                            @c.Notes
+                        </div>
+                    }
+
+                    @if (isActive)
+                    {
+                        <div style="margin-top: 4px; display: flex; justify-content: flex-end;">
+                            <a href="@Url.Action("Create", "Transactions", new { area = "DMG", mode = "bulk" })" class="button secondary" style="font-size: 0.78rem; padding: 4px 10px; height: 30px; display: inline-flex; align-items: center; gap: 4px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.3);">
+                                <span>+ Use in New Transaction</span>
+                            </a>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+
+}
+

@@ -1,0 +1,534 @@
+@model SensoriseViewModel
+@{
+    ViewData["Title"] = "Sensorise";
+}
+
+<style>
+    .sensorise-section-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 12px 4px 10px;
+        border-radius: 9999px;
+        font-size: 0.84rem;
+        font-weight: 600;
+        line-height: 1.2;
+        text-decoration: none;
+        border: 1px solid transparent;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    .sensorise-section-pill:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .sensorise-section-pill .pill-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .sensorise-section-pill .pill-label {
+        letter-spacing: 0.01em;
+    }
+    .sensorise-section-pill .pill-badge {
+        font-size: 0.8rem;
+        font-weight: 800;
+        padding: 1px 7px;
+        border-radius: 9999px;
+        line-height: 1.2;
+    }
+
+    /* Suspended Pill */
+    .sensorise-section-pill--susp {
+        background: #fffbeb;
+        color: #92400e;
+        border-color: #fde68a;
+    }
+    .sensorise-section-pill--susp .pill-dot {
+        background: #f59e0b;
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+    }
+    .sensorise-section-pill--susp .pill-badge {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    /* Terminated Pill */
+    .sensorise-section-pill--term {
+        background: #fef2f2;
+        color: #991b1b;
+        border-color: #fecaca;
+    }
+    .sensorise-section-pill--term .pill-dot {
+        background: #ef4444;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+    }
+    .sensorise-section-pill--term .pill-badge {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    /* Dark Mode */
+    body:has(#theme:checked) .sensorise-section-pill--susp {
+        background: rgba(245, 158, 11, 0.18) !important;
+        color: #fde68a !important;
+        border-color: rgba(245, 158, 11, 0.4) !important;
+    }
+    body:has(#theme:checked) .sensorise-section-pill--susp .pill-badge {
+        background: rgba(245, 158, 11, 0.3) !important;
+        color: #fffbeb !important;
+    }
+    body:has(#theme:checked) .sensorise-section-pill--term {
+        background: rgba(185, 28, 28, 0.18) !important;
+        color: #fca5a5 !important;
+        border-color: rgba(239, 68, 68, 0.4) !important;
+    }
+    body:has(#theme:checked) .sensorise-section-pill--term .pill-badge {
+        background: rgba(239, 68, 68, 0.3) !important;
+        color: #fee2e2 !important;
+    }
+
+    .stat-card-sensorise {
+        background: var(--card-bg, #ffffff);
+        border: 1px solid var(--line, #e2e8f0);
+        border-radius: 12px;
+        padding: 18px 22px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card-sensorise:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+    }
+    body:has(#theme:checked) .stat-card-sensorise {
+        background: #0b0f19 !important;
+        border-color: #1e293b !important;
+    }
+
+    /* Row highlight for Sensorise table */
+    .sensorise-table tr.sensorise-row {
+        cursor: pointer;
+        transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .sensorise-table tr.sensorise-row:hover td,
+    .sensorise-table tr.sensorise-row:focus-within td {
+        background-color: var(--row-hover-bg, #e0f2fe) !important;
+        box-shadow: inset 0 2px 0 #0284c7, inset 0 -2px 0 #0284c7 !important;
+    }
+    .sensorise-table tr.sensorise-row:hover td:first-child,
+    .sensorise-table tr.sensorise-row:focus-within td:first-child {
+        border-left: 4px solid #0284c7 !important;
+    }
+    .sensorise-table tr.sensorise-row:hover td:last-child,
+    .sensorise-table tr.sensorise-row:focus-within td:last-child {
+        border-right: 4px solid #0284c7 !important;
+    }
+    .sensorise-table tr.sensorise-row.active-row td {
+        background-color: #bae6fd !important;
+        box-shadow: inset 0 2.5px 0 #0284c7, inset 0 -2.5px 0 #0284c7 !important;
+    }
+    .sensorise-table tr.sensorise-row.active-row td:first-child {
+        border-left: 5px solid #0284c7 !important;
+    }
+    .sensorise-table tr.sensorise-row.active-row td:last-child {
+        border-right: 5px solid #0284c7 !important;
+    }
+
+    body:has(#theme:checked) .sensorise-table tr.sensorise-row:hover td,
+    body:has(#theme:checked) .sensorise-table tr.sensorise-row:focus-within td {
+        background-color: rgba(56, 189, 248, 0.16) !important;
+        box-shadow: inset 0 2px 0 #38bdf8, inset 0 -2px 0 #38bdf8 !important;
+    }
+    body:has(#theme:checked) .sensorise-table tr.sensorise-row:hover td:first-child,
+    body:has(#theme:checked) .sensorise-table tr.sensorise-row:focus-within td:first-child {
+        border-left: 4px solid #38bdf8 !important;
+    }
+    body:has(#theme:checked) .sensorise-table tr.sensorise-row:hover td:last-child,
+    body:has(#theme:checked) .sensorise-table tr.sensorise-row:focus-within td:last-child {
+        border-right: 4px solid #38bdf8 !important;
+    }
+    body:has(#theme:checked) .sensorise-table tr.sensorise-row.active-row td {
+        background-color: rgba(56, 189, 248, 0.28) !important;
+        box-shadow: inset 0 2.5px 0 #38bdf8, inset 0 -2.5px 0 #38bdf8 !important;
+    }
+    body:has(#theme:checked) .sensorise-table tr.sensorise-row.active-row td:first-child {
+        border-left: 5px solid #38bdf8 !important;
+    }
+    body:has(#theme:checked) .sensorise-table tr.sensorise-row.active-row td:last-child {
+        border-right: 5px solid #38bdf8 !important;
+    }
+
+    .filter-tab-btn {
+        padding: 8px 16px;
+        border-radius: 9999px;
+        font-size: 0.84rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--line, #e2e8f0);
+        background: var(--paper, #ffffff);
+        color: var(--text-main, #334155);
+        transition: all 0.15s ease;
+    }
+    .filter-tab-btn:hover {
+        background: var(--soft, #f1f5f9);
+        color: var(--text-main, #0f172a);
+    }
+    .filter-tab-btn.active {
+        background: var(--blue-600, #0f62fe);
+        color: #ffffff;
+        border-color: var(--blue-600, #0f62fe);
+        box-shadow: 0 2px 8px rgba(15, 98, 254, 0.25);
+    }
+    body:has(#theme:checked) .filter-tab-btn {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        color: #f1f5f9 !important;
+    }
+    body:has(#theme:checked) .filter-tab-btn:hover {
+        background: #334155 !important;
+    }
+    body:has(#theme:checked) .filter-tab-btn.active {
+        background: #2563eb !important;
+        border-color: #3b82f6 !important;
+        color: #ffffff !important;
+    }
+</style>
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow" style="display: flex; align-items: center; gap: 8px;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #047857;"></span>
+            <span>Network Operator &bull; DMG Branch</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 14px; margin-top: 4px; flex-wrap: wrap;">
+            <h1 style="display: inline-flex; align-items: center; gap: 12px; margin: 0; font-size: 1.85rem; font-weight: 700;">
+                <span>Sensorise</span>
+            </h1>
+            <div class="page-header-pills" style="display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <a asp-action="Index" asp-route-statusFilter="Suspension" asp-route-query="@Model.Query" class="sensorise-section-pill sensorise-section-pill--susp" title="Filter @Model.SuspensionCount suspended device(s)">
+                    <span class="pill-dot"></span>
+                    <span class="pill-label">Suspended:</span>
+                    <span class="pill-badge">@Model.SuspensionCount</span>
+                </a>
+                <a asp-action="Index" asp-route-statusFilter="Terminated" asp-route-query="@Model.Query" class="sensorise-section-pill sensorise-section-pill--term" title="Filter @Model.TerminatedCount terminated device(s)">
+                    <span class="pill-dot"></span>
+                    <span class="pill-label">Terminated:</span>
+                    <span class="pill-badge">@Model.TerminatedCount</span>
+                </a>
+            </div>
+        </div>
+        <p style="margin-top: 6px; margin-bottom: 0; color: var(--muted); font-size: 0.9rem;">
+            Hardcoded to <strong>Sensorise</strong> network operator in <strong>DMG</strong> branch. Displays devices currently under <strong>Suspension</strong>, <strong>Termination</strong>, or within the <strong>7-day grace window</strong> following transition into Dead status.
+        </p>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <a asp-action="ExportExcel" asp-route-query="@Model.Query" asp-route-statusFilter="@Model.StatusFilter" class="button secondary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            <span>Export to Excel (.xlsx)</span>
+        </a>
+        <a asp-controller="Devices" asp-action="Index" class="button btn-primary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+            <span>View All Fleet Devices</span>
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+        </a>
+    </div>
+</div>
+
+<!-- Stat Metric Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 24px;">
+    <!-- Core Bubble Metric Card -->
+    <div class="stat-card-sensorise" style="border-left: 4px solid #ef4444;">
+        <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(239, 68, 68, 0.12); display: flex; align-items: center; justify-content: center; color: #ef4444; flex-shrink: 0;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--muted); letter-spacing: 0.05em;">Suspension & Terminated</div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                <span style="font-size: 1.65rem; font-weight: 800; color: #dc2626;">@Model.SuspensionOrTerminationCount</span>
+                <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; background: #fee2e2; color: #b91c1c; font-weight: 700;">Bubble Count</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suspension Card -->
+    <div class="stat-card-sensorise" style="border-left: 4px solid #f59e0b;">
+        <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(245, 158, 11, 0.12); display: flex; align-items: center; justify-content: center; color: #f59e0b; flex-shrink: 0;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--muted); letter-spacing: 0.05em;">Suspension Window</div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                <span style="font-size: 1.65rem; font-weight: 800; color: #d97706;">@Model.SuspensionCount</span>
+                <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; background: #fef3c7; color: #b45309; font-weight: 700;">Grace Active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminated Card -->
+    <div class="stat-card-sensorise" style="border-left: 4px solid #f97316;">
+        <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(249, 115, 22, 0.12); display: flex; align-items: center; justify-content: center; color: #f97316; flex-shrink: 0;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--muted); letter-spacing: 0.05em;">Terminated</div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                <span style="font-size: 1.65rem; font-weight: 800; color: #ea580c;">@Model.TerminatedCount</span>
+                <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; background: #ffedd5; color: #c2410c; font-weight: 700;">Awaiting Action</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recently Dead (7-day window) Card -->
+    <div class="stat-card-sensorise" style="border-left: 4px solid #64748b;">
+        <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(100, 116, 139, 0.12); display: flex; align-items: center; justify-content: center; color: #64748b; flex-shrink: 0;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--muted); letter-spacing: 0.05em;">Recently Dead (7d)</div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                <span style="font-size: 1.65rem; font-weight: 800; color: #475569;">@Model.RecentlyDeadCount</span>
+                <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; background: #f1f5f9; color: #475569; font-weight: 700;">1-Wk Window</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filter Bar -->
+<div class="card" style="margin-top: 20px; padding: 16px 20px;">
+    <form method="get" asp-action="Index" style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <!-- Status Tabs -->
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; flex-grow: 1;">
+                <a asp-action="Index" asp-route-statusFilter="All" asp-route-query="@Model.Query" class="filter-tab-btn @(string.Equals(Model.StatusFilter, "All", StringComparison.OrdinalIgnoreCase) ? "active" : "")">
+                    <span>All Issues</span>
+                    <span style="font-size: 0.75rem; opacity: 0.85;">(@Model.TotalSensoriseActiveCount)</span>
+                </a>
+                <a asp-action="Index" asp-route-statusFilter="Suspension" asp-route-query="@Model.Query" class="filter-tab-btn @(string.Equals(Model.StatusFilter, "Suspension", StringComparison.OrdinalIgnoreCase) ? "active" : "")">
+                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b;"></span>
+                    <span>Suspension</span>
+                    <span style="font-size: 0.75rem; opacity: 0.85;">(@Model.SuspensionCount)</span>
+                </a>
+                <a asp-action="Index" asp-route-statusFilter="Terminated" asp-route-query="@Model.Query" class="filter-tab-btn @(string.Equals(Model.StatusFilter, "Terminated", StringComparison.OrdinalIgnoreCase) ? "active" : "")">
+                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #f97316;"></span>
+                    <span>Terminated</span>
+                    <span style="font-size: 0.75rem; opacity: 0.85;">(@Model.TerminatedCount)</span>
+                </a>
+                <a asp-action="Index" asp-route-statusFilter="Dead" asp-route-query="@Model.Query" class="filter-tab-btn @(string.Equals(Model.StatusFilter, "Dead", StringComparison.OrdinalIgnoreCase) ? "active" : "")">
+                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #ef4444;"></span>
+                    <span>Recently Dead (7d)</span>
+                    <span style="font-size: 0.75rem; opacity: 0.85;">(@Model.RecentlyDeadCount)</span>
+                </a>
+            </div>
+
+            <!-- Search Field -->
+            <div style="display: flex; gap: 8px; align-items: center; min-width: 280px; flex-grow: 1; max-width: 480px;">
+                <div style="position: relative; width: 100%;">
+                    <input type="text" name="query" value="@Model.Query" placeholder="Search vehicle, IMEI, ICCID, owner..." class="input" style="padding-left: 36px; height: 38px; border-radius: 9999px; font-size: 0.85rem; width: 100%;" />
+                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <input type="hidden" name="statusFilter" value="@Model.StatusFilter" />
+                <button type="submit" class="button btn-primary small" style="height: 38px; border-radius: 8px; padding: 0 16px;">Search</button>
+                <a asp-action="Index" class="button secondary small" style="height: 38px; border-radius: 8px; padding: 0 12px; display: inline-flex; align-items: center; gap: 5px; text-decoration: none;" title="Reset all filters">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    <span>Clear filters</span>
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Table Card -->
+<div class="card" style="margin-top: 20px; overflow: hidden; border-radius: 10px;">
+    <div class="table-wrap">
+        <table class="data-table sensorise-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th style="min-width: 140px; text-align: left;">Vehicle No</th>
+                    <th style="min-width: 160px;">IMEI</th>
+                    <th style="min-width: 170px;">ICCID</th>
+                    <th style="width: 110px;">Operator</th>
+                    <th style="min-width: 150px; text-align: left;">Owner / Phone</th>
+                    <th style="min-width: 130px; text-align: left;">Vendor</th>
+                    <th style="min-width: 120px;">Expiry Date</th>
+                    <th style="min-width: 110px;">Days Past</th>
+                    <th style="min-width: 130px;">Lifecycle Status</th>
+                    <th style="min-width: 150px;">Window / Grace Status</th>
+                    <th style="width: 140px; text-align: right; padding-right: 20px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Devices.Count == 0)
+                {
+                    <tr>
+                        <td colspan="12" style="padding: 50px 20px; text-align: center; color: var(--muted);">
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                                <div style="width: 48px; height: 48px; border-radius: 50%; background: #f0fdf4; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                                    ✓
+                                </div>
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--text-main);">No Sensorise devices match criteria</h3>
+                                <p style="margin: 0; font-size: 0.85rem; color: var(--muted);">
+                                    @if (!string.IsNullOrWhiteSpace(Model.Query))
+                                    {
+                                        <span>No records matched your search query "@Model.Query".</span>
+                                    }
+                                    else
+                                    {
+                                        <span>There are currently no Sensorise devices under the selected status filter in DMG branch.</span>
+                                    }
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    int index = (Model.Page - 1) * Model.PageSize + 1;
+                    foreach (var item in Model.Devices)
+                    {
+                        var dev = item.Device;
+                        <tr class="sensorise-row" onclick="selectSensoriseRow(this)">
+                            <td style="color: var(--muted); font-size: 0.78rem; text-align: center;">@(index++)</td>
+                            <td style="text-align: left; font-weight: 700;">
+                                <span style="font-family: monospace; font-size: 0.92rem; color: var(--text-main);">@dev.VehicleNo</span>
+                            </td>
+                            <td>
+                                <span style="font-family: monospace; font-size: 0.82rem;">@(string.IsNullOrWhiteSpace(dev.Imei) ? "—" : dev.Imei)</span>
+                            </td>
+                            <td>
+                                <strong style="font-family: monospace; font-size: 0.82rem;">@(string.IsNullOrWhiteSpace(dev.Iccid) ? "—" : dev.Iccid)</strong>
+                            </td>
+                            <td>
+                                <span class="badge" style="font-size: 0.74rem; font-weight: 700; background: #ecfdf5; color: #047857; border: 1.5px solid #a7f3d0; padding: 2px 8px; border-radius: 6px;">
+                                    Sensorise
+                                </span>
+                            </td>
+                            <td style="text-align: left;">
+                                <div style="font-weight: 600; font-size: 0.82rem; color: var(--text-main);">@(string.IsNullOrWhiteSpace(dev.Owner) ? "—" : dev.Owner)</div>
+                                @if (!string.IsNullOrWhiteSpace(dev.CellNo))
+                                {
+                                    <div style="font-size: 0.75rem; color: var(--muted);">@dev.CellNo</div>
+                                }
+                            </td>
+                            <td style="text-align: left; font-size: 0.82rem; color: var(--muted);">
+                                @(string.IsNullOrWhiteSpace(dev.Vendor) ? "—" : dev.Vendor)
+                            </td>
+                            <td>
+                                <span style="font-size: 0.8rem; font-weight: 600;">
+                                    @(string.IsNullOrWhiteSpace(dev.LatestExpiryDate) ? "—" : DateValue.Short(dev.LatestExpiryDate))
+                                </span>
+                            </td>
+                            <td>
+                                <span style="font-size: 0.82rem; font-weight: 700; color: #dc2626;">
+                                    +@item.DaysPastExpiry d
+                                </span>
+                            </td>
+                            <td>
+                                @if (string.Equals(item.LifecycleStatus, "Suspension", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <span class="badge badge-suspension" style="color: #78350f; border-color: #f59e0b; background: #fef3c7; font-weight: 800; padding: 3px 10px;">
+                                        Suspension
+                                    </span>
+                                }
+                                else if (string.Equals(item.LifecycleStatus, "Terminated", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <span class="badge badge-terminated" style="color: #7c2d12; border-color: #fb923c; background: #ffedd5; font-weight: 800; padding: 3px 10px;">
+                                        Terminated
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-dead" style="color: #991b1b; border-color: #f87171; background: #fee2e2; font-weight: 800; padding: 3px 10px;">
+                                        Dead
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.IsRecentlyDead)
+                                {
+                                    <span style="font-size: 0.74rem; font-weight: 700; padding: 3px 8px; border-radius: 9999px; background: #fef2f2; color: #991b1b; border: 1px dashed #f87171; display: inline-flex; align-items: center; gap: 4px;" title="Transitioned into Dead status. Shown for 7 days (1 week grace window).">
+                                        ⚡ Grace: @item.DeadDaysRemaining d left
+                                    </span>
+                                }
+                                else if (string.Equals(item.LifecycleStatus, "Suspension", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <span style="font-size: 0.74rem; font-weight: 600; color: #b45309; padding: 2px 6px; border-radius: 4px; background: rgba(245, 158, 11, 0.1);">
+                                        Grace Period
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span style="font-size: 0.74rem; font-weight: 600; color: #c2410c; padding: 2px 6px; border-radius: 4px; background: rgba(249, 115, 22, 0.1);">
+                                        Window Closed
+                                    </span>
+                                }
+                            </td>
+                            <td style="text-align: right; padding-right: 20px;">
+                                <div style="display: flex; gap: 6px; align-items: center; justify-content: flex-end;">
+                                    <a class="button small secondary" asp-controller="Devices" asp-action="Edit" asp-route-id="@dev.Id" asp-route-returnUrl="/DMG/Sensorise" style="font-size: 0.78rem; padding: 3px 9px;" title="Edit device details">
+                                        Edit
+                                    </a>
+                                    <a class="button small btn-primary" asp-controller="Recharges" asp-action="Index" asp-route-Query="@dev.VehicleNo" style="font-size: 0.78rem; padding: 3px 9px;" title="Recharge device">
+                                        Recharge
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination Footer -->
+    @if (Model.TotalPages > 1)
+    {
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-top: 1px solid var(--line, #e2e8f0); flex-wrap: wrap; gap: 10px;">
+            <div style="font-size: 0.85rem; color: var(--muted);">
+                Showing <strong>@(((Model.Page - 1) * Model.PageSize) + 1)</strong> to <strong>@(Math.Min(Model.Page * Model.PageSize, Model.TotalItems))</strong> of <strong>@Model.TotalItems</strong> devices
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+                @if (Model.Page > 1)
+                {
+                    <a asp-action="Index" asp-route-page="@(Model.Page - 1)" asp-route-query="@Model.Query" asp-route-statusFilter="@Model.StatusFilter" class="button secondary small">&laquo; Prev</a>
+                }
+                <span style="font-size: 0.85rem; font-weight: 600; padding: 0 8px;">Page @Model.Page of @Model.TotalPages</span>
+                @if (Model.Page < Model.TotalPages)
+                {
+                    <a asp-action="Index" asp-route-page="@(Model.Page + 1)" asp-route-query="@Model.Query" asp-route-statusFilter="@Model.StatusFilter" class="button secondary small">Next &raquo;</a>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        function selectSensoriseRow(tr) {
+            document.querySelectorAll('.sensorise-table tr.sensorise-row.active-row').forEach(function(r) {
+                if (r !== tr) r.classList.remove('active-row');
+            });
+            tr.classList.add('active-row');
+        }
+    </script>
+}

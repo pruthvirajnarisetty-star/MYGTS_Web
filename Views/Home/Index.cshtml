@@ -1,0 +1,86 @@
+@{
+    ViewData["Title"] = "Fleet intelligence, without the spreadsheet drag";
+}
+
+<div class="public-shell">
+    <section class="public-visual">
+        <div class="public-visual-inner">
+            <div>
+                <a class="brand-lockup" asp-controller="Home" asp-action="Index" data-testid="home-brand-link">
+                    <span class="brand-mark">M</span>
+                    <span><strong>MYGTS</strong><small>Fleet intelligence</small></span>
+                </a>
+                
+                <div class="public-kicker" style="margin-top: 88px;">GPS fleet operations / 01</div>
+                <h1>Move from workbook complexity to operational clarity.</h1>
+                <p>
+                    MYGTS gives mining and government fleet teams one precise operating view for devices, payments, invoices, lifecycle reminders, and traceable executive reporting.
+                </p>
+            </div>
+            
+            <div>
+                <div class="public-metrics">
+                    <div class="public-metric">
+                        <strong>500+</strong>
+                        <span>Tracked devices</span>
+                    </div>
+                    
+                    <div class="public-metric">
+                        <strong>24/7</strong>
+                        <span>Operational view</span>
+                    </div>
+                    
+                    <div class="public-metric">
+                        <strong>1-click</strong>
+                        <span>Workbook export</span>
+                    </div>
+                </div>
+                
+                <p class="public-footer" style="margin-top: 28px; color: rgba(255,255,255,.48);">
+                    Built for precise decisions in high-accountability environments.
+                </p>
+            </div>
+        </div>
+    </section>
+    
+    <section class="public-form-panel">
+        <div style="width: 100%; max-width: 560px;">
+            <div class="card" style="padding: 32px; margin-bottom: 18px;">
+                <span class="eyebrow">The operating system for your fleet</span>
+                <h2 style="margin: 11px 0 8px; font-size: 1.7rem; letter-spacing: -.04em;">One source of truth for every vehicle.</h2>
+                <p class="muted" style="margin: 0; font-size: .9rem;">
+                    Replace manual handoffs with role-aware workflows, configurable pricing, reminders that surface risk, and dashboards that show exactly where a number came from.
+                </p>
+            </div>
+            
+            <div class="card" style="padding: 32px;">
+                <span class="eyebrow">Secure console</span>
+                <h2 style="margin: 11px 0 8px; font-size: 1.7rem; letter-spacing: -.04em;">Ready when your team is.</h2>
+                <p class="muted" style="margin: 0 0 24px; font-size: .9rem;">
+                    Executive and team access keeps controls clear while preserving the speed of the field operation.
+                </p>
+                
+                <div style="display: flex; gap: 9px; flex-wrap: wrap;">
+                    <a class="button" asp-controller="Account" asp-action="Login" data-testid="home-cta-primary">Enter the console</a>
+                    <a class="button secondary" href="#capabilities" data-testid="home-capabilities-link">View capabilities</a>
+                </div>
+            </div>
+            
+            <div id="capabilities" class="trace-grid" style="margin-top: 18px;">
+                <div class="card" style="padding: 18px;">
+                    <span class="eyebrow">01 / Traceability</span>
+                    <p style="margin: 10px 0 0; font-size: .84rem;">
+                        Every KPI links back to its source rows and operating records.
+                    </p>
+                </div>
+                
+                <div class="card" style="padding: 18px;">
+                    <span class="eyebrow">02 / Control</span>
+                    <p style="margin: 10px 0 0; font-size: .84rem;">
+                        Executive-only settings, users, imports, and backup controls.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>

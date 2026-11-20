@@ -1,0 +1,73 @@
+@model ImportViewModel
+@{
+    var currentBranch = (string?)ViewBag.CurrentBranch ?? (Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG");
+    ViewData["Title"] = $"Import {currentBranch} devices";
+    ViewData["BodyClass"] = "form-background-container";
+}
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Fleet Management / Data Import</div>
+        <h1>Import @(currentBranch) devices</h1>
+        <p>Upload a spreadsheet (.xlsx or .csv) to import devices into your @(currentBranch) fleet registry with interactive review.</p>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+        <a class="button secondary" asp-action="DownloadSample" asp-route-branch="@currentBranch" title="Download sample devices Excel template">📥 Download sample sheet</a>
+        <a class="button ghost" asp-action="Index">← Back to devices</a>
+    </div>
+</div>
+
+<form class="card form-card" asp-action="Import" method="post" enctype="multipart/form-data" style="max-width: 680px; margin: 0 auto;">
+    <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+    
+    <div style="background: rgba(16, 185, 129, 0.08); border-left: 4px solid #10b981; border-radius: 6px; padding: 14px 16px; margin-bottom: 20px; font-size: 0.88rem; color: #065f46; line-height: 1.5;">
+        <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+            <span>ℹ️ Safe interactive import workflow:</span>
+        </div>
+        <ul style="margin: 6px 0 0 18px; padding: 0;">
+            <li>All rows from your file will be parsed and displayed in an interactive review table before anything is saved.</li>
+            <li><strong>Green rows:</strong> Brand new devices (no conflict). These will be added safely.</li>
+            <li><strong>Red rows:</strong> Records matching both <strong>IMEI</strong> and <strong>ICCID</strong> of an existing device in the system. You will be able to choose per row whether to replace with imported data or keep the existing data, with the existing row details displayed right in the dropdown.</li>
+        </ul>
+    </div>
+    
+    <div class="field">
+        <label asp-for="Workbook" class="form-label" style="font-weight: 600;">Choose spreadsheet file (.xlsx or .csv)</label>
+        <input asp-for="Workbook" class="input" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" data-testid="workbook-input" required />
+        <span asp-validation-for="Workbook" class="text-danger" style="font-size: 0.85rem; color: #ef4444;"></span>
+    </div>
+
+    <div class="field" style="margin-top: 16px; background: rgba(59, 130, 246, 0.05); border: 1px dashed #93c5fd; border-radius: 8px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div>
+            <strong style="color: var(--text-main); font-size: 0.9rem; display: block;">Standard @(currentBranch) device template</strong>
+            <span style="color: var(--muted); font-size: 0.82rem;">Download our standardized @(currentBranch) template with text-formatted ICCID and IMEI columns.</span>
+        </div>
+        <a class="button secondary" asp-action="DownloadSample" asp-route-branch="@currentBranch" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 6px 14px; text-decoration: none;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download sample sheet (.xlsx)
+        </a>
+    </div>
+    
+    <div class="field" style="margin-top: 20px; background: rgba(245, 158, 11, 0.07); border: 1px solid #fcd34d; border-radius: 10px; padding: 16px 20px;">
+        <label style="display: flex; align-items: flex-start; gap: 14px; cursor: pointer; user-select: none;">
+            <input asp-for="ExcludeFromUnpaid" type="checkbox" id="ExcludeFromUnpaid"
+                   style="appearance: none; width: 20px; height: 20px; min-width: 20px; border: 2px solid #d97706; border-radius: 4px; background: white; position: relative; cursor: pointer; margin-top: 2px;"
+                   onchange="this.style.background = this.checked ? '#d97706' : 'white';" />
+            <span>
+                <strong style="font-size: 0.95rem; color: #92400e; display: block;">Mark all imported devices as "Exclude from Unpaid"</strong>
+                <span style="font-size: 0.82rem; color: #78350f; line-height: 1.5; display: block; margin-top: 3px;">
+                    Tick this when importing old devices whose transaction history you are <strong>not</strong> uploading.
+                    All devices in this file will be hidden from the <em>Reminders → Unpaid Vehicles</em> list automatically —
+                    no need to edit each device individually afterwards.
+                </span>
+            </span>
+        </label>
+    </div>
+
+    <div class="form-actions" style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 10px;">
+        <a class="button ghost" asp-action="Index">Cancel</a>
+        <button class="button primary" type="submit" data-testid="workbook-import-submit" style="padding: 10px 20px; font-weight: 600;">
+            Upload and review devices →
+        </button>
+    </div>
+</form>

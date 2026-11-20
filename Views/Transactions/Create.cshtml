@@ -1,0 +1,860 @@
+@model TransactionFormViewModel
+@{
+    ViewData["Title"] = "New transaction";
+    ViewData["BodyClass"] = "form-background-container";
+    var currentBranch = Context.Request.Cookies["mygts_branch"] == "RTO" ? "RTO" : "DMG";
+}
+
+<style>
+/* Hide the default checkbox */
+.merge-checkbox input {
+ position: absolute;
+ opacity: 0;
+ cursor: pointer;
+ height: 0;
+ width: 0;
+}
+
+.merge-checkbox {
+ display: block;
+ position: relative;
+ cursor: pointer;
+ font-size: 16px;
+ user-select: none;
+}
+
+/* Create a custom checkbox */
+.checkmark {
+ position: relative;
+ top: 0;
+ left: 0;
+ height: 1.3em;
+ width: 1.3em;
+ background-color: #ccc;
+ transition: all 0.3s;
+ border-radius: 5px;
+}
+
+/* When the checkbox is checked, add a blue background */
+.merge-checkbox input:checked ~ .checkmark {
+ background-color: #47da99;
+ animation: pop 0.5s;
+ animation-direction: alternate;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.checkmark:after {
+ content: "";
+ position: absolute;
+ display: none;
+}
+
+/* Show the checkmark when checked */
+.merge-checkbox input:checked ~ .checkmark:after {
+ display: block;
+}
+
+/* Style the checkmark/indicator */
+.merge-checkbox .checkmark:after {
+ left: 0.45em;
+ top: 0.25em;
+ width: 0.25em;
+ height: 0.5em;
+ border: solid white;
+ border-width: 0 0.15em 0.15em 0;
+ transform: rotate(45deg);
+}
+
+@@keyframes pop {
+ 0% { transform: scale(1); }
+ 50% { transform: scale(0.9); }
+ 100% { transform: scale(1); }
+}
+
+.advanced-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px;
+    background: rgba(0,0,0,0.02);
+    border-radius: 8px;
+    margin: 16px 0;
+    grid-column: 1 / -1;
+}
+</style>
+
+<div class="glass-wrapper">
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">Financial operations / new entry</div>
+        <h1>Add transaction</h1>
+        <p>Capture the payment and its operational effect on a device.</p>
+    </div>
+    <a class="btn-back" asp-action="Index">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        Back to transactions
+    </a>
+</div>
+
+<form class="card form-card" asp-action="Create" method="post" style="margin: 0 auto;">
+    <div asp-validation-summary="All" class="validation-summary-errors"></div>
+    
+
+    <div class="form-grid">
+        <input type="hidden" asp-for="CurrentMode" id="CurrentMode" />
+        
+        <div class="field" id="field-date">
+            <label asp-for="Date" class="form-label">Date</label>
+            <input asp-for="Date" type="date" class="input" id="txn-date" />
+        </div>
+        
+        <div class="field" id="field-vehicle">
+            <label asp-for="VehicleNo" class="form-label">Vehicle number</label>
+            <input asp-for="VehicleNo" class="input" id="vehicle-input" placeholder="e.g. MH12AB1234" required />
+            <div id="vehicle-error" class="form-error" style="display:none; color: var(--danger); font-size: 0.85rem; margin-top: 4px;">Not available in the data</div>
+            <span asp-validation-for="VehicleNo" class="form-error"></span>
+        </div>
+
+        @if (Context.Request.Cookies["mygts_branch"] == "RTO")
+        {
+            <div class="field" id="field-type">
+                <label asp-for="Type" class="form-label">Type</label>
+                <select asp-for="Type" class="input" id="type-select" data-custom-dropdown="TransactionType" data-custom-title="Transaction Type">
+                    <option value="New">New</option>
+                    <option value="Old">Old</option>
+                </select>
+            </div>
+        }
+
+        <div class="field" id="field-vendor">
+            <label asp-for="Vendor" class="form-label">Vendor</label>
+            <input asp-for="Vendor" class="input" readonly style="background: var(--line);" />
+        </div>
+        
+        <div class="field" id="field-invoice-id">
+            <label asp-for="InvoiceId" class="form-label">Invoice ID</label>
+            <input asp-for="InvoiceId" class="input" readonly style="background: var(--line);" />
+        </div>
+        
+        <div class="field" id="field-payment-for">
+            <label asp-for="PaymentFor" class="form-label">Payment for</label>
+            <select asp-for="PaymentFor" class="select" id="payment-for">
+                <option>None</option>
+                <option>Activation</option>
+                <option>Reactivation</option>
+                <option>Other</option>
+            </select>
+        </div>
+
+        <div class="advanced-row" style="grid-column: 1 / -1; display: flex; gap: 24px; padding: 12px 0;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="TransactionTypeSelector" value="Standard" id="standard-toggle" checked style="width: 16px; height: 16px; cursor: pointer;">
+                <span style="font-weight: 500; font-size: 0.9rem;">Standard</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="TransactionTypeSelector" value="MergePartPayments" id="merge-toggle" style="width: 16px; height: 16px; cursor: pointer;">
+                <span style="font-weight: 500; font-size: 0.9rem;">Merge Payments</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="TransactionTypeSelector" value="BulkAllocation" id="bulk-toggle" style="width: 16px; height: 16px; cursor: pointer;">
+                <span style="font-weight: 500; font-size: 0.9rem;">Bulk Allocation</span>
+            </label>
+        </div>
+
+
+        
+        <div class="field" id="field-payment-mode">
+            <label asp-for="PaymentMode" class="form-label">Payment mode</label>
+            <select asp-for="PaymentMode" class="select" required>
+                <option value="">Select mode</option>
+                <option value="UPI">UPI</option>
+                <option value="Cash">Cash</option>
+                <option value="Banking">Banking</option>
+            </select>
+        </div>
+        
+        <div class="field" id="field-amount">
+            <label asp-for="Amount" class="form-label">Base amount</label>
+            <input asp-for="Amount" class="input" type="number" step="0.01" placeholder="e.g. 1500.00" />
+        </div>
+        
+        <div class="field" id="field-total">
+            <label asp-for="TotalPayment" class="form-label">Total payment</label>
+            <input asp-for="TotalPayment" class="input" type="number" step="0.01" placeholder="e.g. 2000.00" />
+        </div>
+        
+
+        
+        <div class="field" id="field-utr">
+            <label asp-for="Utr" class="form-label">UTR / reference</label>
+            <input asp-for="Utr" class="input" placeholder="e.g. UTR123456789" />
+        </div>
+        
+        <div class="field" id="field-paid-to">
+            <label asp-for="PaidTo" class="form-label">Paid to</label>
+            <input asp-for="PaidTo" class="input" placeholder="e.g. John Doe" />
+        </div>
+        
+        @if (currentBranch != "RTO")
+        {
+            <div class="field" id="field-extras">
+                <label asp-for="Extras" class="form-label">Extras</label>
+                <select asp-for="Extras" class="select" id="extras-select">
+                    <option value="">None</option>
+                    <option value="DMG">DMG</option>
+                    <option value="Tracking">Tracking</option>
+                </select>
+            </div>
+            
+            <div class="field" id="field-extras-amount" style="display: none;">
+                <label asp-for="ExtrasAmount" class="form-label">Extras deduction amount</label>
+                <input asp-for="ExtrasAmount" class="input" type="number" step="0.01" value="0" />
+            </div>
+        }
+
+        <div class="field" id="field-activation">
+            <label asp-for="ActivationDate" class="form-label">Activation date</label>
+            <input asp-for="ActivationDate" type="date" class="input" id="activation-date" />
+        </div>
+        
+        <div class="field" id="field-expiry">
+            <label asp-for="NewExpiryDate" class="form-label">New expiry date</label>
+            <input asp-for="NewExpiryDate" type="date" class="input" id="new-expiry" placeholder="YYYY-MM-DD" />
+        </div>
+        
+        <div class="field full" id="field-bulk-vehicles" style="display: none; background: rgba(0,0,0,0.02); padding: 16px; border-radius: 8px;">
+            <label class="form-label" style="margin-bottom: 12px; display: block;">Bulk Allocations</label>
+            <div id="bulk-rows-container" style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="bulk-row" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <input name="BulkAllocations[0].VehicleNo" type="text" class="input bulk-vehicle-input" placeholder="Vehicle No" style="flex: 1; min-width: 150px;" required />
+                    <input name="BulkAllocations[0].Amount" type="number" step="0.01" class="input bulk-amount-input" placeholder="Amount" style="width: 100px;" required />
+                    
+                    @if (currentBranch != "RTO")
+                    {
+                        <select name="BulkAllocations[0].Extras" class="select bulk-extras-select" style="width: 100px;" onchange="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';">
+                            <option value="">None</option>
+                            <option value="DMG">DMG</option>
+                            <option value="Tracking">Tracking</option>
+                        </select>
+                        <input name="BulkAllocations[0].ExtrasAmount" type="number" step="0.01" class="input bulk-extras-amount" placeholder="Deduct" style="width: 80px; display: none;" value="0" />
+                    }
+
+                    <input name="BulkAllocations[0].ActivationDate" type="date" class="input bulk-activation-input" title="Activation Date" style="width: 130px;" />
+                    <input name="BulkAllocations[0].NewExpiryDate" type="date" class="input bulk-expiry-input" title="Expiry Date" style="width: 130px;" />
+                    <button type="button" class="deleteButton" style="width: 32px; height: 32px;" onclick="if(document.querySelectorAll('.bulk-row').length > 1) { this.parentElement.remove(); window.calculateTransactionTotals && window.calculateTransactionTotals(); }">
+                      <svg viewBox="0 0 448 512" class="bin"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                <button type="button" class="button ghost" id="add-bulk-row" style="padding: 6px 12px; font-size: 0.85rem;">+ Add Vehicle</button>
+            </div>
+        </div>
+
+        <div class="field full" id="field-merge-grid" style="display: none; background: rgba(0,0,0,0.02); padding: 16px; border-radius: 8px;">
+            <label class="form-label" style="margin-bottom: 12px; display: block;">Merged Payments</label>
+            <div id="merge-rows-container" style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="merge-row" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <select name="MergePayments[0].PaymentMode" class="select payment-mode-input" style="width: 120px;" required>
+                        <option value="">Mode</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Banking">Banking</option>
+                    </select>
+                    <input name="MergePayments[0].Amount" type="number" step="0.01" class="input amount-input" placeholder="Amount" style="width: 100px;" />
+                    <div style="flex: 1; min-width: 150px; display: flex; flex-direction: column;">
+                        <input name="MergePayments[0].Utr" type="text" class="input utr-input" placeholder="UTR" />
+                        <span class="utr-balance-msg" style="color: var(--danger); font-size: 0.75rem; margin-top: 4px; display: none;"></span>
+                    </div>
+                    <input name="MergePayments[0].PaidTo" type="text" class="input" placeholder="Paid To" style="width: 120px;" />
+                    <button type="button" class="deleteButton" style="width: 32px; height: 32px;" onclick="if(document.querySelectorAll('.merge-row').length > 1) this.parentElement.remove()">
+                      <svg viewBox="0 0 448 512" class="bin"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                <button type="button" class="button ghost" id="add-merge-row" style="padding: 6px 12px; font-size: 0.85rem;">+ Add Payment</button>
+            </div>
+        </div>
+        
+        <div class="field full">
+            <label asp-for="Notes" class="form-label">Notes</label>
+            <textarea asp-for="Notes" class="textarea" placeholder="e.g. Monthly maintenance"></textarea>
+        </div>
+    </div>
+    
+    <div class="trace-grid" style="margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 16px;">
+            <span class="eyebrow">Amount</span>
+            <strong style="display:block; margin-top: 8px; font-size: 1.55rem; color: var(--blue-600);" data-txn-amount>₹0.00</strong>
+        </div>
+        
+        <div class="card" style="padding: 16px;">
+            <span class="eyebrow">Device Cost</span>
+            <strong style="display:block; margin-top: 8px; font-size: 1.55rem; color: var(--danger);" data-txn-cost>₹0.00</strong>
+        </div>
+        
+        <div class="card" style="padding: 16px;">
+            <span class="eyebrow">Profit / Margin</span>
+            <strong style="display:block; margin-top: 8px; font-size: 1.55rem; color: var(--success);" data-txn-profit>₹0.00</strong>
+        </div>
+    </div>
+    
+    <div class="permission-note" style="margin-top: 20px;">
+        A transaction with a new expiry date automatically updates the matching device record.
+    </div>
+    
+    <div class="form-actions" style="margin-top: 24px;">
+        <a class="button ghost" asp-action="Index">Cancel</a>
+        <button class="btn-primary" type="submit">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+            Record transaction
+        </button>
+    </div>
+</form>
+</div>
+
+<script>
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    alert("JS Error: " + msg + " on line " + lineNo);
+    fetch('/Transactions/SyncState', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'error', msg: msg, line: lineNo }) });
+    return false;
+};
+function logEvent(msg) {
+    fetch('/Transactions/SyncState', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'log', msg: msg }) });
+}
+
+function initCreateTransactionJS() {
+    
+    logEvent("initCreateTransactionJS started");
+    const mergeToggle = document.getElementById("merge-toggle");
+    const bulkToggle = document.getElementById("bulk-toggle");
+    const paymentFor = document.getElementById('payment-for');
+    
+    paymentFor.addEventListener('change', function() {
+        calculateTransactionTotals();
+    });
+
+    const typeSelect = document.getElementById('type-select');
+    if (typeSelect) {
+        typeSelect.addEventListener('change', calculateTransactionTotals);
+    }
+
+    const currentModeInput = document.getElementById("CurrentMode");
+    
+    const fVehicle = document.getElementById("field-vehicle");
+    const fVendor = document.getElementById("field-vendor");
+    const fInvoiceId = document.getElementById("field-invoice-id");
+    const fAmount = document.getElementById("field-amount");
+    const fTotal = document.getElementById("field-total");
+    const fUtr = document.getElementById("field-utr");
+    const fPaidTo = document.getElementById("field-paid-to");
+    const fPaymentMode = document.getElementById("field-payment-mode");
+    const fActivation = document.getElementById("field-activation");
+    const fExpiry = document.getElementById("field-expiry");
+    const activationInput = document.getElementById("activation-date");
+    const expiryInput = document.getElementById("new-expiry");
+    
+    function parseDateParts(str) {
+        if (!str) return null;
+        str = String(str).trim();
+        let m = str.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+        if (m) {
+            return { y: parseInt(m[1], 10), m: parseInt(m[2], 10) - 1, d: parseInt(m[3], 10) };
+        }
+        m = str.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/);
+        if (m) {
+            return { y: parseInt(m[3], 10), m: parseInt(m[2], 10) - 1, d: parseInt(m[1], 10) };
+        }
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) {
+            return { y: d.getFullYear(), m: d.getMonth(), d: d.getDate() };
+        }
+        return null;
+    }
+
+    function formatToIso(str) {
+        const p = parseDateParts(str);
+        if (!p) return '';
+        return `${p.y}-${String(p.m + 1).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+    }
+
+    function calculateExpiryDate(activationDateStr, isNewRto) {
+        const p = parseDateParts(activationDateStr);
+        if (!p) return '';
+        const monthsToAdd = isNewRto ? 23 : (parseInt('@(ViewBag.ActivationExpiryMonths ?? "11")') || 11);
+        const daysToAdd = parseInt('@(ViewBag.ActivationExpiryDays ?? "15")') || 15;
+        const dt = new Date(p.y, p.m + monthsToAdd, p.d + daysToAdd);
+        if (isNaN(dt.getTime())) return '';
+        const resY = dt.getFullYear();
+        const resM = String(dt.getMonth() + 1).padStart(2, '0');
+        const resD = String(dt.getDate()).padStart(2, '0');
+        return `${resY}-${resM}-${resD}`;
+    }
+
+    function updateExpiry() {
+        if (!activationInput || !expiryInput) return;
+        const val = activationInput.value;
+        if (!val) {
+            expiryInput.value = '';
+            return;
+        }
+        const typeSelectEl = document.getElementById('type-select');
+        let isNewRto = false;
+        const branchMatch = (document.cookie.match(/mygts_branch=([^;]+)/) || [])[1];
+        const branch = (branchMatch ? decodeURIComponent(branchMatch) : '@currentBranch').toUpperCase();
+        if (branch === 'RTO') {
+            if (typeSelectEl && typeSelectEl.value) {
+                const tv = typeSelectEl.value.toUpperCase();
+                isNewRto = tv === 'NEW' || tv.includes('2');
+            } else {
+                isNewRto = true;
+            }
+        }
+        expiryInput.value = calculateExpiryDate(val, isNewRto);
+    }
+
+    if (activationInput) {
+        activationInput.addEventListener("input", updateExpiry);
+        activationInput.addEventListener("change", updateExpiry);
+        activationInput.addEventListener("keyup", updateExpiry);
+        activationInput.addEventListener("blur", updateExpiry);
+    }
+    if (paymentFor) {
+        paymentFor.addEventListener("change", updateExpiry);
+    }
+    if (typeSelect) {
+        typeSelect.addEventListener("change", updateExpiry);
+    }
+
+    // Default calculate expiry date on initial load if activation date is present
+    if (activationInput && activationInput.value) {
+        updateExpiry();
+    }
+
+    const fMergeGrid = document.getElementById("field-merge-grid");
+    const fBulkGrid = document.getElementById("field-bulk-vehicles");
+    
+    const amountDisplay = document.querySelector('[data-txn-amount]');
+    const costDisplay = document.querySelector('[data-txn-cost]');
+    const profitDisplay = document.querySelector('[data-txn-profit]');
+
+    window.currentDeviceCost = 0;
+
+    const vehicleInput = document.querySelector('[name="VehicleNo"]');
+    const vendorInput = document.querySelector('[name="Vendor"]');
+    const invoiceIdInput = document.querySelector('[name="InvoiceId"]');
+    
+    if (vehicleInput) {
+        logEvent("vehicleInput found, attaching event");
+        
+        const fetchDeviceInfo = function(v) {
+            fetch('/Transactions/GetDeviceInfo?vehicleNo=' + encodeURIComponent(v), { credentials: 'same-origin' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data && (data.isFound === false || data.IsFound === false)) {
+                        let err = document.getElementById('vehicle-error');
+                        if(err) err.style.display = 'block';
+                        window.currentDeviceCost = parseFloat('@ViewBag.CostPerDevice') || 0;
+                    } else if (data) {
+                        let err = document.getElementById('vehicle-error');
+                        if(err) err.style.display = 'none';
+                        const vendor = data.vendor || data.Vendor;
+                        const invoiceId = data.invoiceId || data.InvoiceId;
+                        const unitCost = data.unitCost || data.UnitCost;
+                        const typeVal = data.type || data.Type;
+                        const actDate = data.activationDate || data.ActivationDate;
+                        const expDate = data.latestExpiryDate || data.LatestExpiryDate;
+                        if (vendorInput && vendor) { vendorInput.value = vendor; vendorInput.readOnly = true; }
+                        if (invoiceIdInput && invoiceId) { invoiceIdInput.value = invoiceId; invoiceIdInput.readOnly = true; }
+                        const typeSelectEl = document.getElementById('type-select');
+                        if (typeSelectEl && typeVal) { 
+                            typeSelectEl.value = typeVal; 
+                            typeSelectEl.style.pointerEvents = 'none';
+                            typeSelectEl.style.opacity = '0.7';
+                            typeSelectEl.style.backgroundColor = '#e9ecef';
+                        }
+                        window.currentDeviceCost = parseFloat(unitCost) || 0;
+                        if (actDate && activationInput) {
+                            activationInput.value = formatToIso(actDate);
+                        }
+                        if (activationInput && activationInput.value) {
+                            updateExpiry();
+                        } else if (expDate && expiryInput) {
+                            expiryInput.value = formatToIso(expDate);
+                        }
+                    }
+                    calculateTransactionTotals();
+                })
+                .catch(e => console.error(e));
+        };
+
+        let debounceTimer;
+        vehicleInput.addEventListener('input', function() {
+            logEvent("vehicleInput input triggered: " + this.value);
+            clearTimeout(debounceTimer);
+            const v = this.value.trim();
+            if (!v) {
+                let err = document.getElementById('vehicle-error');
+                if(err) err.style.display = 'none';
+                if (vendorInput) { vendorInput.value = ''; vendorInput.readOnly = false; }
+                if (invoiceIdInput) { invoiceIdInput.value = ''; invoiceIdInput.readOnly = false; }
+                window.currentDeviceCost = parseFloat('@ViewBag.CostPerDevice') || 0;
+                calculateTransactionTotals();
+                return;
+            }
+            debounceTimer = setTimeout(() => fetchDeviceInfo(v), 500);
+        });
+
+        const initialV = vehicleInput.value.trim();
+        if (initialV) {
+            fetchDeviceInfo(initialV);
+        }
+    }
+
+    if (invoiceIdInput) {
+        let invDebounceTimer;
+        invoiceIdInput.addEventListener('input', function() {
+            clearTimeout(invDebounceTimer);
+            const inv = this.value.trim();
+            if (!inv) {
+                return;
+            }
+            invDebounceTimer = setTimeout(() => {
+                fetch('/Transactions/GetInvoiceCost?invoiceId=' + encodeURIComponent(inv), { credentials: 'same-origin' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.unitCost > 0) {
+                            window.currentDeviceCost = parseFloat(data.unitCost) || 0;
+                            calculateTransactionTotals();
+                        }
+                    })
+                    .catch(e => console.error(e));
+            }, 500);
+        });
+    }
+
+    function calculateTransactionTotals() {
+        let amount = 0;
+        let total = 0;
+        let profit = 0;
+        
+        const val = paymentFor.value;
+        let transactionCost = 0;
+        if (val === "Activation") {
+            transactionCost = window.currentDeviceCost;
+            if (typeSelect) {
+                const branchType = typeSelect.value;
+                const commCost = parseFloat('@ViewBag.CommissionCost') || 0;
+                const simCost = branchType === 'Old' ? (parseFloat('@ViewBag.SimCost1Year') || 0) : (parseFloat('@ViewBag.SimCost2Years') || 0);
+                transactionCost += (commCost + simCost);
+            }
+        } else if (val === "Reactivation") {
+            transactionCost = parseFloat('@ViewBag.PriceReactivation') || 0;
+        }
+        
+        if (currentModeInput.value === "MergePartPayments") {
+            total = parseFloat(fTotal.querySelector('input').value) || 0;
+            document.querySelectorAll('.merge-row').forEach(row => {
+                const rAmount = parseFloat(row.querySelector('.amount-input').value) || 0;
+                amount += rAmount;
+                profit += rAmount;
+            });
+            profit -= transactionCost;
+        } else if (currentModeInput.value === "BulkAllocation") {
+            total = parseFloat(fTotal.querySelector('input').value) || 0;
+            let baseAmount = 0;
+            amount = 0;
+            document.querySelectorAll('.bulk-row').forEach(row => {
+                const rowAmount = parseFloat(row.querySelector('.bulk-amount-input').value) || 0;
+                const rowExtrasElement = row.querySelector('.bulk-extras-amount');
+                const rowExtras = rowExtrasElement ? (parseFloat(rowExtrasElement.value) || 0) : 0;
+                baseAmount += rowAmount;
+                amount += (rowAmount - rowExtras);
+                profit += (rowAmount - rowExtras);
+            });
+        } else {
+            const baseAmount = parseFloat(fAmount.querySelector('input').value) || 0;
+            const extrasElement = document.getElementById('ExtrasAmount');
+            const extras = extrasElement ? (parseFloat(extrasElement.value) || 0) : 0;
+            amount = baseAmount - extras;
+            total = parseFloat(fTotal.querySelector('input').value) || baseAmount;
+            profit = amount - transactionCost;
+        }
+
+        const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+        
+        if(amountDisplay) amountDisplay.textContent = formatCurrency(amount);
+        if(costDisplay) costDisplay.textContent = formatCurrency(transactionCost);
+        if(profitDisplay) {
+            profitDisplay.textContent = formatCurrency(profit);
+            if(profit < 0) profitDisplay.style.color = "var(--danger)";
+            else if(profit > 0) profitDisplay.style.color = "var(--success)";
+            else profitDisplay.style.color = "inherit";
+        }
+    }
+
+    function updateVisibility() {
+        if (mergeToggle.checked) {
+            currentModeInput.value = "MergePartPayments";
+            fVehicle.style.display = "block";
+            fVendor.style.display = "block";
+            fInvoiceId.style.display = "block";
+            fAmount.style.display = "none";
+            fTotal.style.display = "block";
+            fUtr.style.display = "none";
+            fPaidTo.style.display = "none";
+            fPaymentMode.style.display = "none";
+            fActivation.style.display = "none";
+            fExpiry.style.display = "none";
+            
+            fMergeGrid.style.display = "block";
+            fBulkGrid.style.display = "none";
+        } else if (bulkToggle.checked) {
+            currentModeInput.value = "BulkAllocation";
+            fVehicle.style.display = "none";
+            fVendor.style.display = "none";
+            fInvoiceId.style.display = "none";
+            fAmount.style.display = "none";
+            fTotal.style.display = "block";
+            fUtr.style.display = "block";
+            fPaidTo.style.display = "block";
+            fPaymentMode.style.display = "block";
+            fActivation.style.display = "none";
+            fExpiry.style.display = "none";
+            
+            fMergeGrid.style.display = "none";
+            fBulkGrid.style.display = "block";
+        } else {
+            currentModeInput.value = "Standard";
+            fVehicle.style.display = "block";
+            fVendor.style.display = "block";
+            fInvoiceId.style.display = "block";
+            fAmount.style.display = "block";
+            fTotal.style.display = "none";
+            fUtr.style.display = "block";
+            fPaidTo.style.display = "block";
+            fPaymentMode.style.display = "block";
+            fActivation.style.display = "block";
+            fExpiry.style.display = "block";
+            
+            fMergeGrid.style.display = "none";
+            fBulkGrid.style.display = "none";
+        }
+        
+        // Dynamically toggle required attribute based on visibility
+        document.querySelectorAll('.form-grid input, .form-grid select, .form-grid textarea').forEach(el => {
+            if(el.id === 'batch-id' || el.name === 'Notes' || el.id === 'CurrentMode' || el.classList.contains('remaining-input') || el.type === 'checkbox' || el.type === 'radio') return;
+            
+            const field = el.closest('.field, .field.full, .advanced-row');
+            if (field && field.style.display !== 'none') {
+                el.required = true;
+                el.disabled = false;
+            } else {
+                el.required = false;
+                el.disabled = true;
+            }
+        });
+        calculateTransactionTotals();
+    }
+
+    document.querySelectorAll('input[name="TransactionTypeSelector"]').forEach(radio => {
+        radio.addEventListener("change", updateVisibility);
+    });
+    
+    updateVisibility();
+
+    // Dynamic grid logic
+    const addRowBtn = document.getElementById("add-merge-row");
+    const rowsContainer = document.getElementById("merge-rows-container");
+    let rowCount = 1;
+
+    addRowBtn.addEventListener("click", function() {
+        const row = document.createElement("div");
+        row.className = "merge-row";
+        row.style.display = "flex";
+        row.style.gap = "8px";
+        row.style.alignItems = "center";
+        row.style.flexWrap = "wrap";
+        
+        row.innerHTML = `
+            <select name="MergePayments[${rowCount}].PaymentMode" class="select payment-mode-input" style="width: 120px;" required>
+                <option value="">Mode</option>
+                <option value="UPI">UPI</option>
+                <option value="Cash">Cash</option>
+                <option value="Banking">Banking</option>
+            </select>
+            <input name="MergePayments[${rowCount}].Amount" type="number" step="0.01" class="input amount-input" placeholder="Amount" style="width: 100px;" />
+            <div style="flex: 1; min-width: 150px; display: flex; flex-direction: column;">
+                <input name="MergePayments[${rowCount}].Utr" type="text" class="input utr-input" placeholder="UTR" />
+                <span class="utr-balance-msg" style="color: var(--danger); font-size: 0.75rem; margin-top: 4px; display: none;"></span>
+            </div>
+            <input name="MergePayments[${rowCount}].PaidTo" type="text" class="input" placeholder="Paid To" style="width: 120px;" />
+            <button type="button" class="deleteButton" style="width: 32px; height: 32px;" onclick="if(document.querySelectorAll('.merge-row').length > 1) this.parentElement.remove()">
+              <svg viewBox="0 0 448 512" class="bin"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg>
+            </button>
+        `;
+        rowsContainer.appendChild(row);
+        bindRowEvents(row);
+        rowCount++;
+    });
+
+    // Bulk Allocation Grid Logic
+    const addBulkRowBtn = document.getElementById("add-bulk-row");
+    const bulkRowsContainer = document.getElementById("bulk-rows-container");
+    let bulkRowCount = 1;
+
+    function bindBulkRowEvents(row) {
+        const actInput = row.querySelector('.bulk-activation-input');
+        const expInput = row.querySelector('.bulk-expiry-input');
+        const vehInput = row.querySelector('.bulk-vehicle-input');
+        
+        const updateBulkExpiry = function() {
+            if (!actInput || !expInput) return;
+            if (!actInput.value) { expInput.value = ''; return; }
+            const typeSelectEl = document.getElementById('type-select');
+            let isNewRto = false;
+            const branchMatch = (document.cookie.match(/mygts_branch=([^;]+)/) || [])[1];
+            const branch = (branchMatch ? decodeURIComponent(branchMatch) : '@currentBranch').toUpperCase();
+            if (branch === 'RTO') {
+                if (typeSelectEl && typeSelectEl.value) {
+                    const tv = typeSelectEl.value.toUpperCase();
+                    isNewRto = tv === 'NEW' || tv.includes('2');
+                } else {
+                    isNewRto = true;
+                }
+            }
+            expInput.value = calculateExpiryDate(actInput.value, isNewRto);
+        };
+        
+        if (actInput) {
+            actInput.addEventListener("input", updateBulkExpiry);
+            actInput.addEventListener("change", updateBulkExpiry);
+            actInput.addEventListener("keyup", updateBulkExpiry);
+            actInput.addEventListener("blur", updateBulkExpiry);
+        }
+        if (document.getElementById('type-select')) {
+            document.getElementById('type-select').addEventListener("change", updateBulkExpiry);
+        }
+
+        if (vehInput) {
+            let bDebounce;
+            vehInput.addEventListener('input', function() {
+                clearTimeout(bDebounce);
+                const v = this.value.trim();
+                if (!v) return;
+                bDebounce = setTimeout(() => {
+                    fetch('/Transactions/GetDeviceInfo?vehicleNo=' + encodeURIComponent(v))
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data && (data.isFound || data.IsFound)) {
+                                const bAct = data.activationDate || data.ActivationDate;
+                                const bExp = data.latestExpiryDate || data.LatestExpiryDate;
+                                if (bAct && actInput) {
+                                    actInput.value = formatToIso(bAct);
+                                }
+                                if (actInput && actInput.value) {
+                                    updateBulkExpiry();
+                                } else if (bExp && expInput) {
+                                    expInput.value = formatToIso(bExp);
+                                }
+                            }
+                        })
+                        .catch(e => console.error(e));
+                }, 500);
+            });
+        }
+        
+        if (actInput && actInput.value) {
+            updateBulkExpiry();
+        }
+        
+        row.querySelector('.bulk-amount-input').addEventListener("input", calculateTransactionTotals);
+        const extrasAmountEl = row.querySelector('.bulk-extras-amount');
+        if (extrasAmountEl) extrasAmountEl.addEventListener("input", calculateTransactionTotals);
+    }
+    
+    // Bind initial row
+    if(document.querySelector('.bulk-row')) bindBulkRowEvents(document.querySelector('.bulk-row'));
+
+    const extrasSelect = document.getElementById('extras-select');
+    if (extrasSelect) {
+        extrasSelect.addEventListener('change', function() {
+            const amountField = document.getElementById('field-extras-amount');
+            if(this.value) {
+                amountField.style.display = 'block';
+            } else {
+                amountField.style.display = 'none';
+                document.getElementById('ExtrasAmount').value = 0;
+                calculateTransactionTotals();
+            }
+            updateVisibility();
+        });
+    }
+
+    addBulkRowBtn.addEventListener("click", function() {
+        const row = document.createElement("div");
+        row.className = "bulk-row";
+        row.style.display = "flex";
+        row.style.gap = "8px";
+        row.style.alignItems = "center";
+        row.style.flexWrap = "wrap";
+        
+        row.innerHTML = `
+            <input name="BulkAllocations[${bulkRowCount}].VehicleNo" type="text" class="input bulk-vehicle-input" placeholder="Vehicle No" style="flex: 1; min-width: 150px;" required />
+            <input name="BulkAllocations[${bulkRowCount}].Amount" type="number" step="0.01" class="input bulk-amount-input" placeholder="Amount" style="width: 100px;" required />
+            @if (currentBranch != "RTO")
+            {
+                <select name="BulkAllocations[${bulkRowCount}].Extras" class="select bulk-extras-select" style="width: 100px;" onchange="this.nextElementSibling.style.display = this.value ? 'inline-block' : 'none';">
+                    <option value="">None</option>
+                    <option value="DMG">DMG</option>
+                    <option value="Tracking">Tracking</option>
+                </select>
+                <input name="BulkAllocations[${bulkRowCount}].ExtrasAmount" type="number" step="0.01" class="input bulk-extras-amount" placeholder="Deduct" style="width: 80px; display: none;" value="0" />
+            }
+            <input name="BulkAllocations[${bulkRowCount}].ActivationDate" type="date" class="input bulk-activation-input" title="Activation Date" style="width: 130px;" />
+            <input name="BulkAllocations[${bulkRowCount}].NewExpiryDate" type="date" class="input bulk-expiry-input" title="Expiry Date" style="width: 130px;" />
+            <button type="button" class="deleteButton" style="width: 32px; height: 32px;" onclick="if(document.querySelectorAll('.bulk-row').length > 1) { this.parentElement.remove(); window.calculateTransactionTotals && window.calculateTransactionTotals(); }">
+              <svg viewBox="0 0 448 512" class="bin"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg>
+            </button>
+        `;
+        bulkRowsContainer.appendChild(row);
+        bindBulkRowEvents(row);
+        
+        bulkRowCount++;
+    });
+
+    fTotal.querySelector('input').addEventListener("input", calculateTransactionTotals);
+    document.querySelector('.bulk-amount-input').addEventListener("input", calculateTransactionTotals);
+
+
+
+    function bindRowEvents(row) {
+        const inputs = row.querySelectorAll('.utr-input, .amount-input');
+        inputs.forEach(input => {
+            input.addEventListener('input', () => {
+                setTimeout(() => {
+                    calculateTransactionTotals();
+                }, 100); // debounce slightly
+            });
+        });
+    }
+
+    document.querySelectorAll('.merge-row').forEach(bindRowEvents);
+    
+    // Bind listeners for standard fields
+    fAmount.querySelector('input').addEventListener('input', calculateTransactionTotals);
+    fTotal.querySelector('input').addEventListener('input', calculateTransactionTotals);
+    const extrasAmountGlobal = document.getElementById('ExtrasAmount');
+    if (extrasAmountGlobal) {
+        extrasAmountGlobal.addEventListener('input', calculateTransactionTotals);
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCreateTransactionJS);
+} else {
+    initCreateTransactionJS();
+}
+</script>
+
